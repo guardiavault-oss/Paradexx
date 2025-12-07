@@ -5,7 +5,7 @@
     "buildCommand": "cd src/backend && npm install && npx prisma generate && npm run build"
   },
   "deploy": {
-    "startCommand": "cd src/backend && npm start",
+    "startCommand": "cd src/backend && npx prisma db push --accept-data-loss && npm start",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
