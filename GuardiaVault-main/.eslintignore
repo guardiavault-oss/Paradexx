@@ -1,0 +1,11 @@
+node_modules
+dist
+build
+coverage
+artifacts
+cache
+*.config.js
+*.config.cjs
+.env
+.env.local
+

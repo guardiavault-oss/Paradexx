@@ -1,0 +1,203 @@
+# Scorpius 3.3 - Standardized Requirements
+# Unified dependency management for all microservices
+
+# ===== CORE FRAMEWORK =====
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic[email]==2.5.0
+pydantic-settings==2.1.0
+
+# ===== DATABASE & ORM =====
+sqlalchemy[asyncio]==2.0.23
+asyncpg==0.29.0
+psycopg2-binary==2.9.9
+alembic==1.13.1
+
+# ===== CACHING & QUEUES =====
+redis[hiredis]==5.0.1
+celery[redis]==5.3.4
+kombu==5.3.4
+
+# ===== HTTP CLIENT & NETWORKING =====
+httpx==0.25.2
+aiohttp==3.9.1
+requests==2.31.0
+websockets==12.0
+
+# ===== BLOCKCHAIN & WEB3 =====
+web3==6.12.0
+eth-account==0.10.0
+eth-utils==2.3.0
+py-evm==0.8.0b1
+
+# ===== SECURITY & CRYPTOGRAPHY =====
+cryptography==41.0.8
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.6
+
+# ===== OBSERVABILITY & MONITORING =====
+prometheus-client==0.19.0
+structlog==23.2.0
+opentelemetry-api==1.21.0
+opentelemetry-sdk==1.21.0
+opentelemetry-instrumentation-fastapi==0.42b0
+opentelemetry-instrumentation-sqlalchemy==0.42b0
+opentelemetry-instrumentation-redis==0.42b0
+opentelemetry-instrumentation-celery==0.42b0
+opentelemetry-exporter-jaeger==1.21.0
+
+# ===== DATA PROCESSING & ANALYSIS =====
+pandas==2.1.4
+numpy==1.25.2
+scipy==1.11.4
+scikit-learn==1.3.2
+
+# ===== SERIALIZATION & VALIDATION =====
+marshmallow==3.20.2
+jsonschema==4.20.0
+python-dateutil==2.8.2
+pytz==2023.3.post1
+
+# ===== TESTING =====
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+httpx==0.25.2  # For testing FastAPI apps
+factory-boy==3.3.0
+
+# ===== DEVELOPMENT TOOLS =====
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0
+mypy==1.7.1
+pre-commit==3.6.0
+
+# ===== UTILITIES =====
+python-dotenv==1.0.0
+click==8.1.7
+rich==13.7.0
+typer==0.9.0
+tenacity==8.2.3
+
+# ===== SMART CONTRACT ANALYSIS =====
+slither-analyzer==0.10.0
+mythril==0.24.8
+manticore==0.3.7
+
+# ===== API DOCUMENTATION =====
+swagger-ui-bundle==0.0.9
+redoc==2.1.0
+
+# ===== PERFORMANCE & OPTIMIZATION =====
+orjson==3.9.10
+ujson==5.8.0
+msgpack==1.0.7
+psutil==5.9.6
+
+# ===== DEPLOYMENT & CONTAINERIZATION =====
+gunicorn==21.2.0
+docker==6.1.3
+kubernetes==28.1.0
+
+# ===== ADDITIONAL SECURITY TOOLS =====
+bandit==1.7.5
+safety==2.3.5
+semgrep==1.45.0
+
+# ===== MACHINE LEARNING (for AI-powered analysis) =====
+torch==2.1.1
+transformers==4.36.0
+sentence-transformers==2.2.2
+
+# ===== TIME SERIES & ANALYTICS =====
+influxdb-client==1.38.0
+grafana-api==1.0.3
+
+# ===== BLOCKCHAIN SPECIFIC =====
+brownie-eth==1.20.4
+vyper==0.3.10
+solcx==2.0.2
+
+# ===== COMMUNICATION =====
+discord.py==2.3.2
+slack-sdk==3.26.1
+twilio==8.11.0
+
+# ===== FILE PROCESSING =====
+openpyxl==3.1.2
+python-magic==0.4.27
+pillow==10.1.0
+
+# ===== CONFIGURATION MANAGEMENT =====
+dynaconf==3.2.4
+python-decouple==3.8
+
+# ===== RATE LIMITING =====
+slowapi==0.1.9
+limits==3.6.0
+
+# ===== CACHING EXTENSIONS =====
+aiocache==0.12.2
+cachetools==5.3.2
+
+# ===== ASYNC UTILITIES =====
+asyncio-mqtt==0.16.1
+aiofiles==23.2.1
+aioredis==2.0.1
+
+# ===== HEALTH CHECKS =====
+healthcheck==1.3.3
+
+# ===== ENVIRONMENT MANAGEMENT =====
+python-environ==0.4.54
+
+# ===== ADDITIONAL FASTAPI EXTENSIONS =====
+fastapi-users[sqlalchemy]==12.1.2
+fastapi-pagination==0.12.13
+fastapi-cache2[redis]==0.2.1
+fastapi-limiter==0.1.5
+
+# ===== WEBSOCKET SUPPORT =====
+python-socketio==5.10.0
+websocket-client==1.6.4
+
+# ===== BACKGROUND TASKS =====
+rq==1.15.1
+dramatiq[redis]==1.15.0
+
+# ===== API VERSIONING =====
+fastapi-versioning==0.10.0
+
+# ===== CORS & MIDDLEWARE =====
+fastapi-cors==0.0.6
+
+# ===== DEPENDENCY INJECTION =====
+dependency-injector==4.41.0
+
+# ===== SCHEMA VALIDATION =====
+cerberus==1.3.5
+
+# ===== RETRY MECHANISMS =====
+backoff==2.2.1
+
+# ===== PROFILING =====
+py-spy==0.3.14
+memory-profiler==0.61.0
+
+# ===== ADDITIONAL TESTING TOOLS =====
+locust==2.17.0
+faker==20.1.0
+
+# ===== DOCUMENTATION =====
+mkdocs==1.5.3
+mkdocs-material==9.4.8
+
+# ===== VERSION PINNING FOR STABILITY =====
+# All versions are pinned to ensure reproducible builds
+# Update versions carefully and test thoroughly
+
+# ===== PLATFORM SPECIFIC =====
+# These are specific to Scorpius platform functionality
+scorpius-sdk==1.0.0  # Custom SDK (if available)

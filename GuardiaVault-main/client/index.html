@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description" content="GuardiaVault - Enterprise-grade blockchain security and digital inheritance platform" />
+    <meta name="theme-color" content="#6366f1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="GuardiaVault" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="GuardiaVault" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
+    <meta name="msapplication-TileColor" content="#6366f1" />
+    <meta name="msapplication-tap-highlight" content="no" />
+    <title>GuardiaVault - Digital Asset Protection</title>
+    
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512x512.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    
+    <!-- Apple Splash Screens -->
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-2048-2732.jpg" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-1668-2388.jpg" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-1536-2048.jpg" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-1125-2436.jpg" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-1242-2688.jpg" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-750-1334.jpg" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-640-1136.jpg" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+    
+    <!-- Preconnect to external domains for faster loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- DNS prefetch for API endpoints -->
+    <link rel="dns-prefetch" href="https://guardiavault-production.up.railway.app" />
+    
+    <!-- Resource hints for better performance -->
+    <meta http-equiv="x-dns-prefetch-control" content="on" />
+    
+    <!-- Preload critical CSS for above-the-fold content -->
+    <link rel="preload" href="/src/index.css" as="style" />
+    <link rel="preload" href="/src/design-system.css" as="style" />
+  </head>
+  <body>
+    <div id="root">
+      <!-- Initial loading state - visible before JavaScript loads -->
+      <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0f172a; color: #ffffff; font-family: system-ui, -apple-system, sans-serif; position: relative;">
+        <div style="text-align: center; z-index: 1;">
+          <div style="width: 48px; height: 48px; border: 4px solid rgba(255, 255, 255, 0.1); border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+          <p style="margin: 0; font-size: 14px; opacity: 0.8; color: #94a3b8;">Loading GuardiaVault...</p>
+        </div>
+      </div>
+      <style>
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      </style>
+    </div>
+    <noscript>
+      <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0f172a; color: #ffffff; font-family: system-ui, -apple-system, sans-serif; text-align: center; padding: 20px;">
+        <div>
+          <h1 style="font-size: 24px; margin-bottom: 16px; color: #ffffff;">JavaScript Required</h1>
+          <p style="opacity: 0.8; color: #94a3b8;">GuardiaVault requires JavaScript to run. Please enable JavaScript in your browser.</p>
+        </div>
+      </div>
+    </noscript>
+    <!-- Defer script loading for better performance -->
+    <!-- React will be initialized in main.tsx before any other modules load -->
+    <script type="module" src="/src/main.tsx" defer></script>
+  </body>
+</html>

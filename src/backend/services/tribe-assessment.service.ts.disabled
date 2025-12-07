@@ -1,0 +1,607 @@
+/**
+ * Tribe Assessment Service
+ * Handles initial assessment, badge assignment, and 30-day behavioral reassessment
+ */
+
+import { prisma as db } from '../config/database';
+import { logger } from '../services/logger.service';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+export type TribeType = 'degen' | 'regen';
+
+export interface AssessmentQuestion {
+    id: string;
+    question: string;
+    options: {
+        id: string;
+        text: string;
+        degenScore: number; // 0-10, higher = more degen
+        regenScore: number; // 0-10, higher = more regen
+    }[];
+}
+
+export interface AssessmentAnswer {
+    questionId: string;
+    answerId: string;
+}
+
+export interface AssessmentResult {
+    tribe: TribeType;
+    degenPercent: number;
+    regenPercent: number;
+    confidence: number; // 0-100, how confident we are in the assessment
+    assessmentDate: Date;
+    reassessmentDate: Date; // 30 days from assessment
+    source: 'initial_assessment' | 'behavioral_reassessment' | 'manual_override';
+}
+
+export interface UserTribeProfile {
+    id: string;
+    userId: string;
+    tribe: TribeType;
+    degenPercent: number;
+    regenPercent: number;
+    assessmentHistory: AssessmentResult[];
+    behavioralMetrics: BehavioralMetrics;
+    createdAt: Date;
+    updatedAt: Date;
+    nextReassessmentAt: Date;
+}
+
+export interface BehavioralMetrics {
+    // Trading behavior
+    totalTrades: number;
+    avgTradeSize: number;
+    memeTokenTrades: number;
+    blueChipTrades: number;
+    riskScore: number; // 0-100, higher = riskier
+
+    // DeFi behavior
+    stakingPositions: number;
+    yieldFarmingPositions: number;
+    avgHoldDuration: number; // in days
+
+    // Timing behavior
+    avgTimeToSell: number; // hours after buying
+    panicSells: number; // sells during big dips
+    dipBuys: number; // buys during dips
+
+    // Portfolio composition
+    stablecoinRatio: number;
+    memeTokenRatio: number;
+    defiTokenRatio: number;
+    nftHoldings: number;
+
+    // Activity patterns
+    tradingFrequency: 'low' | 'medium' | 'high' | 'extreme';
+    preferredHours: 'day' | 'night' | 'mixed';
+    lastActive: Date;
+}
+
+// ============================================================================
+// ASSESSMENT QUESTIONS
+// ============================================================================
+
+export const ASSESSMENT_QUESTIONS: AssessmentQuestion[] = [
+    {
+        id: 'q1_risk_tolerance',
+        question: 'A new token just launched. It\'s up 500% in 2 hours. What do you do?',
+        options: [
+            { id: 'a', text: 'APE IN IMMEDIATELY 🚀', degenScore: 10, regenScore: 0 },
+            { id: 'b', text: 'Research it quickly, then maybe buy a small bag', degenScore: 6, regenScore: 4 },
+            { id: 'c', text: 'Wait for a pullback and evaluate fundamentals', degenScore: 3, regenScore: 7 },
+            { id: 'd', text: 'Too risky. I\'ll stick to established projects', degenScore: 0, regenScore: 10 },
+        ],
+    },
+    {
+        id: 'q2_investment_horizon',
+        question: 'What\'s your ideal holding period for an investment?',
+        options: [
+            { id: 'a', text: 'Minutes to hours - I\'m here for quick flips', degenScore: 10, regenScore: 0 },
+            { id: 'b', text: 'Days to weeks - ride the momentum', degenScore: 7, regenScore: 3 },
+            { id: 'c', text: 'Months - let winners run', degenScore: 4, regenScore: 6 },
+            { id: 'd', text: 'Years - I believe in the long-term vision', degenScore: 0, regenScore: 10 },
+        ],
+    },
+    {
+        id: 'q3_portfolio_drop',
+        question: 'Your portfolio drops 40% in a day. What\'s your reaction?',
+        options: [
+            { id: 'a', text: 'BUYING THE DIP! This is the opportunity!', degenScore: 9, regenScore: 2 },
+            { id: 'b', text: 'Hold steady, maybe add a little', degenScore: 5, regenScore: 6 },
+            { id: 'c', text: 'Concerned but patient - check fundamentals', degenScore: 2, regenScore: 8 },
+            { id: 'd', text: 'Reduce exposure, protect capital', degenScore: 0, regenScore: 10 },
+        ],
+    },
+    {
+        id: 'q4_meme_coins',
+        question: 'How do you feel about meme coins?',
+        options: [
+            { id: 'a', text: 'LOVE THEM! Where\'s the next 100x? 🐕', degenScore: 10, regenScore: 0 },
+            { id: 'b', text: 'Fun for small speculative plays', degenScore: 7, regenScore: 3 },
+            { id: 'c', text: 'Occasionally, if there\'s a strong community', degenScore: 4, regenScore: 5 },
+            { id: 'd', text: 'Never. I only invest in projects with real utility', degenScore: 0, regenScore: 10 },
+        ],
+    },
+    {
+        id: 'q5_defi_strategy',
+        question: 'What\'s your preferred DeFi strategy?',
+        options: [
+            { id: 'a', text: 'Yield farming with 1000%+ APY pools', degenScore: 10, regenScore: 1 },
+            { id: 'b', text: 'Leveraged liquidity providing', degenScore: 8, regenScore: 2 },
+            { id: 'c', text: 'Balanced staking across multiple protocols', degenScore: 4, regenScore: 7 },
+            { id: 'd', text: 'Conservative staking in top protocols only', degenScore: 0, regenScore: 10 },
+        ],
+    },
+    {
+        id: 'q6_portfolio_allocation',
+        question: 'How would you allocate $10,000 in crypto?',
+        options: [
+            { id: 'a', text: 'All-in on one high-conviction play', degenScore: 10, regenScore: 0 },
+            { id: 'b', text: '70% alts, 30% majors', degenScore: 7, regenScore: 3 },
+            { id: 'c', text: '50% BTC/ETH, 30% alts, 20% stables', degenScore: 4, regenScore: 7 },
+            { id: 'd', text: '60% BTC/ETH, 20% stables, 20% blue-chip alts', degenScore: 0, regenScore: 10 },
+        ],
+    },
+    {
+        id: 'q7_news_reaction',
+        question: 'Breaking: A major exchange just got hacked. What do you do?',
+        options: [
+            { id: 'a', text: 'Short everything! Profit from chaos!', degenScore: 10, regenScore: 0 },
+            { id: 'b', text: 'Look for oversold opportunities to buy', degenScore: 7, regenScore: 4 },
+            { id: 'c', text: 'Check my exposure, move to cold storage', degenScore: 3, regenScore: 7 },
+            { id: 'd', text: 'Stay calm, don\'t panic trade', degenScore: 1, regenScore: 9 },
+        ],
+    },
+    {
+        id: 'q8_sleep_schedule',
+        question: 'How does crypto affect your sleep?',
+        options: [
+            { id: 'a', text: 'Sleep? I have price alerts for 3am pumps', degenScore: 10, regenScore: 0 },
+            { id: 'b', text: 'I check charts before bed and when I wake', degenScore: 7, regenScore: 3 },
+            { id: 'c', text: 'I set stop losses so I can sleep peacefully', degenScore: 3, regenScore: 7 },
+            { id: 'd', text: 'Crypto doesn\'t affect my sleep at all', degenScore: 0, regenScore: 10 },
+        ],
+    },
+    {
+        id: 'q9_leverage',
+        question: 'What\'s your stance on leverage trading?',
+        options: [
+            { id: 'a', text: '100x or go home! 🎰', degenScore: 10, regenScore: 0 },
+            { id: 'b', text: 'Moderate leverage (5-20x) for key trades', degenScore: 7, regenScore: 2 },
+            { id: 'c', text: 'Only low leverage (2-3x) in strong setups', degenScore: 4, regenScore: 5 },
+            { id: 'd', text: 'Never. Spot trading only', degenScore: 0, regenScore: 10 },
+        ],
+    },
+    {
+        id: 'q10_success_measure',
+        question: 'How do you measure success in crypto?',
+        options: [
+            { id: 'a', text: 'Number of 10x+ trades', degenScore: 10, regenScore: 1 },
+            { id: 'b', text: 'Monthly returns vs benchmarks', degenScore: 6, regenScore: 4 },
+            { id: 'c', text: 'Consistent portfolio growth over time', degenScore: 3, regenScore: 8 },
+            { id: 'd', text: 'Wealth preservation and steady accumulation', degenScore: 0, regenScore: 10 },
+        ],
+    },
+];
+
+// ============================================================================
+// ASSESSMENT SERVICE CLASS
+// ============================================================================
+
+export class TribeAssessmentService {
+
+    /**
+     * Process initial assessment and assign tribe badge
+     */
+    async processAssessment(
+        userId: string,
+        answers: AssessmentAnswer[]
+    ): Promise<AssessmentResult> {
+        // Calculate scores
+        let totalDegenScore = 0;
+        let totalRegenScore = 0;
+        let maxPossibleScore = 0;
+
+        for (const answer of answers) {
+            const question = ASSESSMENT_QUESTIONS.find(q => q.id === answer.questionId);
+            if (!question) continue;
+
+            const option = question.options.find(o => o.id === answer.answerId);
+            if (!option) continue;
+
+            totalDegenScore += option.degenScore;
+            totalRegenScore += option.regenScore;
+            maxPossibleScore += 10; // Max score per question is 10
+        }
+
+        // Calculate percentages
+        const totalScore = totalDegenScore + totalRegenScore;
+        const degenPercent = Math.round((totalDegenScore / totalScore) * 100);
+        const regenPercent = 100 - degenPercent;
+
+        // Determine tribe (>50% degen = degen tribe)
+        const tribe: TribeType = degenPercent >= 50 ? 'degen' : 'regen';
+
+        // Calculate confidence based on answer consistency
+        const confidence = this.calculateConfidence(answers);
+
+        const now = new Date();
+        const reassessmentDate = new Date(now);
+        reassessmentDate.setDate(reassessmentDate.getDate() + 30);
+
+        const result: AssessmentResult = {
+            tribe,
+            degenPercent,
+            regenPercent,
+            confidence,
+            assessmentDate: now,
+            reassessmentDate,
+            source: 'initial_assessment',
+        };
+
+        // Save to database
+        await this.saveTribeProfile(userId, result);
+
+        return result;
+    }
+
+    /**
+     * Calculate confidence based on answer consistency
+     */
+    private calculateConfidence(answers: AssessmentAnswer[]): number {
+        // If user consistently picks extreme options (all degen or all regen), high confidence
+        // If answers are mixed, lower confidence
+        let extremeAnswers = 0;
+
+        for (const answer of answers) {
+            const question = ASSESSMENT_QUESTIONS.find(q => q.id === answer.questionId);
+            if (!question) continue;
+
+            const option = question.options.find(o => o.id === answer.answerId);
+            if (!option) continue;
+
+            // Check if answer is extreme (strongly degen or strongly regen)
+            if (option.degenScore >= 8 || option.regenScore >= 8) {
+                extremeAnswers++;
+            }
+        }
+
+        // Confidence scales with consistency
+        const extremeRatio = extremeAnswers / answers.length;
+        return Math.round(50 + (extremeRatio * 50)); // 50-100 range
+    }
+
+    /**
+     * Perform behavioral reassessment based on 30 days of activity
+     */
+    async performBehavioralReassessment(userId: string): Promise<AssessmentResult> {
+        // Get user's behavioral metrics
+        const metrics = await this.calculateBehavioralMetrics(userId);
+
+        // Score the behavior
+        const behaviorScore = this.scoreBehavior(metrics);
+
+        const now = new Date();
+        const reassessmentDate = new Date(now);
+        reassessmentDate.setDate(reassessmentDate.getDate() + 30);
+
+        const result: AssessmentResult = {
+            tribe: behaviorScore.degenPercent >= 50 ? 'degen' : 'regen',
+            degenPercent: behaviorScore.degenPercent,
+            regenPercent: behaviorScore.regenPercent,
+            confidence: behaviorScore.confidence,
+            assessmentDate: now,
+            reassessmentDate,
+            source: 'behavioral_reassessment',
+        };
+
+        // Update profile
+        await this.updateTribeProfile(userId, result, metrics);
+
+        return result;
+    }
+
+    /**
+     * Calculate behavioral metrics from user's trading history
+     */
+    async calculateBehavioralMetrics(userId: string): Promise<BehavioralMetrics> {
+        // In production, this would query real transaction data
+        // For now, we'll simulate based on available data
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        // Query transactions, swaps, DeFi positions
+        const transactions = await db.query(`
+      SELECT * FROM transactions 
+      WHERE user_id = $1 AND created_at > $2
+      ORDER BY created_at DESC
+    `, [userId, thirtyDaysAgo]).catch(() => ({ rows: [] }));
+
+        const swaps = await db.query(`
+      SELECT * FROM swap_history 
+      WHERE user_id = $1 AND created_at > $2
+    `, [userId, thirtyDaysAgo]).catch(() => ({ rows: [] }));
+
+        const defiPositions = await db.query(`
+      SELECT * FROM defi_positions 
+      WHERE user_id = $1
+    `, [userId]).catch(() => ({ rows: [] }));
+
+        // Calculate metrics from data
+        const txRows = transactions.rows || [];
+        const swapRows = swaps.rows || [];
+        const defiRows = defiPositions.rows || [];
+
+        // Analyze meme token activity
+        const memeTokenPatterns = ['PEPE', 'DOGE', 'SHIB', 'FLOKI', 'BONK', 'WIF', 'MEME'];
+        const memeTokenTrades = swapRows.filter((s: any) =>
+            memeTokenPatterns.some(p =>
+                s.token_in?.toUpperCase().includes(p) ||
+                s.token_out?.toUpperCase().includes(p)
+            )
+        ).length;
+
+        // Analyze blue chip activity
+        const blueChipPatterns = ['ETH', 'BTC', 'WETH', 'WBTC', 'USDC', 'USDT', 'DAI'];
+        const blueChipTrades = swapRows.filter((s: any) =>
+            blueChipPatterns.some(p =>
+                s.token_in?.toUpperCase().includes(p) ||
+                s.token_out?.toUpperCase().includes(p)
+            )
+        ).length;
+
+        // Calculate trading frequency
+        const tradesPerDay = swapRows.length / 30;
+        let tradingFrequency: 'low' | 'medium' | 'high' | 'extreme' = 'low';
+        if (tradesPerDay > 10) tradingFrequency = 'extreme';
+        else if (tradesPerDay > 5) tradingFrequency = 'high';
+        else if (tradesPerDay > 1) tradingFrequency = 'medium';
+
+        // Calculate risk score based on behavior
+        let riskScore = 50; // Base
+        riskScore += memeTokenTrades * 2; // Meme trades increase risk
+        riskScore -= blueChipTrades * 1; // Blue chip trades decrease risk
+        riskScore += (swapRows.length > 50) ? 15 : 0; // High frequency = higher risk
+        riskScore = Math.max(0, Math.min(100, riskScore));
+
+        // Calculate average trade size
+        const avgTradeSize = swapRows.length > 0
+            ? swapRows.reduce((sum: number, s: any) => sum + (parseFloat(s.amount_usd) || 0), 0) / swapRows.length
+            : 0;
+
+        // Calculate hold duration
+        const avgHoldDuration = 7; // Default, would be calculated from actual buy/sell pairs
+
+        return {
+            totalTrades: swapRows.length,
+            avgTradeSize,
+            memeTokenTrades,
+            blueChipTrades,
+            riskScore,
+            stakingPositions: defiRows.filter((d: any) => d.type === 'staking').length,
+            yieldFarmingPositions: defiRows.filter((d: any) => d.type === 'farming').length,
+            avgHoldDuration,
+            avgTimeToSell: 48, // Default hours
+            panicSells: 0, // Would be calculated from price data
+            dipBuys: 0, // Would be calculated from price data
+            stablecoinRatio: 0.2, // Would be calculated from portfolio
+            memeTokenRatio: memeTokenTrades / Math.max(1, swapRows.length),
+            defiTokenRatio: 0.3, // Would be calculated from portfolio
+            nftHoldings: 0, // Would query NFT data
+            tradingFrequency,
+            preferredHours: 'mixed',
+            lastActive: new Date(),
+        };
+    }
+
+    /**
+     * Score behavioral metrics to determine tribe
+     */
+    private scoreBehavior(metrics: BehavioralMetrics): {
+        degenPercent: number;
+        regenPercent: number;
+        confidence: number;
+    } {
+        let degenPoints = 0;
+        let regenPoints = 0;
+
+        // Meme token ratio (high = degen)
+        if (metrics.memeTokenRatio > 0.5) degenPoints += 20;
+        else if (metrics.memeTokenRatio > 0.2) degenPoints += 10;
+        else regenPoints += 10;
+
+        // Trading frequency (high = degen)
+        if (metrics.tradingFrequency === 'extreme') degenPoints += 20;
+        else if (metrics.tradingFrequency === 'high') degenPoints += 15;
+        else if (metrics.tradingFrequency === 'medium') degenPoints += 5;
+        else regenPoints += 15;
+
+        // Risk score (high = degen)
+        if (metrics.riskScore > 70) degenPoints += 20;
+        else if (metrics.riskScore > 50) degenPoints += 10;
+        else if (metrics.riskScore < 30) regenPoints += 20;
+        else regenPoints += 10;
+
+        // Hold duration (short = degen)
+        if (metrics.avgHoldDuration < 1) degenPoints += 15;
+        else if (metrics.avgHoldDuration < 7) degenPoints += 5;
+        else if (metrics.avgHoldDuration > 30) regenPoints += 15;
+        else regenPoints += 5;
+
+        // DeFi positions (staking = regen, farming = degen)
+        if (metrics.stakingPositions > 3) regenPoints += 15;
+        if (metrics.yieldFarmingPositions > 2) degenPoints += 10;
+
+        // Stablecoin ratio (high = regen)
+        if (metrics.stablecoinRatio > 0.4) regenPoints += 15;
+        else if (metrics.stablecoinRatio < 0.1) degenPoints += 15;
+
+        // Calculate final percentages
+        const total = degenPoints + regenPoints;
+        const degenPercent = total > 0 ? Math.round((degenPoints / total) * 100) : 50;
+        const regenPercent = 100 - degenPercent;
+
+        // Confidence based on data quality
+        const confidence = Math.min(95, 50 + metrics.totalTrades * 2);
+
+        return { degenPercent, regenPercent, confidence };
+    }
+
+    /**
+     * Save new tribe profile to database
+     */
+    private async saveTribeProfile(userId: string, result: AssessmentResult): Promise<void> {
+        await db.query(`
+      INSERT INTO user_tribe_profiles (
+        user_id, tribe, degen_percent, regen_percent, 
+        assessment_history, next_reassessment_at, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+      ON CONFLICT (user_id) DO UPDATE SET
+        tribe = $2,
+        degen_percent = $3,
+        regen_percent = $4,
+        assessment_history = user_tribe_profiles.assessment_history || $5::jsonb,
+        next_reassessment_at = $6,
+        updated_at = NOW()
+    `, [
+            userId,
+            result.tribe,
+            result.degenPercent,
+            result.regenPercent,
+            JSON.stringify([result]),
+            result.reassessmentDate,
+        ]).catch(err => {
+            logger.error('Failed to save tribe profile:', err);
+            // Store in localStorage as fallback
+        });
+    }
+
+    /**
+     * Update existing tribe profile
+     */
+    private async updateTribeProfile(
+        userId: string,
+        result: AssessmentResult,
+        metrics: BehavioralMetrics
+    ): Promise<void> {
+        await db.query(`
+      UPDATE user_tribe_profiles SET
+        tribe = $2,
+        degen_percent = $3,
+        regen_percent = $4,
+        assessment_history = assessment_history || $5::jsonb,
+        behavioral_metrics = $6,
+        next_reassessment_at = $7,
+        updated_at = NOW()
+      WHERE user_id = $1
+    `, [
+            userId,
+            result.tribe,
+            result.degenPercent,
+            result.regenPercent,
+            JSON.stringify([result]),
+            JSON.stringify(metrics),
+            result.reassessmentDate,
+        ]).catch(err => {
+            logger.error('Failed to update tribe profile:', err);
+        });
+    }
+
+    /**
+     * Get user's current tribe profile
+     */
+    async getTribeProfile(userId: string): Promise<UserTribeProfile | null> {
+        const result = await db.query(`
+      SELECT * FROM user_tribe_profiles WHERE user_id = $1
+    `, [userId]).catch(() => ({ rows: [] }));
+
+        if (result.rows.length === 0) return null;
+
+        const row = result.rows[0];
+        return {
+            id: row.id,
+            userId: row.user_id,
+            tribe: row.tribe,
+            degenPercent: row.degen_percent,
+            regenPercent: row.regen_percent,
+            assessmentHistory: row.assessment_history || [],
+            behavioralMetrics: row.behavioral_metrics || {},
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+            nextReassessmentAt: row.next_reassessment_at,
+        };
+    }
+
+    /**
+     * Check if user needs reassessment
+     */
+    async needsReassessment(userId: string): Promise<boolean> {
+        const profile = await this.getTribeProfile(userId);
+        if (!profile) return false;
+
+        return new Date() >= new Date(profile.nextReassessmentAt);
+    }
+
+    /**
+     * Get all users due for reassessment (for scheduled job)
+     */
+    async getUsersDueForReassessment(): Promise<string[]> {
+        const result = await db.query(`
+      SELECT user_id FROM user_tribe_profiles 
+      WHERE next_reassessment_at <= NOW()
+    `).catch(() => ({ rows: [] }));
+
+        return result.rows.map((r: any) => r.user_id);
+    }
+
+    /**
+     * Manually override tribe assignment (admin function)
+     */
+    async manualOverride(
+        userId: string,
+        tribe: TribeType,
+        reason: string
+    ): Promise<AssessmentResult> {
+        const now = new Date();
+        const reassessmentDate = new Date(now);
+        reassessmentDate.setDate(reassessmentDate.getDate() + 30);
+
+        const result: AssessmentResult = {
+            tribe,
+            degenPercent: tribe === 'degen' ? 100 : 0,
+            regenPercent: tribe === 'regen' ? 100 : 0,
+            confidence: 100,
+            assessmentDate: now,
+            reassessmentDate,
+            source: 'manual_override',
+        };
+
+        await db.query(`
+      UPDATE user_tribe_profiles SET
+        tribe = $2,
+        degen_percent = $3,
+        regen_percent = $4,
+        assessment_history = assessment_history || $5::jsonb,
+        next_reassessment_at = $6,
+        updated_at = NOW()
+      WHERE user_id = $1
+    `, [
+            userId,
+            result.tribe,
+            result.degenPercent,
+            result.regenPercent,
+            JSON.stringify([{ ...result, reason }]),
+            result.reassessmentDate,
+        ]);
+
+        return result;
+    }
+}
+
+// Export singleton instance
+export const tribeAssessmentService = new TribeAssessmentService();

@@ -1,0 +1,25 @@
+{
+    "name": "paradox-extension",
+    "version": "1.0.0",
+    "description": "Paradox Wallet Browser Extension - MEV protection, AI security, degen tools",
+    "private": true,
+    "scripts": {
+        "build": "npm run build:lib && npm run build:extension",
+        "build:lib": "node scripts/build-lib.js",
+        "build:extension": "node scripts/build.js",
+        "watch": "node scripts/watch.js",
+        "package": "npm run build && node scripts/package.js",
+        "lint": "eslint src/",
+        "test": "jest"
+    },
+    "dependencies": {
+        "ethers": "^6.9.0"
+    },
+    "devDependencies": {
+        "archiver": "^6.0.0",
+        "esbuild": "^0.19.0",
+        "eslint": "^8.56.0",
+        "jest": "^29.7.0",
+        "sharp": "^0.34.5"
+    }
+}

@@ -1,0 +1,46 @@
+# Elite Mempool System - Production Docker Image
+FROM python:3.11-slim AS base
+
+# Security: Set environment variables for hardened container
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PORT=8000
+
+# Security: Set work directory
+WORKDIR /app
+
+# Security: Install system dependencies and clean up in single layer
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    git \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Security: Create non-root user early with specific UID
+RUN groupadd -r appuser -g 10001 && \
+    useradd -r -g appuser -u 10001 -d /app -s /bin/bash appuser
+
+# Security: Install Python dependencies as root, then change ownership
+COPY common/requirements-standardized.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r common/requirements-standardized.txt \
+    && rm -rf /root/.cache
+
+# Security: Copy application code with proper ownership
+COPY --chown=appuser:appuser . .
+
+# Security: Switch to non-root user
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
+
+# Expose port
+EXPOSE ${PORT}
+
+# Run the application
+CMD ["python", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]

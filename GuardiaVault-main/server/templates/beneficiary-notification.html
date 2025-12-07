@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vault Triggered</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a0a;">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #1a1a1a; border-radius: 12px; overflow: hidden; border: 1px solid #2a2a2a;">
+          
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 30px; text-align: center; background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);">
+              <h1 style="margin: 0; font-size: 28px; font-weight: 600; color: #00d4ff; text-shadow: 0 0 20px rgba(0, 212, 255, 0.3);">
+                GuardiaVault
+              </h1>
+              <p style="margin: 10px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">
+                VAULT ACTIVATION NOTICE
+              </p>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 0 40px 40px;">
+              <h2 style="margin: 0 0 20px; font-size: 24px; font-weight: 600; color: #e5e5e5;">
+                Important: Vault "{{vaultName}}" Has Been Triggered
+              </h2>
+              
+              <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6; color: #b8b8b8;">
+                This is to inform you that the vault <strong style="color: #00d4ff;">{{vaultName}}</strong> has been activated. As a designated beneficiary, you may now initiate the recovery process.
+              </p>
+
+              <div style="margin: 30px 0; padding: 20px; background-color: #0f0f0f; border-left: 3px solid #ffa500; border-radius: 6px;">
+                <h3 style="margin: 0 0 12px; font-size: 16px; font-weight: 600; color: #ffa500;">
+                  What This Means
+                </h3>
+                <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #b8b8b8;">
+                  The vault owner has not checked in within the configured timeframe. Guardian attestation is now underway to verify the triggering condition. Once verified, you will be able to collect the necessary key fragments from guardians to access the vault contents.
+                </p>
+              </div>
+
+              <div style="margin: 30px 0; padding: 20px; background-color: #0f0f0f; border-radius: 6px;">
+                <h3 style="margin: 0 0 12px; font-size: 16px; font-weight: 600; color: #e5e5e5;">
+                  Next Steps
+                </h3>
+                <ol style="margin: 0; padding: 0 0 0 20px; font-size: 14px; line-height: 1.8; color: #b8b8b8;">
+                  <li>Access the claim portal using the button below</li>
+                  <li>Review the vault details and triggering conditions</li>
+                  <li>Wait for guardian attestation to complete</li>
+                  <li>Collect key fragments from at least 2 of 3 guardians</li>
+                  <li>Reconstruct the vault keys and access the protected assets</li>
+                </ol>
+              </div>
+
+              <!-- CTA Button -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 35px 0;">
+                <tr>
+                  <td style="text-align: center;">
+                    <a href="{{claimLink}}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); color: #000; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);">
+                      Access Claim Portal
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 30px 0 0; font-size: 14px; line-height: 1.6; color: #888; text-align: center;">
+                This is a secure notification from GuardiaVault's automated system.<br>
+                All actions are cryptographically verified and logged.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 30px 40px; background-color: #0f0f0f; border-top: 1px solid #2a2a2a;">
+              <p style="margin: 0; font-size: 12px; color: #666; text-align: center; line-height: 1.5;">
+                GuardiaVault - Cryptographic Dead Man's Switch<br>
+                Secure, decentralized, and trustless asset recovery<br>
+                <a href="https://guardiavault.com" style="color: #00d4ff; text-decoration: none;">guardiavault.com</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

@@ -1,0 +1,379 @@
+# Ultimate Unified Vulnerability Scanner System
+# Integrates Quantum Scanner, AI Orchestrator, Slither, Mythril, and Manticore
+version: '3.8'
+
+x-common-env: &common-env
+  LOG_LEVEL: INFO
+  PYTHONUNBUFFERED: "1"
+  SCANNER_ENV: production
+
+x-scanner-healthcheck: &scanner-healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 60s
+
+services:
+  # ============================================================================
+  # CORE SCANNING ORCHESTRATOR - Central coordination service
+  # ============================================================================
+  
+  scanner-orchestrator:
+    image: scorpius-enterprise-scanner-ai-orchestrator:latest
+    container_name: ultimate-scanner-orchestrator
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      ORCHESTRATOR_MODE: "unified"
+      DATABASE_URL: postgresql://scanner_user:${SCANNER_DB_PASSWORD}@scanner-postgres:5432/ultimate_scanner
+      REDIS_URL: redis://scanner-redis:6379/0
+      REDIS_PASSWORD: ${SCANNER_REDIS_PASSWORD}
+      
+      # Scanner service endpoints
+      QUANTUM_SCANNER_URL: http://quantum-scanner:8000
+      SLITHER_SCANNER_URL: http://slither-scanner:8001
+      MYTHRIL_SCANNER_URL: http://mythril-scanner:8002
+      MANTICORE_SCANNER_URL: http://manticore-scanner:8003
+      
+      # AI Configuration
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      AI_MODEL: gpt-4-turbo
+      CONFIDENCE_THRESHOLD: 0.85
+      
+      # Enterprise integration
+      QUANTUM_MONITOR_URL: http://quantum-monitor:8000
+      MEMPOOL_SERVICE_URL: http://quantum-monitor:8002
+      
+    ports:
+      - "8900:8000"   # Main orchestrator API
+      - "8901:8001"   # Dashboard UI
+      - "8902:8765"   # WebSocket for real-time updates
+    volumes:
+      - scanner_data:/app/data
+      - scanner_logs:/app/logs
+      - scanner_reports:/app/reports
+      - ./config/scanner-config.yaml:/app/config/scanner-config.yaml:ro
+    depends_on:
+      scanner-postgres:
+        condition: service_healthy
+      scanner-redis:
+        condition: service_healthy
+    networks: [ultimate-scanner-network]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8000/health || exit 1"]
+      <<: *scanner-healthcheck
+
+  # ============================================================================
+  # QUANTUM SCANNER - Advanced quantum threat detection
+  # ============================================================================
+  
+  quantum-scanner:
+    image: quantumscanner-quantum-scanner:latest
+    container_name: ultimate-quantum-scanner
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SCANNER_TYPE: "quantum"
+      DATABASE_URL: postgresql://scanner_user:${SCANNER_DB_PASSWORD}@scanner-postgres:5432/ultimate_scanner
+      REDIS_URL: redis://scanner-redis:6379/1
+      ORCHESTRATOR_URL: http://scanner-orchestrator:8000
+      
+      # Quantum detection parameters
+      QUANTUM_CONFIDENCE_THRESHOLD: 0.8
+      TEMPORAL_CLUSTERING_WINDOW: 600
+      ENTROPY_ANALYSIS_ENABLED: "true"
+      ML_MODEL_PATH: "/app/models/quantum_detector.pkl"
+      
+    ports:
+      - "8910:8000"   # Quantum scanner API
+    volumes:
+      - scanner_data:/app/data
+      - scanner_logs:/app/logs
+      - quantum_models:/app/models
+    depends_on:
+      - scanner-orchestrator
+    networks: [ultimate-scanner-network]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8000/health || exit 1"]
+      <<: *scanner-healthcheck
+
+  # ============================================================================
+  # SLITHER STATIC ANALYSIS SCANNER
+  # ============================================================================
+  
+  slither-scanner:
+    image: scorpius-enterprise-scanner-slither:latest
+    container_name: ultimate-slither-scanner
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SCANNER_TYPE: "slither"
+      DATABASE_URL: postgresql://scanner_user:${SCANNER_DB_PASSWORD}@scanner-postgres:5432/ultimate_scanner
+      REDIS_URL: redis://scanner-redis:6379/2
+      ORCHESTRATOR_URL: http://scanner-orchestrator:8000
+      
+      # Slither configuration
+      SLITHER_TIMEOUT: 300
+      SLITHER_DETECTORS: "all"
+      SLITHER_EXCLUDE_INFORMATIONAL: "false"
+      SOLC_VERSION: "0.8.19"
+      
+    ports:
+      - "8911:8001"   # Slither scanner API
+    volumes:
+      - scanner_data:/app/data
+      - scanner_logs:/app/logs
+      - slither_cache:/app/.slither_cache
+      - /var/run/docker.sock:/var/run/docker.sock  # For solc compilation
+    depends_on:
+      - scanner-orchestrator
+    networks: [ultimate-scanner-network]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8001/health || exit 1"]
+      <<: *scanner-healthcheck
+
+  # ============================================================================
+  # MYTHRIL SYMBOLIC EXECUTION SCANNER
+  # ============================================================================
+  
+  mythril-scanner:
+    image: scorpius-enterprise-scanner-mythril:latest
+    container_name: ultimate-mythril-scanner
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SCANNER_TYPE: "mythril"
+      DATABASE_URL: postgresql://scanner_user:${SCANNER_DB_PASSWORD}@scanner-postgres:5432/ultimate_scanner
+      REDIS_URL: redis://scanner-redis:6379/3
+      ORCHESTRATOR_URL: http://scanner-orchestrator:8000
+      
+      # Mythril configuration
+      MYTHRIL_EXECUTION_TIMEOUT: 600
+      MYTHRIL_MAX_DEPTH: 50
+      MYTHRIL_STRATEGY: "dfs"
+      MYTHRIL_MODULES: "ether_thief,external_calls,integer,assertion_failure,tx_order_dep"
+      ETHEREUM_RPC_URL: ${ETHEREUM_RPC_URL}
+      
+    ports:
+      - "8912:8002"   # Mythril scanner API
+    volumes:
+      - scanner_data:/app/data
+      - scanner_logs:/app/logs
+      - mythril_cache:/app/.mythril_cache
+    depends_on:
+      - scanner-orchestrator
+    networks: [ultimate-scanner-network]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8002/health || exit 1"]
+      <<: *scanner-healthcheck
+
+  # ============================================================================
+  # MANTICORE SYMBOLIC EXECUTION SCANNER
+  # ============================================================================
+  
+  manticore-scanner:
+    image: scorpius-enterprise-scanner-manticore:latest
+    container_name: ultimate-manticore-scanner
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SCANNER_TYPE: "manticore"
+      DATABASE_URL: postgresql://scanner_user:${SCANNER_DB_PASSWORD}@scanner-postgres:5432/ultimate_scanner
+      REDIS_URL: redis://scanner-redis:6379/4
+      ORCHESTRATOR_URL: http://scanner-orchestrator:8000
+      
+      # Manticore configuration
+      MANTICORE_TIMEOUT: 1200
+      MANTICORE_MAX_STATES: 100
+      MANTICORE_PROCS: 4
+      MANTICORE_DETECTORS: "all"
+      MANTICORE_VERBOSITY: 2
+      
+    ports:
+      - "8913:8003"   # Manticore scanner API
+    volumes:
+      - scanner_data:/app/data
+      - scanner_logs:/app/logs
+      - manticore_workspace:/app/workspace
+    depends_on:
+      - scanner-orchestrator
+    networks: [ultimate-scanner-network]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8003/health || exit 1"]
+      <<: *scanner-healthcheck
+
+  # ============================================================================
+  # SCANNER DATABASE - Centralized vulnerability database
+  # ============================================================================
+  
+  scanner-postgres:
+    image: postgres:15-alpine
+    container_name: ultimate-scanner-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ultimate_scanner
+      POSTGRES_USER: scanner_user
+      POSTGRES_PASSWORD: ${SCANNER_DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scanner_user -d ultimate_scanner"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - scanner_postgres_data:/var/lib/postgresql/data
+      - ./database/scanner-init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5435:5432"   # Unique port for scanner DB
+    networks: [ultimate-scanner-network]
+
+  # ============================================================================
+  # SCANNER REDIS - Cache and message queue
+  # ============================================================================
+  
+  scanner-redis:
+    image: redis:7-alpine
+    container_name: ultimate-scanner-redis
+    command: >
+      redis-server
+      --requirepass ${SCANNER_REDIS_PASSWORD}
+      --appendonly yes
+      --maxmemory 1gb
+      --maxmemory-policy allkeys-lru
+      --databases 16
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - scanner_redis_data:/data
+    ports:
+      - "6382:6379"   # Unique port for scanner Redis
+    networks: [ultimate-scanner-network]
+
+  # ============================================================================
+  # MONITORING AND OBSERVABILITY
+  # ============================================================================
+  
+  scanner-prometheus:
+    image: prom/prometheus:latest
+    container_name: ultimate-scanner-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --web.enable-lifecycle
+    volumes:
+      - ./monitoring/scanner-prometheus:/etc/prometheus:ro
+      - scanner_prometheus_data:/prometheus
+    ports:
+      - "9097:9090"   # Scanner Prometheus port
+    networks: [ultimate-scanner-network]
+
+  scanner-grafana:
+    image: grafana/grafana:latest
+    container_name: ultimate-scanner-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${SCANNER_GRAFANA_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SECURITY_SECRET_KEY: ${SCANNER_GRAFANA_SECRET_KEY}
+    depends_on:
+      - scanner-prometheus
+    volumes:
+      - scanner_grafana_data:/var/lib/grafana
+      - ./monitoring/scanner-grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/scanner-grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3003:3000"   # Scanner Grafana port
+    networks: [ultimate-scanner-network]
+
+  # ============================================================================
+  # UNIFIED SCANNER DASHBOARD - Web interface for all scanners
+  # ============================================================================
+  
+  scanner-dashboard:
+    image: scorpius-enterprise-frontend:latest
+    container_name: ultimate-scanner-dashboard
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      REACT_APP_API_URL: http://localhost:8900
+      REACT_APP_WS_URL: ws://localhost:8902
+      REACT_APP_QUANTUM_URL: http://localhost:8910
+      REACT_APP_SLITHER_URL: http://localhost:8911
+      REACT_APP_MYTHRIL_URL: http://localhost:8912
+      REACT_APP_MANTICORE_URL: http://localhost:8913
+      REACT_APP_GRAFANA_URL: http://localhost:3003
+    ports:
+      - "3005:3000"   # Unified scanner dashboard
+    depends_on:
+      - scanner-orchestrator
+      - quantum-scanner
+      - slither-scanner
+      - mythril-scanner
+      - manticore-scanner
+    networks: [ultimate-scanner-network]
+
+  # ============================================================================
+  # REVERSE PROXY AND LOAD BALANCER
+  # ============================================================================
+  
+  scanner-nginx:
+    image: nginx:alpine
+    container_name: ultimate-scanner-nginx
+    restart: unless-stopped
+    depends_on:
+      - scanner-orchestrator
+      - scanner-dashboard
+      - scanner-grafana
+    ports:
+      - "82:80"      # Scanner nginx port
+      - "4443:443"   # Scanner nginx SSL port (changed to avoid conflict)
+    volumes:
+      - ./nginx/scanner-nginx.conf:/etc/nginx/nginx.conf:ro
+      # - ./nginx/ssl:/etc/nginx/ssl:ro  # Enable when SSL certs are available
+    networks: [ultimate-scanner-network]
+
+# ============================================================================
+# VOLUMES FOR DATA PERSISTENCE
+# ============================================================================
+
+volumes:
+  scanner_data:
+    driver: local
+  scanner_logs:
+    driver: local
+  scanner_reports:
+    driver: local
+  scanner_postgres_data:
+    driver: local
+  scanner_redis_data:
+    driver: local
+  scanner_prometheus_data:
+    driver: local
+  scanner_grafana_data:
+    driver: local
+  quantum_models:
+    driver: local
+  slither_cache:
+    driver: local
+  mythril_cache:
+    driver: local
+  manticore_workspace:
+    driver: local
+
+# ============================================================================
+# NETWORKS FOR SERVICE COMMUNICATION
+# ============================================================================
+
+networks:
+  ultimate-scanner-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16

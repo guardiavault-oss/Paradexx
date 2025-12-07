@@ -1,0 +1,130 @@
+You are an expert full-stack developer and product engineer inside Cursor IDE. Your job: generate a functioning GuardiaVault MVP workspace that can be run, tested, and iterated on inside Cursor. Treat this like building a real investor-ready prototype that focuses on security-first, zero-custody crypto inheritance with Shamir splitting, time-locked fragments, check-ins, and proof-of-death workflow.
+
+## PRIMARY OBJECTIVES (what to produce)
+1. A complete repository scaffold (frontend, backend, smart-contracts, mobile-stub, infra docs).
+2. Working smart contract prototypes (Solidity 0.8.x) with unit tests (Hardhat).
+3. Backend API (TypeScript + Node + Fastify or Express) that:
+   - Accepts wallet signature auth
+   - Runs SLIP39-style Shamir split + recombination (js implementation or binding)
+   - Stores encrypted fragment metadata (no plaintext keys)
+   - Exposes check-in endpoints and triggers mock "time-lock expiry" flows for testing
+4. Frontend (Next.js + TypeScript + Tailwind) with:
+   - Onboarding wizard: Connect Wallet → Guardians → Beneficiaries → Attestors → Timing
+   - "I'm Alive" check-in flow (wallet signature + biometric stub)
+   - Guardian acceptance flow (accept/decline)
+   - Beneficiary claim stub (enter fragments to reconstruct)
+5. Tests:
+   - Smart contract tests (Hardhat + chai) covering check-in registry and verification oracle mocks
+   - Backend unit tests (Jest) for fragmentation + recombine + auth
+   - Frontend smoke test (Jest + React Testing Library) for onboarding steps
+6. Dev-run scripts:
+   - `npm run dev` for frontend
+   - `npm run start:api` for backend
+   - `npm run test` running all tests
+   - `npx hardhat node` + `npx hardhat test` for contracts
+7. README with run instructions, security checklist, and acceptance criteria.
+8. Minimal design assets: a reusable React component library (Button, Card, VaultCountdown) and a simple color/style token file. Provide simple SVG logo placeholder.
+
+## PROJECT STRUCTURE (exact)
+Create folders/files below:
+
+- /README.md
+- /package.json (workspace scripts)
+- /apps/web/  (Next.js + TypeScript)
+  - pages/_app.tsx
+  - pages/index.tsx
+  - pages/onboard.tsx
+  - components/{Wizard, CheckInButton, GuardianCard, BeneficiaryClaim, VaultCountdown}.tsx
+  - styles/tokens.css (Tailwind config)
+  - tests/*.test.tsx
+- /apps/api/ (TypeScript, Express or Fastify)
+  - src/index.ts
+  - src/routes/auth.ts
+  - src/routes/checkin.ts
+  - src/services/shamir.ts
+  - src/services/timelock.ts (mocking timelock)
+  - src/db/mockDb.ts (Postgres stub data for Cursor)
+  - tests/*.test.ts
+- /contracts/
+  - contracts/CheckInRegistry.sol
+  - contracts/FragmentMap.sol
+  - contracts/VerificationOracleMock.sol
+  - hardhat.config.ts
+  - scripts/deploy.ts
+  - test/*.ts
+- /mobile-stub/
+  - README.md describing expected React Native components and APIs (secure store + biometrics)
+- /infra/
+  - security-checklist.md
+  - audit-tasks.md
+  - privacy-compliance.md
+- /ops/
+  - run-all.sh (or package.json workspace script to start contract node, api, web simultaneously)
+
+## SMART CONTRACT DETAILS
+- `CheckInRegistry.sol`:
+  - Function: registerUser(address user, uint256 checkinIntervalDays)
+  - Function: checkIn(address user) emits event
+  - Function: lastCheckIn(address user) view
+  - Function: isExpired(address user) view — returns true if lastCheckIn + interval + grace < block.timestamp
+- `VerificationOracleMock.sol`:
+  - Allows attestors (configured addresses) to submit `submitProof(bytes32 userHash, bytes proofDocHash)`
+  - If attestation threshold met, emit `DeathVerified(userHash)`
+- `FragmentMap.sol`:
+  - Stores metadata pointers (IPFS CID or encrypted blob id) — **never store plaintext private keys**
+  - Only owner can write mapping on setup; anyone can read metadata pointer
+
+Include full Solidity code and Hardhat tests. Use OpenZeppelin access control libs.
+
+## BACKEND: KEY FEATURES & ENDPOINTS
+- Auth: `POST /api/auth/nonce` → returns nonce, `POST /api/auth/verify` → wallet signs nonce, returns JWT
+- Onboard: `POST /api/user/setup` → accept guardians, beneficiaries, attestors, checkin frequency; generate encrypted fragments and return metadata pointers
+- Check-in: `POST /api/checkin` → verifies signature, update timestamp, push event to queue
+- Timelock/Test: `POST /api/timelock/trigger` → simulate missed check-in + verify → release encrypted fragments (only metadata)
+- Fragment service:
+  - `services/shamir.ts` must implement 5-of-3 split and recombine using an existing JS library (or port). Fragments must be encrypted using age or AES with time-lock stub for testing.
+- Use in-memory/mock DB for Cursor execution, but structure code to be replaceable with Postgres.
+
+## FRONTEND: UX & COMPONENTS
+- Onboard wizard that walks through the steps and stores state in local storage.
+- Use wagmi/ethers for wallet connectivity. For Cursor demo, provide a mock wallet connector fallback.
+- Check-in UI: prominent countdown, push notifications stub, "I'm Alive" button that signs a message and calls backend.
+- Guardian flow: email invite simulation; guardian acceptance stores encrypted fragment in their local mock storage.
+- Beneficiary flow: claim screen with a text area to paste fragments and a Reconstruct button that calls backend recombine endpoint.
+
+## ACCEPTANCE CRITERIA (auto-check)
+- Smart contract tests pass in Hardhat
+- Backend unit tests cover >70% of fragmentation code paths
+- Frontend wizard renders and the check-in action calls backend mock endpoint (simulate with msw or fetch mock)
+- README shows exact commands to start everything and a demo test scenario: create user → simulate missed check-in → run attestor verification → trigger timelock → reconstruct key with 3 fragments.
+
+## SECURITY & AUDIT NOTES (auto-generate)
+- Add `security-checklist.md` with:
+  - Threat model summary (insider, collusion, server compromise, murder incentive)
+  - ZK-proof considerations (we only mock; production needs Snark circuits)
+  - Hardening steps (no plaintext keys, encrypted-at-rest, HSM recommendations)
+  - Required audits (Trail of Bits / OZ) and bug bounty setup
+
+## STYLE & QUALITY
+- TypeScript with strict mode; comprehensive type annotations
+- Linting and Prettier config
+- README must include basic roadmap, product pitch (two paragraphs), and fundraising ask example
+- Add an example `.env.example` with required vars.
+
+## DEV UX (Cursor specifics)
+- Create an initial commit with meaningful commit message "init: GuardiaVault MVP scaffold"
+- Include `cursor.run` or `devcontainer.json` if Cursor supports it (provide both options)
+- Provide instructions in README for running everything inside Cursor playground.
+
+## DELIVERY FORMAT
+Return a structured plan for what you created (file tree) and then actually create files accordingly. For any complex crypto or ZK piece that would be unsafe to fully wire in (eg real timelocks, connecting to government death registry), provide a secure mock and a TODO with exact implementation notes and external services to integrate.
+
+## DO NOT DO
+- Do not generate real private keys for any user in code examples.
+- Do not include production secrets in any file.
+- Do not claim the system is legally bulletproof — include legal disclaimers.
+
+## FINAL NOTE
+Be pragmatic and shipping-focused. Build minimal-but-runnable implementations that can be demoed to investors in 90 days. Where you stub behavior (timelock, government certs, ZK proofs), add TODOs with external providers and sample API contracts for how to integrate.
+
+Go — scaffold the repo, implement core contracts, the backend shard service for Shamir, the onboarding frontend routes, and tests. After scaffolding, run tests and output results summary and next steps.

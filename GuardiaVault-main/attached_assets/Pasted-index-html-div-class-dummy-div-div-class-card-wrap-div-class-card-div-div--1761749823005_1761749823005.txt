@@ -1,0 +1,128 @@
+index.html
+<div class="dummy"></div>
+<div class="card-wrap">
+  <div class="card"></div>
+</div>
+<p>scroll to view the card</p>
+style.css
+:root {
+  --rotation: 10deg;
+  --shadow-length: 50px;
+}
+.card-wrap {
+  position: fixed;
+  display: grid;
+  place-content: center;
+  inset: 0;
+  transform-style: preserve-3d;
+  perspective: 800px;
+}
+.card {
+  border-radius: 1.5rem;
+  height: 80vh;
+  aspect-ratio: 9 / 16;
+  background: radial-gradient(
+      circle at var(--shine-x) var(--shine-y),
+      #fffa 40px,
+      #0000
+    ),
+    url("https://cdn.midjourney.com/f87ef132-b7e1-40a4-9e7c-0bf90e7e7724/0_3.png");
+  background-size: cover;
+  box-shadow: var(--shadow-x) var(--shadow-y) 30px rgba(0, 0, 0, 0.3);
+  transform: rotateX(var(--ry)) rotateY(var(--rx));
+  animation: rotate-y linear, shadow-y linear, rotate-x linear, shadow-x linear,
+    anim-shine-x linear, anim-shine-y linear;
+  animation-timeline: scroll(root), scroll(root), scroll(root inline),
+    scroll(root inline), scroll(root inline), scroll(root);
+}
+.dummy {
+  width: 150vw;
+  height: 150vh;
+}
+@property --rx {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@property --ry {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes rotate-x {
+  0% {
+    --rx: var(--rotation);
+  }
+  100% {
+    --rx: calc(var(--rotation) * -1);
+  }
+}
+@keyframes rotate-y {
+  0% {
+    --ry: calc(var(--rotation) * -1);
+  }
+  100% {
+    --ry: var(--rotation);
+  }
+}
+@property --shadow-y {
+  syntax: "<length>";
+  initial-value: 0px;
+  inherits: false;
+}
+@keyframes shadow-y {
+  0% {
+    --shadow-y: calc(-1 * var(--shadow-length));
+  }
+  100% {
+    --shadow-y: var(--shadow-length);
+  }
+}
+@property --shadow-x {
+  syntax: "<length>";
+  initial-value: 0px;
+  inherits: false;
+}
+@keyframes shadow-x {
+  0% {
+    --shadow-x: var(--shadow-length);
+  }
+  100% {
+    --shadow-x: calc(-1 * var(--shadow-length));
+  }
+}
+@property --shine-x {
+  syntax: "<percentage>";
+  initial-value: 0%;
+  inherits: false;
+}
+@property --shine-y {
+  syntax: "<percentage>";
+  initial-value: 0%;
+  inherits: false;
+}
+@keyframes anim-shine-x {
+  0% {
+    --shine-x: 0%;
+  }
+  100% {
+    --shine-x: 100%;
+  }
+}
+@keyframes anim-shine-y {
+  0% {
+    --shine-y: 100%;
+  }
+  100% {
+    --shine-y: 0%;
+  }
+}
+
+p {
+  position: fixed;
+  font-family:sans-serif;
+  color: #888;
+  font-size: 1.5rem;
+  inset: auto 0 0 0;
+  text-align:center;
+}

@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bridge-security-config
+  namespace: bridge-security
+data:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  PROMETHEUS_ENABLED: "true"
+  METRICS_PORT: "9090"
+  # Database configuration
+  DATABASE_HOST: "postgres-service"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "bridge_security"
+  # Redis configuration
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  # Monitoring configuration
+  JAEGER_ENDPOINT: "http://jaeger-collector:14268/api/traces"
+  SENTRY_DSN: ""
+  # Security configuration
+  JWT_SECRET_KEY: ""
+  ENCRYPTION_KEY: ""
+  # ML Model configuration
+  ML_MODEL_PATH: "/app/models"
+  MODEL_UPDATE_INTERVAL: "3600"
+  # Blockchain configuration
+  ETHEREUM_RPC_URL: "https://eth-mainnet.alchemyapi.io/v2/demo"
+  POLYGON_RPC_URL: "https://polygon-rpc.com"
+  BSC_RPC_URL: "https://bsc-dataseed.binance.org"
+  AVALANCHE_RPC_URL: "https://api.avax.network/ext/bc/C/rpc"
+  ARBITRUM_RPC_URL: "https://arb1.arbitrum.io/rpc"
+  OPTIMISM_RPC_URL: "https://mainnet.optimism.io"
+  FANTOM_RPC_URL: "https://rpc.ftm.tools"
+  BASE_RPC_URL: "https://mainnet.base.org"

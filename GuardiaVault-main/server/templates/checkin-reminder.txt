@@ -1,0 +1,29 @@
+GuardiaVault - Vault Check-In Reminder
+
+CHECK-IN REMINDER
+=================
+
+Hi {{ownerName}},
+
+This is a friendly reminder that your vault "{{vaultName}}" requires a check-in soon.
+
+VAULT DETAILS
+-------------
+Next Check-In Due: {{dueDate}}
+Grace Period: {{gracePeriod}} days after due date
+Current Status: Active
+
+WHY CHECK-IN?
+-------------
+Regular check-ins confirm you're active and in control of your vault. Missing check-ins triggers the recovery process, notifying your guardians and beneficiaries. You'll receive reminders before this happens, with a grace period to complete your check-in.
+
+COMPLETE CHECK-IN NOW
+---------------------
+{{checkInLink}}
+
+Takes less than 30 seconds • Keeps your vault secure
+
+---
+GuardiaVault - Cryptographic Dead Man's Switch
+Secure, decentralized, and trustless asset recovery
+https://guardiavault.com

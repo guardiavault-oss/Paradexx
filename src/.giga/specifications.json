@@ -1,0 +1,22 @@
+[
+  {
+    "fileName": "main-overview.mdc",
+    "description": "Complete system overview documenting the core architecture, key components, and integration patterns across the voice-powered visualization and shader systems"
+  },
+  {
+    "fileName": "audio-processing-algorithms.mdc",
+    "description": "Detailed documentation of the FFT analysis, RMS calculation, and audio processing algorithms used in the voice-powered visualization system"
+  },
+  {
+    "fileName": "shader-systems.mdc",
+    "description": "Technical documentation of the shader implementation algorithms, including CPPN, nebula effects, fluid simulation, and plasma globe physics"
+  },
+  {
+    "fileName": "data-flow-visualization.mdc",
+    "description": "Comprehensive documentation of data flow between audio processing, shader systems, and particle physics, including state management and real-time updates"
+  },
+  {
+    "fileName": "particle-physics-models.mdc",
+    "description": "Detailed documentation of particle system physics implementations, including molecular simulation algorithms and noise-based movement patterns"
+  }
+]

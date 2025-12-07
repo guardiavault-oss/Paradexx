@@ -1,0 +1,68 @@
+{
+    "manifest_version": 3,
+    "name": "Paradox Wallet",
+    "version": "1.0.0",
+    "description": "The ultimate crypto wallet with MEV protection, AI security, and degen tools",
+    "author": "Paradox",
+    "icons": {
+        "16": "public/icons/icon16.png",
+        "32": "public/icons/icon32.png",
+        "48": "public/icons/icon48.png",
+        "128": "public/icons/icon128.png"
+    },
+    "action": {
+        "default_popup": "popup.html",
+        "default_title": "Paradox",
+        "default_icon": {
+            "16": "public/icons/icon16.png",
+            "32": "public/icons/icon32.png",
+            "48": "public/icons/icon48.png",
+            "128": "public/icons/icon128.png"
+        }
+    },
+    "background": {
+        "service_worker": "src/background/index.js"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "src/content/index.js"
+            ],
+            "run_at": "document_start",
+            "all_frames": true
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "src/content/provider.js"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ],
+    "permissions": [
+        "storage",
+        "activeTab",
+        "notifications",
+        "alarms"
+    ],
+    "host_permissions": [
+        "https://*.paradoxwallet.io/*",
+        "https://*.alchemy.com/*",
+        "https://*.infura.io/*",
+        "https://*.llamarpc.com/*"
+    ],
+    "externally_connectable": {
+        "matches": [
+            "https://*.paradoxwallet.io/*"
+        ]
+    },
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self'"
+    }
+}

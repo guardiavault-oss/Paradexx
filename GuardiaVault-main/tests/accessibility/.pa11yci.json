@@ -1,0 +1,42 @@
+{
+  "defaults": {
+    "timeout": 30000,
+    "wait": 2000,
+    "chromeLaunchConfig": {
+      "args": ["--no-sandbox", "--disable-setuid-sandbox"]
+    },
+    "standard": "WCAG2AA",
+    "runners": ["axe", "htmlcs"],
+    "ignore": [
+      "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail",
+      "color-contrast"
+    ],
+    "hideElements": ".ad, .cookie-banner"
+  },
+  "urls": [
+    {
+      "url": "http://localhost:5000",
+      "screenCapture": "./tests/accessibility/screenshots/home.png",
+      "actions": []
+    },
+    {
+      "url": "http://localhost:5000/login",
+      "screenCapture": "./tests/accessibility/screenshots/login.png"
+    },
+    {
+      "url": "http://localhost:5000/register",
+      "screenCapture": "./tests/accessibility/screenshots/register.png"
+    },
+    {
+      "url": "http://localhost:5000/dashboard",
+      "screenCapture": "./tests/accessibility/screenshots/dashboard.png",
+      "actions": [
+        "wait for element .dashboard-content to be visible"
+      ]
+    },
+    {
+      "url": "http://localhost:5000/vault/create",
+      "screenCapture": "./tests/accessibility/screenshots/vault-create.png"
+    }
+  ]
+}

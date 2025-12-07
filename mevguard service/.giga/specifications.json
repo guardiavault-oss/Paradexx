@@ -1,0 +1,22 @@
+[
+  {
+    "fileName": "main-overview.mdc",
+    "description": "Complete system overview documenting the MEV protection architecture, key components, and their interactions"
+  },
+  {
+    "fileName": "mev-detection-algorithms.mdc",
+    "description": "Detailed documentation of MEV attack detection algorithms including sandwich attacks, frontrunning, backrunning detection, and ML-based threat detection implementations"
+  },
+  {
+    "fileName": "data-flow-models.mdc",
+    "description": "Comprehensive documentation of data flows between MEV detection engine, order flow control, and transaction protection components including builder/relay interactions"
+  },
+  {
+    "fileName": "protection-strategy-algorithms.mdc",
+    "description": "Detailed documentation of protection strategy selection algorithms, risk scoring systems, and protection level implementation logic"
+  },
+  {
+    "fileName": "reputation-scoring-models.mdc",
+    "description": "Documentation of builder reputation scoring models, MEV bot classification systems, and relay performance tracking mechanisms"
+  }
+]

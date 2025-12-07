@@ -1,0 +1,71 @@
+# Dependencies
+node_modules/
+# pnpm-lock.yaml should be committed for reproducible builds
+
+# Build outputs
+dist/
+build/
+.cache/
+artifacts/
+
+# Environment
+.env
+.env*
+.env.local
+.env.*.local
+**/*.env.local
+**/env/*.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+.nyc_output/
+
+# TypeScript
+*.tsbuildinfo
+
+# Hardhat
+cache/
+artifacts/
+
+# Expo
+.expo/
+.expo-shared/
+
+# Mobile
+mobile/node_modules/
+mobile/.expo/
+
+# Database
+*.db
+*.sqlite
+
+# Temporary files
+*.tmp
+*.temp
+temp_*.txt
+*_temp.txt
+*_temp.md
+
+# Local Netlify folder
+.netlify
+
+# Production environment files with real API keys
+client/.env.production
+server/.env.production

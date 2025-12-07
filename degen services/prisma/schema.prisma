@@ -1,0 +1,360 @@
+// ============================================================================
+// APEX SNIPER - Prisma Schema
+// Database models for persisting orders, positions, and configurations
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// WALLET MODELS
+// ============================================================================
+
+model Wallet {
+  id                  String     @id @default(uuid())
+  name                String
+  address             String     @unique
+  encryptedPrivateKey String
+  enabled             Boolean    @default(true)
+  
+  // Stats
+  totalTrades         Int        @default(0)
+  profitLoss          Float      @default(0)
+  winRate             Float      @default(0)
+  
+  // Relations
+  orders              Order[]
+  positions           Position[]
+  
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+}
+
+// ============================================================================
+// SNIPE CONFIG MODELS
+// ============================================================================
+
+model SnipeConfig {
+  id                    String   @id @default(uuid())
+  name                  String?
+  type                  String   // LIQUIDITY_LAUNCH, TOKEN_LAUNCH, etc.
+  enabled               Boolean  @default(true)
+  
+  // Target
+  targetToken           String?
+  targetPair            String?
+  targetDex             String   @default("UNISWAP_V2")
+  
+  // Execution
+  executionMethod       String   @default("FLASHBOTS")
+  walletIds             String   // JSON array
+  amountInWei           String
+  amountType            String   @default("FIXED")
+  
+  // Timing
+  blockDelay            Int      @default(0)
+  maxBlocks             Int      @default(5)
+  
+  // Gas
+  gasMultiplier         Float    @default(1.2)
+  maxGasPrice           String   // BigInt as string
+  priorityFee           String   // BigInt as string
+  
+  // Safety
+  minLiquidity          Float    @default(1000)
+  maxBuyTax             Float    @default(10)
+  maxSellTax            Float    @default(15)
+  safetyCheckEnabled    Boolean  @default(true)
+  antiRugEnabled        Boolean  @default(true)
+  
+  // Auto-sell
+  autoSellEnabled       Boolean  @default(false)
+  takeProfitPercentages String   @default("[50, 100, 200]") // JSON array
+  stopLossPercentage    Float    @default(30)
+  trailingStopEnabled   Boolean  @default(false)
+  trailingStopPercentage Float   @default(20)
+  
+  // Other
+  slippagePercent       Float    @default(10)
+  deadline              Int      @default(300)
+  retries               Int      @default(2)
+  
+  // Relations
+  orders                Order[]
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// ============================================================================
+// ORDER MODELS
+// ============================================================================
+
+model Order {
+  id                String      @id @default(uuid())
+  configId          String?
+  type              String      // LIQUIDITY_LAUNCH, TOKEN_LAUNCH, etc.
+  status            String      // PENDING, SIMULATING, EXECUTING, CONFIRMED, FAILED
+  
+  // Target
+  tokenIn           String
+  tokenOut          String
+  pair              String?
+  dex               String
+  
+  // Amounts
+  amountIn          String      // BigInt as string
+  amountOutMin      String      // BigInt as string
+  expectedAmountOut String      // BigInt as string
+  actualAmountOut   String?     // BigInt as string
+  
+  // Execution
+  walletId          String
+  walletAddress     String
+  executionMethod   String
+  
+  // Transaction
+  txHash            String?
+  blockNumber       Int?
+  gasUsed           String?     // BigInt as string
+  gasPrice          String?     // BigInt as string
+  effectiveGasPrice String?     // BigInt as string
+  
+  // Timing
+  detectedAt        DateTime
+  submittedAt       DateTime?
+  confirmedAt       DateTime?
+  latencyMs         Int?
+  
+  // Status
+  error             String?
+  retryCount        Int         @default(0)
+  
+  // Relations
+  wallet            Wallet      @relation(fields: [walletId], references: [id])
+  config            SnipeConfig? @relation(fields: [configId], references: [id])
+  position          Position?
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  @@index([walletId])
+  @@index([status])
+  @@index([tokenOut])
+}
+
+// ============================================================================
+// POSITION MODELS
+// ============================================================================
+
+model Position {
+  id                    String          @id @default(uuid())
+  orderId               String          @unique
+  status                String          // OPEN, PARTIAL_CLOSE, CLOSED, LIQUIDATED
+  
+  // Token
+  token                 String
+  tokenSymbol           String
+  tokenName             String
+  tokenDecimals         Int             @default(18)
+  
+  // Entry
+  entryPrice            Float
+  entryAmountIn         String          // BigInt as string
+  entryAmountOut        String          // BigInt as string
+  entryTxHash           String
+  entryBlock            Int
+  entryTimestamp        DateTime
+  
+  // Current state
+  currentBalance        String          // BigInt as string
+  currentPrice          Float           @default(0)
+  currentValueUSD       Float           @default(0)
+  unrealizedPnL         Float           @default(0)
+  unrealizedPnLPercent  Float           @default(0)
+  
+  // Realized
+  realizedPnL           Float           @default(0)
+  totalSold             String          @default("0") // BigInt as string
+  
+  // Management (stored as JSON)
+  takeProfitTargets     String          @default("[]")
+  stopLoss              String?
+  trailingStop          String?
+  
+  // Metadata
+  walletId              String
+  notes                 String?
+  tags                  String          @default("[]")
+  
+  // Relations
+  wallet                Wallet          @relation(fields: [walletId], references: [id])
+  order                 Order           @relation(fields: [orderId], references: [id])
+  exits                 PositionExit[]
+  
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  
+  @@index([walletId])
+  @@index([status])
+  @@index([token])
+}
+
+model PositionExit {
+  id             String   @id @default(uuid())
+  positionId     String
+  type           String   // TAKE_PROFIT, STOP_LOSS, TRAILING_STOP, MANUAL
+  amountSold     String   // BigInt as string
+  amountReceived String   // BigInt as string
+  price          Float
+  pnl            Float
+  pnlPercentage  Float
+  txHash         String
+  timestamp      DateTime
+  
+  // Relations
+  position       Position @relation(fields: [positionId], references: [id])
+  
+  @@index([positionId])
+}
+
+// ============================================================================
+// WHALE TRACKING MODELS
+// ============================================================================
+
+model TrackedWallet {
+  id                   String   @id @default(uuid())
+  address              String   @unique
+  label                String
+  type                 String   @default("WHALE") // WHALE, SMART_MONEY, etc.
+  enabled              Boolean  @default(true)
+  
+  // Copy trading
+  copyTradeEnabled     Boolean  @default(false)
+  copyTradePercentage  Float    @default(10)
+  copyTradeDelay       Int      @default(0)
+  copyTradeMinAmount   Float    @default(0.1)
+  copyTradeMaxAmount   Float    @default(1)
+  
+  // Filters
+  tokenWhitelist       String   @default("[]")
+  tokenBlacklist       String   @default("[]")
+  minTransactionValue  Float    @default(0)
+  
+  // Stats
+  profitability        Float    @default(0)
+  winRate              Float    @default(0)
+  totalTrades          Int      @default(0)
+  avgHoldTime          Float    @default(0)
+  
+  // Metadata
+  notes                String?
+  tags                 String   @default("[]")
+  
+  // Relations
+  transactions         WhaleTransaction[]
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model WhaleTransaction {
+  id              String        @id @default(uuid())
+  walletId        String
+  walletAddress   String
+  type            String        // BUY, SELL, TRANSFER
+  
+  // Token
+  token           String
+  tokenSymbol     String
+  tokenName       String
+  
+  // Trade
+  amount          String        // BigInt as string
+  valueUSD        Float
+  price           Float
+  
+  // Transaction
+  txHash          String        @unique
+  blockNumber     Int
+  timestamp       DateTime
+  
+  // Copy trade
+  copyTraded      Boolean       @default(false)
+  copyTradeOrderId String?
+  
+  // Relations
+  trackedWallet   TrackedWallet @relation(fields: [walletId], references: [id])
+  
+  @@index([walletId])
+  @@index([token])
+  @@index([timestamp])
+}
+
+// ============================================================================
+// TOKEN ANALYSIS MODELS
+// ============================================================================
+
+model TokenAnalysis {
+  id                String   @id @default(uuid())
+  token             String
+  
+  // Safety
+  riskLevel         String
+  score             Int
+  flags             String   // JSON array
+  
+  // Honeypot
+  isHoneypot        Boolean
+  buyTax            Float
+  sellTax           Float
+  transferTax       Float
+  
+  // Contract
+  verified          Boolean
+  isProxy           Boolean
+  hasBlacklist      Boolean
+  hasWhitelist      Boolean
+  hasPauseFunction  Boolean
+  hasMintFunction   Boolean
+  
+  // Liquidity
+  totalLiquidityUSD Float
+  mainPairAddress   String?
+  mainPairDex       String?
+  isLocked          Boolean
+  
+  // Owner
+  ownerAddress      String?
+  isRenounced       Boolean
+  ownerPercentage   Float
+  
+  timestamp         DateTime @default(now())
+  
+  @@index([token])
+  @@index([timestamp])
+}
+
+// ============================================================================
+// EVENT LOG MODELS
+// ============================================================================
+
+model EventLog {
+  id        String   @id @default(uuid())
+  type      String   // SNIPE_DETECTED, SNIPE_SUCCESS, etc.
+  severity  String   // INFO, WARNING, ERROR, CRITICAL
+  title     String
+  message   String
+  data      String?  // JSON
+  timestamp DateTime @default(now())
+  
+  @@index([type])
+  @@index([severity])
+  @@index([timestamp])
+}

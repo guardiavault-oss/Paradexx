@@ -1,0 +1,42 @@
+{
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "commonjs",
+        "lib": [
+            "ES2020"
+        ],
+        "outDir": "./dist",
+        "rootDir": "./",
+        "strict": false,
+        "noImplicitAny": false,
+        "strictNullChecks": false,
+        "noEmitOnError": false,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "moduleResolution": "node",
+        "declaration": false,
+        "sourceMap": true,
+        "types": [
+            "node"
+        ],
+        "baseUrl": "./"
+    },
+    "include": [
+        "server.ts",
+        "routes/**/*.ts",
+        "services/**/*.ts",
+        "middleware/**/*.ts",
+        "config/**/*.ts",
+        "jobs/**/*.ts",
+        "stripe/**/*.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "routes/guardian-portal.routes.ts",
+        "routes/guardian-portal-internal.routes.ts",
+        "routes/recovery.routes.ts"
+    ]
+}

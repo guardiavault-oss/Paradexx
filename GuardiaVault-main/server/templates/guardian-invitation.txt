@@ -1,0 +1,29 @@
+GuardiaVault - You've Been Named as a Guardian
+
+Hello,
+
+{{ownerName}} has designated you as a trusted guardian for their vault: {{vaultName}}
+
+YOUR ROLE AS GUARDIAN
+----------------------
+You will securely hold an encrypted key fragment. This fragment alone cannot access the vault - it requires collaboration with other guardians. The vault uses a 2-of-3 threshold system, meaning 2 out of 3 guardians must provide their fragments to unlock the vault.
+
+SECURITY MEASURES
+-----------------
+• Your fragment is encrypted with a unique passphrase
+• Zero-knowledge architecture - GuardiaVault never sees the data
+• Multi-party verification required for vault access
+• End-to-end encryption throughout the process
+
+ACCEPT YOUR GUARDIAN ROLE
+-------------------------
+Click the link below to accept and receive your encrypted key fragment:
+{{acceptLink}}
+
+This invitation link will expire in 7 days.
+If you did not expect this invitation, you can safely ignore this email.
+
+---
+GuardiaVault - Cryptographic Dead Man's Switch
+Secure, decentralized, and trustless asset recovery
+https://guardiavault.com

@@ -1,0 +1,218 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bridge-security-api
+  namespace: bridge-security
+  labels:
+    app: bridge-security-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: bridge-security-api
+  template:
+    metadata:
+      labels:
+        app: bridge-security-api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: bridge-security-api
+        image: cross-chain-bridge-service:latest
+        ports:
+        - containerPort: 8000
+          name: http
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: DATABASE_URL
+          value: "postgresql://postgres:$(POSTGRES_PASSWORD)@postgres-service:5432/bridge_security"
+        - name: REDIS_URL
+          value: "redis://:$(REDIS_PASSWORD)@redis-service:6379/0"
+        envFrom:
+        - configMapRef:
+            name: bridge-security-config
+        - secretRef:
+            name: bridge-security-secrets
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "8Gi"
+            cpu: "4000m"
+        volumeMounts:
+        - name: data-volume
+          mountPath: /app/data
+        - name: logs-volume
+          mountPath: /app/logs
+        - name: models-volume
+          mountPath: /app/models
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 10
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: bridge-security-data
+      - name: logs-volume
+        persistentVolumeClaim:
+          claimName: bridge-security-logs
+      - name: models-volume
+        persistentVolumeClaim:
+          claimName: bridge-security-models
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - bridge-security-api
+              topologyKey: kubernetes.io/hostname
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bridge-security-worker
+  namespace: bridge-security
+  labels:
+    app: bridge-security-worker
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: bridge-security-worker
+  template:
+    metadata:
+      labels:
+        app: bridge-security-worker
+    spec:
+      containers:
+      - name: bridge-security-worker
+        image: cross-chain-bridge-service:latest
+        command: ["celery", "-A", "src.core.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
+        env:
+        - name: DATABASE_URL
+          value: "postgresql://postgres:$(POSTGRES_PASSWORD)@postgres-service:5432/bridge_security"
+        - name: REDIS_URL
+          value: "redis://:$(REDIS_PASSWORD)@redis-service:6379/0"
+        envFrom:
+        - configMapRef:
+            name: bridge-security-config
+        - secretRef:
+            name: bridge-security-secrets
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        volumeMounts:
+        - name: data-volume
+          mountPath: /app/data
+        - name: logs-volume
+          mountPath: /app/logs
+        - name: models-volume
+          mountPath: /app/models
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: bridge-security-data
+      - name: logs-volume
+        persistentVolumeClaim:
+          claimName: bridge-security-logs
+      - name: models-volume
+        persistentVolumeClaim:
+          claimName: bridge-security-models
+      nodeSelector:
+        kubernetes.io/os: linux
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bridge-security-beat
+  namespace: bridge-security
+  labels:
+    app: bridge-security-beat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bridge-security-beat
+  template:
+    metadata:
+      labels:
+        app: bridge-security-beat
+    spec:
+      containers:
+      - name: bridge-security-beat
+        image: cross-chain-bridge-service:latest
+        command: ["celery", "-A", "src.core.celery_app", "beat", "--loglevel=info"]
+        env:
+        - name: DATABASE_URL
+          value: "postgresql://postgres:$(POSTGRES_PASSWORD)@postgres-service:5432/bridge_security"
+        - name: REDIS_URL
+          value: "redis://:$(REDIS_PASSWORD)@redis-service:6379/0"
+        envFrom:
+        - configMapRef:
+            name: bridge-security-config
+        - secretRef:
+            name: bridge-security-secrets
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        volumeMounts:
+        - name: data-volume
+          mountPath: /app/data
+        - name: logs-volume
+          mountPath: /app/logs
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: bridge-security-data
+      - name: logs-volume
+        persistentVolumeClaim:
+          claimName: bridge-security-logs
+      nodeSelector:
+        kubernetes.io/os: linux

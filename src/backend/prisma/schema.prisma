@@ -1,0 +1,1195 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model - Main user account
+model User {
+  id                String    @id @default(cuid())
+  email             String?   @unique
+  emailVerified     DateTime?
+  username          String?   @unique
+  
+  // OAuth fields
+  oauthProvider     String?   // google, apple, github, twitter
+  oauthId           String?   @unique
+  oauthAccessToken  String?
+  oauthRefreshToken String?
+  
+  // Profile
+  displayName       String?
+  avatar            String?
+  bio               String?
+  
+  // Security
+  passwordHash      String?   // For email/password auth
+  twoFactorEnabled  Boolean   @default(false)
+  twoFactorSecret   String?
+  
+  // Biometric
+  biometricEnabled  Boolean   @default(false)
+  biometricPublicKey String?
+  biometricCredentialId String? @unique
+  biometricCounter  Int       @default(0)
+  
+  // Auto-lock settings
+  autoLockEnabled   Boolean   @default(true)
+  autoLockTimeout   Int       @default(5) // minutes
+  
+  // PIN code
+  pinHash           String?
+  
+  // Premium Pass
+  premiumPasses     PremiumPass[]
+  sniperTrades      SniperTrade[]
+  
+  // Timestamps
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  lastLoginAt       DateTime?
+  
+  // Relations
+  wallets           Wallet[]
+  sessions          Session[]
+  cloudBackups      CloudBackup[]
+  guardians         Guardian[]
+  recoveryRequests  RecoveryRequest[]
+  beneficiaries     Beneficiary[]
+  yieldVaults       YieldVault[]
+  transactions      Transaction[]
+  priceAlerts       PriceAlert[]
+  addressBook       AddressBookEntry[]
+  wcSessions        WalletConnectSession[]
+  
+  @@index([email])
+  @@index([oauthId])
+}
+
+// Session model - User sessions
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  refreshToken String?  @unique
+  expiresAt    DateTime
+  ipAddress    String?
+  userAgent    String?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([token])
+}
+
+// Wallet model - User's crypto wallets
+model Wallet {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  // Wallet info
+  address         String   @unique
+  name            String?
+  chain           String   @default("ethereum") // ethereum, polygon, bsc, etc.
+  
+  // Encryption (wallet stored encrypted in cloud)
+  encryptedPrivateKey String?
+  publicKey       String?
+  
+  // Wallet type
+  walletType      String   @default("mpc") // mpc, hardware, imported
+  hardwareType    String?  // ledger, trezor
+  derivationPath  String?
+  
+  // Balance tracking
+  balance         String?  @default("0") // Native token balance
+  lastSyncedAt    DateTime?
+  
+  // Metadata
+  isDefault       Boolean  @default(false)
+  isHidden        Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+  sessionKeys     SessionKey[]
+  
+  @@index([userId])
+  @@index([address])
+}
+
+// Cloud Backup model
+model CloudBackup {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  // Backup data (encrypted)
+  encryptedData   String
+  backupType      String   // full, incremental
+  
+  // Encryption
+  encryptionMethod String  @default("aes-256-gcm")
+  iv              String   // Initialization vector
+  salt            String   // For key derivation
+  
+  // Metadata
+  fileSize        Int      // bytes
+  checksum        String   // SHA-256 hash
+  
+  createdAt       DateTime @default(now())
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+// Guardian model - For social recovery
+model Guardian {
+  id              String   @id @default(cuid())
+  userId          String   // Wallet owner
+  
+  // Guardian info
+  email           String
+  name            String?
+  
+  // Status
+  status          String   @default("pending") // pending, accepted, declined
+  inviteToken     String?  @unique
+  inviteExpiresAt DateTime?
+  
+  // Key shard (encrypted)
+  encryptedKeyShard String?
+  shardIndex      Int?
+  
+  // Recovery key shard (for Shamir's Secret Sharing)
+  recoveryKeyShard String?
+  shardHash       String? // Hash of shard for verification
+  
+  // Metadata
+  acceptedAt      DateTime?
+  lastVerifiedAt  DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approvals      GuardianApproval[]
+  
+  @@index([userId])
+  @@index([email])
+}
+
+// Recovery Request model
+model RecoveryRequest {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  // Recovery details
+  requesterEmail  String
+  reason          String?
+  
+  // Status
+  status          String   @default("pending") // pending, approved, rejected, completed
+  approvalCount   Int      @default(0)
+  requiredApprovals Int    @default(2) // M-of-N threshold
+  
+  // Time-lock
+  initiatedAt     DateTime @default(now())
+  canExecuteAt    DateTime // 7 days after initiation
+  expiresAt       DateTime // 30 days after initiation
+  
+  // Dispute
+  disputedAt      DateTime?
+  disputeReason   String?
+  
+  // Approvals
+  guardianApprovals GuardianApproval[]
+  
+  // Relations
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+// Guardian Approval model
+model GuardianApproval {
+  id              String   @id @default(cuid())
+  recoveryRequestId String
+  guardianId      String
+  
+  approved        Boolean
+  approvedAt      DateTime @default(now())
+  ipAddress       String?
+  
+  recoveryRequest RecoveryRequest @relation(fields: [recoveryRequestId], references: [id], onDelete: Cascade)
+  guardian        Guardian @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  
+  @@unique([recoveryRequestId, guardianId])
+}
+
+// Beneficiary model - For GuardianX inheritance
+model Beneficiary {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  // Beneficiary info
+  name            String
+  email           String
+  relationship    String?
+  
+  // Allocation
+  percentage      Float    @default(100) // Percentage of estate
+  
+  // Conditions
+  requiresDeathCertificate Boolean @default(false)
+  manualVerification Boolean @default(false)
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+// Transaction model
+model Transaction {
+  id              String   @id @default(cuid())
+  userId          String
+  walletId        String
+  
+  // Transaction details
+  hash            String   @unique
+  type            String   // send, receive, swap, approve, contract
+  status          String   @default("pending") // pending, confirming, success, failed
+  
+  // Addresses
+  from            String
+  to              String
+  
+  // Amounts
+  value           String   // Wei/smallest unit
+  token           String   @default("ETH")
+  tokenAddress    String?
+  valueUSD        Float?
+  
+  // Gas
+  gasLimit        String?
+  gasPrice        String?
+  gasUsed         String?
+  gasCostUSD      Float?
+  
+  // Swap details (if applicable)
+  swapFromToken   String?
+  swapFromAmount  String?
+  swapToToken     String?
+  swapToAmount    String?
+  
+  // Metadata
+  blockNumber     Int?
+  confirmations   Int      @default(0)
+  nonce           Int?
+  error           String?
+  chain           String   @default("ethereum")
+  
+  timestamp       DateTime @default(now())
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet          Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([walletId])
+  @@index([hash])
+  @@index([status])
+}
+
+// SessionKey model - For seedless wallet session-based signing
+model SessionKey {
+  id                  String   @id @default(cuid())
+  userId              String
+  walletId            String
+  
+  // Session token (hashed)
+  token               String   @unique
+  
+  // Encrypted session private key
+  encryptedPrivateKey String
+  
+  // Session limits
+  expiresAt           DateTime
+  spendingLimit       String   // Wei
+  spentAmount         String   @default("0") // Wei
+  
+  // Status
+  isActive            Boolean  @default(true)
+  
+  createdAt           DateTime @default(now())
+  
+  wallet              Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([walletId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// Price Alert model
+model PriceAlert {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  // Alert details
+  token           String   // ETH, BTC, etc.
+  condition       String   // above, below
+  targetPrice     Float
+  currentPrice    Float?
+  
+  // Status
+  triggered       Boolean  @default(false)
+  triggeredAt     DateTime?
+  
+  // Notification
+  notified        Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([triggered])
+}
+
+// Yield Vault model
+model YieldVault {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  // Vault details
+  name            String
+  address         String   // Contract address
+  strategy        String   @default("default") // lido, aave, compound, default
+  status          String   @default("active") // active, paused, closed
+  
+  // Balances
+  totalDeposited  String   @default("0")
+  totalYield      String   @default("0")
+  currentAPY      Float  @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deposits        YieldVaultDeposit[]
+  withdrawals     YieldVaultWithdrawal[]
+  
+  @@index([userId])
+  @@index([address])
+}
+
+// Yield Vault Deposit model
+model YieldVaultDeposit {
+  id              String   @id @default(cuid())
+  vaultId         String
+  userId          String
+  
+  // Deposit details
+  amount          String
+  tokenAddress    String
+  expectedYield   String
+  feeAmount       String   // 1% yield fee
+  status          String   @default("pending") // pending, confirmed, failed
+  
+  createdAt       DateTime @default(now())
+  
+  vault           YieldVault @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  
+  @@index([vaultId])
+  @@index([userId])
+}
+
+// Yield Vault Withdrawal model
+model YieldVaultWithdrawal {
+  id              String   @id @default(cuid())
+  vaultId         String
+  userId          String
+  
+  // Withdrawal details
+  amount          String
+  yieldEarned     String
+  feeAmount       String   // 1% yield fee
+  netYield        String
+  status          String   @default("pending") // pending, confirmed, failed
+  
+  createdAt       DateTime @default(now())
+  
+  vault           YieldVault @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  
+  @@index([vaultId])
+  @@index([userId])
+}
+
+// Address Book model
+model AddressBookEntry {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  // Contact info
+  name            String
+  address         String
+  ensName         String?
+  
+  // Metadata
+  label           String?  // personal, exchange, contract, etc.
+  notes           String?
+  isFavorite      Boolean  @default(false)
+  
+  // Trust
+  isTrusted       Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@unique([userId, address])
+}
+
+// WalletConnect Session model
+model WalletConnectSession {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  // Session details
+  topic           String   @unique
+  peerName        String
+  peerUrl         String
+  peerIcon        String?
+  
+  // Connection
+  connected       Boolean  @default(true)
+  chainId         Int
+  accounts        String   // JSON array of addresses
+  
+  connectedAt     DateTime @default(now())
+  lastActiveAt    DateTime @default(now())
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([topic])
+}
+
+// Token Approval model
+model TokenApproval {
+  id              String   @id @default(cuid())
+  
+  // Token info
+  tokenAddress    String
+  tokenSymbol     String
+  spenderAddress  String
+  spenderName     String?
+  
+  // Approval details
+  amount          String   // Max uint256 if unlimited
+  isUnlimited     Boolean
+  
+  // Risk
+  risk            String   @default("low") // low, medium, high
+  isVerified      Boolean  @default(false)
+  
+  // Status
+  isActive        Boolean  @default(true)
+  revokedAt       DateTime?
+  
+  approvedAt      DateTime @default(now())
+  lastUsedAt      DateTime?
+  
+  walletAddress   String
+  
+  @@index([walletAddress])
+  @@index([tokenAddress])
+}
+
+// Phishing Report model
+model PhishingReport {
+  id              String   @id @default(cuid())
+  
+  // Report details
+  url             String
+  domain          String
+  reportedBy      String   // User ID or email
+  
+  // Status
+  status          String   @default("pending") // pending, confirmed, rejected
+  severity        String?  // low, medium, high, critical
+  
+  // Review
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([domain])
+  @@index([status])
+}
+
+// Analytics Event model
+model AnalyticsEvent {
+  id              String   @id @default(cuid())
+  
+  // Event details
+  userId          String?
+  eventType       String   // page_view, transaction, error, etc.
+  eventName       String
+  
+  // Properties (JSON)
+  properties      String?
+  
+  // Context
+  sessionId       String?
+  ipAddress       String?
+  userAgent       String?
+  
+  timestamp       DateTime @default(now())
+  
+  @@index([userId])
+  @@index([eventType])
+  @@index([timestamp])
+}
+
+// ============ Smart Will Models ============
+
+// SmartWill model - Digital will for asset distribution
+model SmartWill {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  // Will details
+  name            String
+  template        String   @default("standard") // standard, trust-fund, charitable, business, multi-chain, conditional
+  status          String   @default("draft") // draft, published, executed, revoked
+  
+  // On-chain data
+  onChainId       String?  // Contract will ID
+  transactionHash String?
+  metadataHash    String?  // IPFS hash of legal document
+  chainId         Int?
+  
+  // Guardian settings
+  requiresGuardianAttestation Boolean @default(false)
+  guardianThreshold Int     @default(1)
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  publishedAt     DateTime?
+  executedAt      DateTime?
+  revokedAt       DateTime?
+  
+  // Relations
+  beneficiaries   WillBeneficiary[]
+  guardians       WillGuardian[]
+  charities       WillCharity[]
+  conditions      WillCondition[]
+  messages        WillMessage[]
+  
+  @@index([userId])
+  @@index([status])
+}
+
+// WillBeneficiary model - Beneficiaries in a will
+model WillBeneficiary {
+  id              String   @id @default(cuid())
+  willId          String
+  
+  // Beneficiary details
+  name            String
+  walletAddress   String
+  allocation      Int      @default(0) // Percentage (0-100)
+  relationship    String?
+  
+  // Conditions (JSON array)
+  conditions      String?    // [{type: 'age', value: '18'}, {type: 'date', value: '2025-01-01'}]
+  
+  // NFT-specific allocation
+  nftOnly         Boolean  @default(false)
+  specificTokens  String?    // Array of token addresses for specific allocation
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  will            SmartWill @relation(fields: [willId], references: [id], onDelete: Cascade)
+  
+  @@index([willId])
+}
+
+// WillGuardian model - Guardians/Trustees for a will
+model WillGuardian {
+  id              String   @id @default(cuid())
+  willId          String
+  
+  // Guardian details
+  name            String
+  walletAddress   String
+  role            String   @default("trustee") // trustee, executor, guardian, approver
+  
+  // Approval status
+  hasApproved     Boolean  @default(false)
+  approvedAt      DateTime?
+  
+  createdAt       DateTime @default(now())
+  
+  will            SmartWill @relation(fields: [willId], references: [id], onDelete: Cascade)
+  
+  @@index([willId])
+}
+
+// WillCharity model - Charitable organizations in a will
+model WillCharity {
+  id              String   @id @default(cuid())
+  willId          String
+  
+  // Charity details
+  name            String
+  walletAddress   String
+  allocation      Int      @default(0) // Percentage (0-100)
+  cause           String?
+  isVerifiedDAO   Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  
+  will            SmartWill @relation(fields: [willId], references: [id], onDelete: Cascade)
+  
+  @@index([willId])
+}
+
+// WillCondition model - Release conditions for a will
+model WillCondition {
+  id              String   @id @default(cuid())
+  willId          String
+  beneficiaryId   String?  // Optional: specific beneficiary condition
+  
+  // Condition details
+  type            String   // age, date, milestone, approval, vesting
+  value           String   // e.g., "18" for age, "2025-01-01" for date
+  description     String?
+  
+  // Vesting specific
+  vestingPeriod   Int?     // Months
+  vestingPercent  Int?     // Percentage per period
+  
+  // Status
+  isMet           Boolean  @default(false)
+  metAt           DateTime?
+  
+  createdAt       DateTime @default(now())
+  
+  will            SmartWill @relation(fields: [willId], references: [id], onDelete: Cascade)
+  
+  @@index([willId])
+  @@index([beneficiaryId])
+}
+
+// WillMessage model - Legacy messages attached to a will
+model WillMessage {
+  id              String   @id @default(cuid())
+  willId          String
+  
+  // Message details
+  recipientId     String?  // Beneficiary ID or null for all
+  recipientType   String   @default("beneficiary") // beneficiary, guardian, all
+  
+  // Content (encrypted)
+  type            String   @default("text") // text, video, file
+  encryptedContent String?
+  ipfsHash        String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  will            SmartWill @relation(fields: [willId], references: [id], onDelete: Cascade)
+  
+  @@index([willId])
+}
+
+// ============ Wallet Guard Models ============
+
+// MonitoredWallet model - Wallets being monitored by Wallet Guard
+model MonitoredWallet {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  // Wallet details
+  address         String
+  network         String   @default("ethereum")
+  walletType      String   @default("eoa") // eoa, contract, multisig
+  
+  // Monitoring status
+  isActive        Boolean  @default(true)
+  riskScore       Float    @default(0)
+  threatLevel     String   @default("low") // low, medium, high, critical
+  
+  // Configuration
+  protectionLevel String   @default("medium") // low, medium, high, critical, paranoid
+  autoProtect     Boolean  @default(true)
+  alertChannels   String?    // ["email", "push", "sms"]
+  
+  // Thresholds
+  maxTransactionValue String?
+  maxGasPrice     String?
+  suspiciousActivityScore Int @default(70)
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastActivity    DateTime?
+  
+  // Relations
+  threats         WalletThreat[]
+  protectionActions WalletProtectionAction[]
+  securityConfig  WalletSecurityConfig?
+  
+  @@unique([userId, address, network])
+  @@index([userId])
+  @@index([address])
+  @@index([network])
+}
+
+// WalletThreat model - Detected threats for monitored wallets
+model WalletThreat {
+  id              String   @id @default(cuid())
+  walletId        String
+  
+  // Threat details
+  threatType      String   // PHISHING, HONEYPOT, RUG_PULL, DRAINER, etc.
+  threatLevel     String   // low, medium, high, critical
+  description     String
+  confidence      Float    @default(0.5)
+  
+  // Source information
+  sourceAddress   String?
+  sourceContract  String?
+  transactionHash String?
+  
+  // Status
+  resolved        Boolean  @default(false)
+  resolvedAt      DateTime?
+  resolvedBy      String?
+  
+  // Metadata
+  metadata        String?
+  
+  createdAt       DateTime @default(now())
+  
+  wallet          MonitoredWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  
+  @@index([walletId])
+  @@index([threatLevel])
+  @@index([createdAt])
+}
+
+// WalletProtectionAction model - Protection actions taken
+model WalletProtectionAction {
+  id              String   @id @default(cuid())
+  walletId        String
+  
+  // Action details
+  actionType      String   // revoke_approval, transfer_assets, blacklist_address, etc.
+  description     String
+  
+  // Execution status
+  success         Boolean  @default(false)
+  transactionHash String?
+  errorMessage    String?
+  
+  // Metadata
+  metadata        String?
+  
+  createdAt       DateTime @default(now())
+  executedAt      DateTime?
+  
+  wallet          MonitoredWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  
+  @@index([walletId])
+  @@index([actionType])
+}
+
+// WalletSecurityConfig model - Security configuration for a wallet
+model WalletSecurityConfig {
+  id              String   @id @default(cuid())
+  walletId        String   @unique
+  
+  // Security level
+  securityLevel   String   @default("medium")
+  requiredSigners Int      @default(1)
+  
+  // Feature flags
+  mpcEnabled      Boolean  @default(false)
+  hsmEnabled      Boolean  @default(false)
+  timeLockEnabled Boolean  @default(true)
+  circuitBreakerEnabled Boolean @default(true)
+  zeroDayProtectionEnabled Boolean @default(false)
+  whitelistEnabled Boolean @default(false)
+  
+  // Whitelists
+  whitelistedAddresses String? // Array of addresses
+  whitelistedContracts String? // Array of contract addresses
+  
+  // Alert configuration
+  alertChannels   String?    // ["email", "push", "sms", "webhook"]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  wallet          MonitoredWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+}
+
+// TransactionSimulation model - Simulated transactions
+model TransactionSimulation {
+  id              String   @id @default(cuid())
+  userId          String?
+  
+  // Transaction details
+  walletAddress   String
+  network         String   @default("ethereum")
+  toAddress       String
+  value           String
+  data            String?
+  gasLimit        String?
+  
+  // Simulation result
+  success         Boolean
+  gasUsed         String?
+  returnData      String?
+  logs            String?
+  stateChanges    String?
+  
+  // Risk assessment
+  riskScore       Float    @default(0)
+  riskLevel       String   @default("low")
+  warnings        String?    // Array of warning strings
+  recommendations String?    // Array of recommendation strings
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([walletAddress])
+  @@index([createdAt])
+}
+
+// ============ Inheritance Vault Models ============
+
+// InheritanceVault model - Vault for crypto inheritance
+model InheritanceVault {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  // Vault details
+  name            String
+  description     String?
+  
+  // Subscription tier
+  tier            String   @default("essential") // essential, premium
+  
+  // Inactivity settings
+  inactivityDays  Int      @default(365) // 30, 90, 180, 365
+  
+  // Status
+  status          String   @default("active") // active, triggered, distributed, cancelled
+  
+  // Activity tracking
+  lastActivityAt  DateTime @default(now())
+  triggerWarningAt DateTime? // First warning sent
+  timelockStartAt DateTime? // When timelock started
+  canDistributeAt DateTime? // When assets can be distributed
+  
+  // Distribution settings
+  distributionMethod String @default("automatic") // automatic, manual
+  requiresGuardianApproval Boolean @default(false)
+  guardianApprovalCount Int @default(0)
+  requiredGuardianApprovals Int @default(1)
+  
+  // Notification settings
+  enableCheckInReminders Boolean @default(false) // Premium only - yearly reminders
+  lastCheckInReminder DateTime?
+  warningNotificationsSent Int @default(0)
+  
+  // Associated wallets (JSON array of wallet addresses)
+  walletAddresses String?
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  distributedAt   DateTime?
+  
+  // Relations
+  beneficiaries   VaultBeneficiary[]
+  activities      VaultActivity[]
+  notifications   VaultNotification[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([lastActivityAt])
+}
+
+// VaultBeneficiary model - Beneficiaries for inheritance vault
+model VaultBeneficiary {
+  id              String   @id @default(cuid())
+  vaultId         String
+  
+  // Beneficiary info
+  name            String
+  email           String
+  walletAddress   String?
+  relationship    String?
+  
+  // Allocation
+  percentage      Float    @default(100)
+  
+  // Verification
+  isVerified      Boolean  @default(false)
+  verificationToken String? @unique
+  verifiedAt      DateTime?
+  
+  // Status
+  status          String   @default("pending") // pending, verified, claimed
+  claimedAt       DateTime?
+  claimTransactionHash String?
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  vault           InheritanceVault @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  
+  @@index([vaultId])
+  @@index([email])
+}
+
+// VaultActivity model - Track user activity for inactivity detection
+model VaultActivity {
+  id              String   @id @default(cuid())
+  vaultId         String
+  
+  // Activity details
+  activityType    String   // login, transaction, check_in, manual_reset
+  description     String?
+  ipAddress       String?
+  userAgent       String?
+  
+  createdAt       DateTime @default(now())
+  
+  vault           InheritanceVault @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  
+  @@index([vaultId])
+  @@index([createdAt])
+}
+
+// VaultNotification model - Track notifications sent
+model VaultNotification {
+  id              String   @id @default(cuid())
+  vaultId         String
+  
+  // Notification details
+  type            String   // warning_7_days, warning_24_hours, timelock_started, distribution_complete, check_in_reminder, beneficiary_notification
+  recipientEmail  String
+  recipientType   String   @default("owner") // owner, beneficiary
+  
+  // Status
+  sent            Boolean  @default(true)
+  sentAt          DateTime @default(now())
+  opened          Boolean  @default(false)
+  openedAt        DateTime?
+  
+  // Content reference
+  subject         String?
+  
+  vault           InheritanceVault @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  
+  @@index([vaultId])
+  @@index([type])
+  @@index([sentAt])
+}
+
+// UserSettings model - Store user preferences
+model UserSettings {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  
+  // Notification preferences
+  emailNotifications     Boolean @default(true)
+  pushNotifications      Boolean @default(true)
+  transactionAlerts      Boolean @default(true)
+  priceAlerts            Boolean @default(true)
+  securityAlerts         Boolean @default(true)
+  marketingEmails        Boolean @default(false)
+  
+  // Display preferences
+  theme                  String  @default("system") // light, dark, system
+  currency               String  @default("USD")
+  language               String  @default("en")
+  compactMode            Boolean @default(false)
+  
+  // Privacy preferences
+  shareAnalytics         Boolean @default(false)
+  publicProfile          Boolean @default(false)
+  
+  // Legal acceptance
+  termsAcceptedVersion   String?
+  termsAcceptedAt        DateTime?
+  privacyAcceptedVersion String?
+  privacyAcceptedAt      DateTime?
+  ageVerified            Boolean @default(false)
+  ageVerifiedAt          DateTime?
+  jurisdiction           String?
+  jurisdictionSetAt      DateTime?
+  
+  // Account deletion
+  deletionScheduledAt    DateTime?
+  deletionReason         String?
+  
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+// HelpArticle model - Store support help articles
+model HelpArticle {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  title           String
+  category        String
+  content         String
+  order           Int      @default(0)
+  published       Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([category])
+  @@index([published])
+}
+
+// SupportTicket model - Store support requests
+model SupportTicket {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  ticketNumber    String   @unique
+  subject         String
+  description     String
+  category        String   @default("general")
+  priority        String   @default("medium") // low, medium, high, urgent
+  status          String   @default("open") // open, in_progress, waiting, resolved, closed
+  
+  // Response tracking
+  assignedTo      String?
+  firstResponseAt DateTime?
+  resolvedAt      DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([status])
+  @@index([ticketNumber])
+}
+
+// ============ Premium Feature Unlocks ============
+
+// UserPremiumFeature model - Track one-time premium feature purchases
+// Premium Pass models
+model PremiumPass {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   // 'annual' or 'lifetime'
+  price       Float
+  currency    String   @default("USD")
+  expiresAt   DateTime? // null for lifetime passes
+  stripePaymentIntentId String?
+  stripeSubscriptionId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model SniperTrade {
+  id          String   @id @default(cuid())
+  userId      String
+  tokenAddress String
+  amount      String
+  tradeValue  String   // USD value
+  feeAmount   String   // Platform fee (1% for free tier)
+  executedAt  DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([executedAt])
+}
+
+model UserPremiumFeature {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  // Feature info
+  featureId       String   // sniper_bot, whale_alerts, private_node, etc.
+  
+  // Purchase info
+  purchasedAt     DateTime @default(now())
+  stripeSessionId String?
+  stripePaymentId String?
+  pricePaid       Int      @default(0) // cents
+  
+  // Bundle info (if part of complete bundle)
+  isBundle        Boolean  @default(false)
+  bundlePurchaseId String?
+  
+  @@unique([userId, featureId])
+  @@index([userId])
+  @@index([featureId])
+}
+
+// VaultManagementFee model - Track vault management fee calculations
+model VaultManagementFee {
+  id              String   @id @default(cuid())
+  userId          String
+  vaultId         String?
+  
+  // Fee calculation
+  aumUsd          Float    // Assets under management at time of calculation
+  feeRate         Float    // Annual rate (e.g., 0.25 = 0.25%)
+  feeAmountUsd    Float    // Quarterly fee amount
+  
+  // Period
+  periodStart     DateTime
+  periodEnd       DateTime
+  
+  // Status
+  status          String   @default("pending") // pending, paid, waived
+  paidAt          DateTime?
+  transactionHash String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([userId])
+  @@index([status])
+  @@index([periodEnd])
+}
+

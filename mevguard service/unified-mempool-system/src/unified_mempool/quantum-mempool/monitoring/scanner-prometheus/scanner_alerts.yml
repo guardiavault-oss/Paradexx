@@ -1,0 +1,230 @@
+# Ultimate Scanner System - Alert Rules
+# Prometheus alerting rules for scanner monitoring
+
+groups:
+  - name: scanner_critical_alerts
+    interval: 30s
+    rules:
+      # Critical vulnerability detected
+      - alert: CriticalVulnerabilityDetected
+        expr: scanner_vulnerabilities_detected{severity="critical"} > 0
+        for: 0s
+        labels:
+          severity: critical
+          service: scanner
+        annotations:
+          summary: "Critical vulnerability detected in smart contract"
+          description: "Scanner {{ $labels.scanner_type }} detected {{ $value }} critical vulnerabilities"
+
+      # Quantum threat detected
+      - alert: QuantumThreatDetected
+        expr: quantum_threats_detected_total > 0
+        for: 0s
+        labels:
+          severity: critical
+          service: quantum-scanner
+        annotations:
+          summary: "Quantum threat detected"
+          description: "Quantum scanner detected {{ $value }} potential quantum attacks with confidence > 0.8"
+
+      # Scanner service down
+      - alert: ScannerServiceDown
+        expr: up{job=~".*scanner.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "Scanner service {{ $labels.job }} is down"
+          description: "Scanner service {{ $labels.job }} has been down for more than 2 minutes"
+
+  - name: scanner_warning_alerts
+    interval: 60s
+    rules:
+      # High scan failure rate
+      - alert: HighScanFailureRate
+        expr: rate(scanner_scans_failed_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: scanner
+        annotations:
+          summary: "High scan failure rate detected"
+          description: "Scan failure rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+
+      # Long scan duration
+      - alert: LongScanDuration
+        expr: scanner_scan_duration_seconds > 1800  # 30 minutes
+        for: 1m
+        labels:
+          severity: warning
+          service: "{{ $labels.scanner_type }}"
+        annotations:
+          summary: "Scanner taking too long to complete"
+          description: "{{ $labels.scanner_type }} scan has been running for {{ $value | humanizeDuration }}"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: scanner_memory_usage_percent > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.service_name }}"
+        annotations:
+          summary: "High memory usage in {{ $labels.service_name }}"
+          description: "Memory usage is {{ $value }}% in {{ $labels.service_name }}"
+
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: scanner_cpu_usage_percent > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.service_name }}"
+        annotations:
+          summary: "High CPU usage in {{ $labels.service_name }}"
+          description: "CPU usage is {{ $value }}% in {{ $labels.service_name }}"
+
+  - name: scanner_info_alerts
+    interval: 5m
+    rules:
+      # Low confidence scan results
+      - alert: LowConfidenceScanResults
+        expr: avg(scanner_confidence_score) < 0.6
+        for: 10m
+        labels:
+          severity: info
+          service: scanner
+        annotations:
+          summary: "Low confidence in scan results"
+          description: "Average scan confidence is {{ $value | humanizePercentage }} over the last 10 minutes"
+
+      # Database connection issues
+      - alert: DatabaseConnectionIssues
+        expr: scanner_database_connections_active > scanner_database_connections_max * 0.9
+        for: 2m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "Database has {{ $value }} active connections out of {{ $labels.max_connections }} maximum"
+
+      # Redis connection issues
+      - alert: RedisConnectionIssues
+        expr: scanner_redis_connected_clients > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "High number of Redis connections"
+          description: "Redis has {{ $value }} connected clients"
+
+  - name: quantum_specific_alerts
+    interval: 30s
+    rules:
+      # Quantum confidence threshold exceeded
+      - alert: QuantumConfidenceThresholdExceeded
+        expr: quantum_confidence_score > 0.85
+        for: 0s
+        labels:
+          severity: critical
+          service: quantum-scanner
+        annotations:
+          summary: "High confidence quantum threat detected"
+          description: "Quantum threat detected with confidence {{ $value | humanizePercentage }}"
+
+      # Temporal clustering anomaly
+      - alert: TemporalClusteringAnomaly
+        expr: quantum_temporal_clustering_score > 0.8
+        for: 1m
+        labels:
+          severity: warning
+          service: quantum-scanner
+        annotations:
+          summary: "Temporal clustering anomaly detected"
+          description: "Temporal clustering score is {{ $value | humanizePercentage }}"
+
+      # Fee uniformity pattern detected
+      - alert: FeeUniformityPattern
+        expr: quantum_fee_uniformity_score > 0.8
+        for: 1m
+        labels:
+          severity: warning
+          service: quantum-scanner
+        annotations:
+          summary: "Fee uniformity pattern detected"
+          description: "Fee uniformity score is {{ $value | humanizePercentage }}"
+
+  - name: performance_alerts
+    interval: 2m
+    rules:
+      # API response time high
+      - alert: HighAPIResponseTime
+        expr: scanner_api_response_time_seconds > 5
+        for: 3m
+        labels:
+          severity: warning
+          service: "{{ $labels.service_name }}"
+        annotations:
+          summary: "High API response time"
+          description: "API response time is {{ $value }}s for {{ $labels.service_name }}"
+
+      # Queue size growing
+      - alert: ScanQueueSizeGrowing
+        expr: scanner_queue_size > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: orchestrator
+        annotations:
+          summary: "Scan queue size is growing"
+          description: "Scan queue has {{ $value }} pending jobs"
+
+      # Disk space low
+      - alert: LowDiskSpace
+        expr: scanner_disk_usage_percent > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.service_name }}"
+        annotations:
+          summary: "Low disk space"
+          description: "Disk usage is {{ $value }}% on {{ $labels.service_name }}"
+
+  - name: security_alerts
+    interval: 30s
+    rules:
+      # Unusual API access pattern
+      - alert: UnusualAPIAccessPattern
+        expr: rate(scanner_api_requests_total[5m]) > 100
+        for: 2m
+        labels:
+          severity: warning
+          service: security
+        annotations:
+          summary: "Unusual API access pattern detected"
+          description: "API request rate is {{ $value }} requests/second"
+
+      # Authentication failures
+      - alert: AuthenticationFailures
+        expr: rate(scanner_auth_failures_total[5m]) > 5
+        for: 1m
+        labels:
+          severity: warning
+          service: security
+        annotations:
+          summary: "High authentication failure rate"
+          description: "Authentication failure rate is {{ $value }} failures/second"
+
+      # Rate limit exceeded
+      - alert: RateLimitExceeded
+        expr: scanner_rate_limit_exceeded_total > 0
+        for: 0s
+        labels:
+          severity: info
+          service: security
+        annotations:
+          summary: "Rate limit exceeded"
+          description: "{{ $value }} requests have exceeded rate limits"

@@ -1,0 +1,38 @@
+⚠️ URGENT: GuardiaVault Final Warning ⚠️
+
+FINAL WARNING - CHECK-IN OVERDUE
+=================================
+
+Your Vault Will Trigger in {{hoursRemaining}} Hours
+
+{{ownerName}}, your vault "{{vaultName}}" has exceeded its check-in deadline and is now in the grace period.
+
+⏰ TIME REMAINING: {{hoursRemaining}} HOURS
+===========================================
+
+If you do not check in before {{triggerDate}}, your vault will automatically trigger. This will:
+
+• Notify all designated guardians
+• Notify all beneficiaries
+• Begin the attestation and recovery process
+• Make your vault contents accessible to beneficiaries
+
+WHAT YOU NEED TO DO
+-------------------
+If you are still in control of your vault and wish to prevent triggering, you MUST check in immediately. Use the link below to complete your check-in and reset the countdown.
+
+🔒 CHECK IN NOW
+---------------
+{{checkInLink}}
+
+CAN'T ACCESS YOUR ACCOUNT?
+--------------------------
+If you're experiencing technical issues, contact support immediately at:
+support@guardiavault.com
+
+This is an automated security notification. If you believe this was sent in error, please check in immediately to prevent vault triggering.
+
+---
+GuardiaVault - Cryptographic Dead Man's Switch
+Secure, decentralized, and trustless asset recovery
+https://guardiavault.com

@@ -1,0 +1,38 @@
+# Artillery Global Configuration
+config:
+  # Target server
+  target: "{{ $processEnvironment.BASE_URL }}"
+
+  # Default phases for load testing
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm up"
+
+  # HTTP settings
+  http:
+    timeout: 30
+    maxSockets: 50
+
+  # Request defaults
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      User-Agent: "Artillery Load Test"
+
+  # Performance thresholds
+  ensure:
+    maxErrorRate: 1
+    p95: 1000
+    p99: 2000
+
+  # Plugins
+  plugins:
+    expect: {}
+    metrics-by-endpoint:
+      stripQueryString: true
+      metricsPrefix: "api"
+
+  # Reporting
+  statsig:
+    apiKey: "{{ $processEnvironment.ARTILLERY_API_KEY }}"

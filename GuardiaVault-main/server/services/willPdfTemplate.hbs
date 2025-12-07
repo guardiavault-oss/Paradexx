@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Asset Will - {{ownerName}}</title>
+    <style>
+        @page {
+            size: letter;
+            margin: 1in;
+        }
+        body {
+            font-family: 'Times New Roman', serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            border-bottom: 3px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            font-size: 24pt;
+        }
+        h2 {
+            margin-top: 30px;
+            border-bottom: 2px solid #ccc;
+            padding-bottom: 5px;
+            font-size: 16pt;
+            page-break-after: avoid;
+        }
+        h3 {
+            font-size: 14pt;
+            margin-top: 15px;
+        }
+        .will-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 4px solid #000;
+            background-color: #f9f9f9;
+            page-break-inside: avoid;
+        }
+        .allocation-item {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            page-break-inside: avoid;
+        }
+        .signature-block {
+            margin-top: 60px;
+            border-top: 2px solid #000;
+            padding-top: 20px;
+            page-break-inside: avoid;
+        }
+        .metadata {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+        .beneficiary-list {
+            list-style: none;
+            padding-left: 0;
+        }
+        .beneficiary-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .guardian-list {
+            list-style: none;
+            padding-left: 0;
+        }
+        .guardian-list li {
+            padding: 8px 0;
+        }
+        .legal-notice {
+            margin-top: 40px;
+            font-size: 0.85em;
+            color: #666;
+            font-style: italic;
+        }
+        @media print {
+            body { margin: 0; padding: 20px; }
+            .section { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <div class="will-header">
+        <h1>DIGITAL ASSET WILL</h1>
+        <p><strong>Blockchain Estate Planning Document</strong></p>
+        <p><em>GuardiaVault Smart Contract Will</em></p>
+    </div>
+
+    <div class="section">
+        <h2>1. Testator Information</h2>
+        <p><strong>Name:</strong> {{ownerName}}</p>
+        {{#if ownerEmail}}<p><strong>Email:</strong> {{ownerEmail}}</p>{{/if}}
+        {{#if ownerPhone}}<p><strong>Phone:</strong> {{ownerPhone}}</p>{{/if}}
+        {{#if ownerAddress}}<p><strong>Physical Address:</strong> {{ownerAddress}}</p>{{/if}}
+        <p><strong>Wallet Address:</strong> {{ownerWalletAddress}}</p>
+        <p><strong>Date of Will:</strong> {{formattedDate}}</p>
+        {{#if contractAddress}}<p><strong>Smart Contract Address:</strong> {{contractAddress}}</p>{{/if}}
+        {{#if contractWillId}}<p><strong>Will ID:</strong> {{contractWillId}}</p>{{/if}}
+    </div>
+
+    <div class="section">
+        <h2>2. Declaration</h2>
+        <p>I, <strong>{{ownerName}}</strong>, of wallet address <strong>{{ownerWalletAddress}}</strong>, being of sound mind and memory, 
+        do hereby declare this to be my Last Will and Testament regarding my digital assets, 
+        cryptocurrency holdings, and non-fungible tokens (NFTs). I revoke all prior wills and 
+        codicils relating to digital assets.</p>
+        
+        <p>This will shall be executed on the blockchain via the GuardiaVault SmartWill smart contract,
+        and distributions shall occur automatically upon the conditions specified in Section 5.</p>
+    </div>
+
+    <div class="section">
+        <h2>3. Beneficiary Information & Asset Distribution</h2>
+        <p>The following beneficiaries shall receive the specified allocations of my digital assets
+        upon execution of this will:</p>
+        
+        {{#if beneficiaries}}
+        <ul class="beneficiary-list">
+            {{#each beneficiaries}}
+            <li>
+                <h3>Beneficiary {{@index}}: {{#if name}}{{name}}{{else}}{{address}}{{/if}}</h3>
+                <p><strong>Wallet Address:</strong> {{address}}</p>
+                <p><strong>Allocation:</strong> {{percent}}% of assets</p>
+                {{#if email}}<p><strong>Email:</strong> {{email}}</p>{{/if}}
+                {{#if phone}}<p><strong>Phone:</strong> {{phone}}</p>{{/if}}
+                {{#if tokenAddress}}<p><strong>Token Restriction:</strong> {{tokenAddress}}</p>{{/if}}
+                {{#if isNftOnly}}<p><strong>Asset Type:</strong> NFTs Only</p>{{/if}}
+                {{#if isCharityDao}}<p><strong>Type:</strong> Charity DAO</p>{{/if}}
+            </li>
+            {{/each}}
+        </ul>
+        {{else}}
+        <p><em>No beneficiaries specified.</em></p>
+        {{/if}}
+    </div>
+
+    {{#if guardians}}
+    {{#if (gt guardians.length 0)}}
+    <div class="section">
+        <h2>4. Guardian Oversight</h2>
+        <p>The execution of this will requires approval from <strong>{{guardianThreshold}}</strong> 
+        of the following <strong>{{guardians.length}}</strong> guardians:</p>
+        <ul class="guardian-list">
+            {{#each guardians}}
+            <li>
+                <strong>{{#if name}}{{name}}{{else}}{{identifier}}{{/if}}</strong>
+                {{#if (eq guardianType "email")}}
+                    (Email: {{identifier}})
+                {{else}}
+                    (Wallet: {{walletAddress}})
+                {{/if}}
+                {{#if verified}}✓ Verified{{/if}}
+            </li>
+            {{/each}}
+        </ul>
+        <p>Guardians must attest to the validity of will execution conditions before 
+        assets can be distributed.</p>
+    </div>
+    {{/if}}
+    {{/if}}
+
+    <div class="section">
+        <h2>5. Execution Mechanism & Trigger Conditions</h2>
+        
+        {{#if triggers}}
+        <p><strong>Trigger Type:</strong> {{triggers.type}}</p>
+        
+        {{#if (eq triggers.type "time_lock")}}
+        <p>This will shall execute automatically if I fail to check in for the specified period:</p>
+        <ul>
+            <li><strong>Check-in Interval:</strong> {{triggers.checkInIntervalDays}} days</li>
+            <li><strong>Grace Period:</strong> {{triggers.gracePeriodDays}} days</li>
+        </ul>
+        <p>If I do not check in within the grace period after a missed check-in, the will shall trigger.</p>
+        {{/if}}
+        
+        {{#if (eq triggers.type "death_oracle")}}
+        <p>This will shall execute upon death verification through the Chainlink Oracle:</p>
+        <ul>
+            <li><strong>Oracle Address:</strong> {{triggers.deathOracleAddress}}</li>
+            <li><strong>Required Confidence Score:</strong> {{triggers.requiredConfidenceScore}}</li>
+        </ul>
+        <p>The oracle must confirm death with the specified confidence level before execution.</p>
+        {{/if}}
+        
+        {{#if (eq triggers.type "multisig_recovery")}}
+        <p>This will shall execute upon multi-signature recovery attestation:</p>
+        <ul>
+            <li><strong>Recovery Contract:</strong> {{triggers.recoveryContractAddress}}</li>
+            <li><strong>Recovery Threshold:</strong> {{triggers.threshold}}-of-{{recoveryKeysCount}}</li>
+        </ul>
+        <p>{{triggers.threshold}} of the configured recovery keys must attest to wallet loss before execution.</p>
+        {{/if}}
+        
+        {{#if (eq triggers.type "manual")}}
+        <p>This will may be manually executed by the authorized executor:</p>
+        <ul>
+            <li><strong>Executor Address:</strong> {{triggers.executorAddress}}</li>
+        </ul>
+        <p>Only the specified executor address may trigger will execution.</p>
+        {{/if}}
+        {{else}}
+        <p><em>No trigger conditions specified.</em></p>
+        {{/if}}
+    </div>
+
+    {{#if assets}}
+    {{#if (gt assets.length 0)}}
+    <div class="section">
+        <h2>6. Asset Allowances</h2>
+        <p>The following on-chain token allowances are tracked for this will:</p>
+        <ul>
+            {{#each assets}}
+            <li>
+                <strong>{{#if tokenSymbol}}{{tokenSymbol}}{{else}}{{tokenAddress}}{{/if}}</strong>
+                ({{tokenAddress}}) - 
+                Spender: {{spenderAddress}}
+                {{#if allowanceAmount}}- Amount: {{allowanceAmount}}{{else}}(Unlimited){{/if}}
+            </li>
+            {{/each}}
+        </ul>
+    </div>
+    {{/if}}
+    {{/if}}
+
+    <div class="section">
+        <h2>7. Legal Disclaimers</h2>
+        <ul>
+            <li>This digital asset will is executed via smart contract and is subject to the terms of service
+            of GuardiaVault.</li>
+            <li>This will applies only to digital assets (cryptocurrency, NFTs, tokens) and does not
+            replace traditional estate planning documents for physical assets.</li>
+            <li>Beneficiaries are responsible for maintaining access to their wallet addresses.</li>
+            <li>The testator retains the right to revoke or modify this will before execution.</li>
+            <li>GuardiaVault is not responsible for loss of assets due to incorrect wallet addresses
+            or beneficiary negligence.</li>
+        </ul>
+    </div>
+
+    <div class="signature-block">
+        <p><strong>Testator Signature:</strong></p>
+        <br/><br/><br/>
+        <p>_________________________</p>
+        <p><strong>{{ownerName}}</strong></p>
+        <p>Date: {{formattedDate}}</p>
+        {{#if ownerWalletAddress}}
+        <p>Signed with wallet: {{ownerWalletAddress}}</p>
+        {{/if}}
+    </div>
+
+    {{#if metadataHash}}
+    <div class="metadata">
+        <p><strong>Document Metadata:</strong></p>
+        <p><strong>Document Hash:</strong> {{metadataHash}}</p>
+        {{#if pdfS3Key}}<p><strong>Document Storage:</strong> {{pdfS3Key}}</p>{{/if}}
+        <p><em>This document is cryptographically verified and may be stored on IPFS or secure cloud storage.
+        The on-chain will contract contains the execution logic for these allocations.</em></p>
+    </div>
+    {{/if}}
+
+    <div class="legal-notice">
+        <p><strong>Legal Notice:</strong> This is a digital asset will executed via smart contract. 
+        It should be used in conjunction with traditional estate planning documents. 
+        Consult with a licensed attorney for comprehensive estate planning.</p>
+        <p>This document was generated by GuardiaVault on {{formattedDate}}.</p>
+    </div>
+</body>
+</html>
+

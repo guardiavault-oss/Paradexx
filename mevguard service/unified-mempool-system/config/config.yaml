@@ -1,0 +1,267 @@
+# Unified Mempool Monitoring System Configuration
+# ===============================================
+
+# System configuration
+system:
+  name: "Unified Mempool Monitoring System"
+  version: "1.0.0"
+  environment: "production"  # development, staging, production
+  debug: false
+  log_level: "INFO"
+
+# Network configurations
+networks:
+  ethereum:
+    enabled: true
+    priority: 1
+    rpc_url: "https://eth-mainnet.alchemyapi.io/v2/demo"
+    websocket_url: "wss://eth-mainnet.alchemyapi.io/v2/demo"
+    chain_id: 1
+    native_token: "ETH"
+    block_time: 12  # seconds
+    gas_limit: 30000000
+    
+  polygon:
+    enabled: true
+    priority: 2
+    rpc_url: "https://polygon-rpc.com"
+    websocket_url: "wss://polygon-rpc.com"
+    chain_id: 137
+    native_token: "MATIC"
+    block_time: 2  # seconds
+    gas_limit: 30000000
+    
+  bsc:
+    enabled: true
+    priority: 3
+    rpc_url: "https://bsc-dataseed.binance.org"
+    websocket_url: "wss://bsc-ws-node.nariox.org:443/ws"
+    chain_id: 56
+    native_token: "BNB"
+    block_time: 3  # seconds
+    gas_limit: 30000000
+    
+  arbitrum:
+    enabled: true
+    priority: 4
+    rpc_url: "https://arb1.arbitrum.io/rpc"
+    websocket_url: "wss://arb1.arbitrum.io/ws"
+    chain_id: 42161
+    native_token: "ETH"
+    block_time: 0.25  # seconds
+    gas_limit: 30000000
+    
+  optimism:
+    enabled: true
+    priority: 5
+    rpc_url: "https://mainnet.optimism.io"
+    websocket_url: "wss://mainnet.optimism.io/ws"
+    chain_id: 10
+    native_token: "ETH"
+    block_time: 2  # seconds
+    gas_limit: 30000000
+    
+  avalanche:
+    enabled: true
+    priority: 6
+    rpc_url: "https://api.avax.network/ext/bc/C/rpc"
+    websocket_url: "wss://api.avax.network/ext/bc/C/ws"
+    chain_id: 43114
+    native_token: "AVAX"
+    block_time: 2  # seconds
+    gas_limit: 30000000
+
+# Monitoring configuration
+monitoring:
+  refresh_rate: 1000  # milliseconds
+  batch_size: 100
+  max_transactions: 10000
+  retention_hours: 24
+  enable_real_time: true
+  enable_historical_analysis: true
+  enable_quantum_analysis: true
+  enable_flash_loan_detection: true
+  enable_mev_protection: true
+  enable_threat_intelligence: true
+  enable_user_behavior_analysis: true
+  enable_risk_scoring: true
+  enable_multi_agent_scanning: true
+
+# Security configuration
+security:
+  enable_mev_protection: true
+  enable_flash_loan_detection: true
+  enable_quantum_analysis: true
+  enable_threat_intelligence: true
+  enable_encryption: true
+  enable_authentication: true
+  jwt_secret: "your-jwt-secret-key"
+  api_key_required: false
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 1000
+    burst_limit: 100
+
+# Performance configuration
+performance:
+  max_cpu_usage: 80.0  # percentage
+  max_memory_usage: 80.0  # percentage
+  enable_auto_scaling: true
+  worker_threads: 4
+  max_concurrent_requests: 1000
+  connection_pool_size: 100
+  timeout_seconds: 30
+
+# Database configuration
+database:
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+    password: null
+    max_connections: 100
+    retry_on_timeout: true
+    
+  postgresql:
+    host: "localhost"
+    port: 5432
+    database: "unified_mempool"
+    username: "mempool_user"
+    password: "mempool_password"
+    max_connections: 20
+    pool_size: 10
+
+# API configuration
+api:
+  host: "0.0.0.0"
+  port: 8004
+  workers: 4
+  reload: false
+  cors_origins: ["*"]
+  enable_docs: true
+  enable_metrics: true
+  rate_limit:
+    enabled: true
+    requests_per_minute: 1000
+    burst_limit: 100
+
+# MEV detection configuration
+mev_detection:
+  sandwich_attack:
+    enabled: true
+    gas_threshold: 80000000000  # 80 gwei
+    confidence_threshold: 0.8
+    max_profit_estimate: 10.0  # ETH
+    
+  arbitrage:
+    enabled: true
+    min_profit_threshold: 0.01  # ETH
+    confidence_threshold: 0.7
+    max_gas_price: 100000000000  # 100 gwei
+    
+  flash_loan:
+    enabled: true
+    contract_addresses:
+      - "0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9"  # Aave
+      - "0x1E0447b19BB6EcFdAe1e4AE1694b0C3659614e4e"  # dYdX
+    confidence_threshold: 0.9
+    
+  liquidation:
+    enabled: true
+    health_factor_threshold: 1.1
+    confidence_threshold: 0.9
+
+# Quantum analysis configuration
+quantum_analysis:
+  enabled: true
+  algorithm: "qiskit"  # qiskit, cirq
+  simulation_depth: 10
+  confidence_threshold: 0.8
+  max_qubits: 20
+  optimization_level: 3
+
+# Threat intelligence configuration
+threat_intelligence:
+  enabled: true
+  sources:
+    - "internal_analysis"
+    - "external_feeds"
+    - "community_reports"
+  update_interval: 300  # seconds
+  retention_days: 30
+  confidence_threshold: 0.7
+
+# User behavior analysis configuration
+user_behavior:
+  enabled: true
+  analysis_window: 3600  # seconds
+  anomaly_threshold: 0.8
+  profile_update_interval: 300  # seconds
+  max_profiles: 100000
+
+# Risk scoring configuration
+risk_scoring:
+  enabled: true
+  factors:
+    gas_price_weight: 0.3
+    value_weight: 0.2
+    complexity_weight: 0.2
+    mev_weight: 0.3
+  thresholds:
+    low: 0.3
+    medium: 0.6
+    high: 0.8
+    critical: 0.9
+
+# Multi-agent scanning configuration
+multi_agent_scanning:
+  enabled: true
+  agents:
+    - "static_analyzer"
+    - "dynamic_analyzer"
+    - "pattern_matcher"
+    - "anomaly_detector"
+  consensus_threshold: 0.7
+  scan_interval: 15  # seconds
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/unified_mempool.log"
+  max_size: "100MB"
+  backup_count: 5
+  enable_console: true
+  enable_file: true
+
+# Metrics configuration
+metrics:
+  enabled: true
+  port: 9090
+  path: "/metrics"
+  update_interval: 5  # seconds
+  retention_days: 7
+
+# Alerting configuration
+alerting:
+  enabled: true
+  channels:
+    - "webhook"
+    - "email"
+    - "slack"
+  thresholds:
+    critical_threats: 5
+    high_risk_transactions: 10
+    system_errors: 1
+  webhook_url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+  email_recipients:
+    - "admin@example.com"
+    - "security@example.com"
+
+# Development configuration
+development:
+  enable_hot_reload: true
+  enable_debug_mode: true
+  mock_blockchain_data: false
+  test_networks_only: false
+  verbose_logging: true

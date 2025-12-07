@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker ps:*)",
+      "Bash(git add:*)",
+      "Bash(taskkill:*)",
+      "Bash(curl:*)",
+      "Bash(railway status:*)",
+      "Bash(npx tsx:*)",
+      "Bash(railway variables:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

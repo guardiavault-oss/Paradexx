@@ -1,0 +1,30 @@
+GuardiaVault - Important: Vault Triggered
+
+VAULT ACTIVATION NOTICE
+========================
+
+This is to inform you that the vault "{{vaultName}}" has been activated. As a designated beneficiary, you may now initiate the recovery process.
+
+WHAT THIS MEANS
+---------------
+The vault owner has not checked in within the configured timeframe. Guardian attestation is now underway to verify the triggering condition. Once verified, you will be able to collect the necessary key fragments from guardians to access the vault contents.
+
+NEXT STEPS
+----------
+1. Access the claim portal using the link below
+2. Review the vault details and triggering conditions
+3. Wait for guardian attestation to complete
+4. Collect key fragments from at least 2 of 3 guardians
+5. Reconstruct the vault keys and access the protected assets
+
+ACCESS CLAIM PORTAL
+-------------------
+{{claimLink}}
+
+This is a secure notification from GuardiaVault's automated system.
+All actions are cryptographically verified and logged.
+
+---
+GuardiaVault - Cryptographic Dead Man's Switch
+Secure, decentralized, and trustless asset recovery
+https://guardiavault.com

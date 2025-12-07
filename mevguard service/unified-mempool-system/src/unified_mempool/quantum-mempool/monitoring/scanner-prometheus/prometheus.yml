@@ -1,0 +1,136 @@
+# Ultimate Scanner System - Prometheus Configuration
+# Monitoring and metrics collection for all scanner services
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'ultimate-scanner'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+# Rules for alerts
+rule_files:
+  - "scanner_alerts.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Scanner Orchestrator
+  - job_name: 'scanner-orchestrator'
+    static_configs:
+      - targets: ['scanner-orchestrator:9090']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    params:
+      format: ['prometheus']
+
+  # Quantum Scanner
+  - job_name: 'quantum-scanner'
+    static_configs:
+      - targets: ['quantum-scanner:9090']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+  # Slither Scanner
+  - job_name: 'slither-scanner'
+    static_configs:
+      - targets: ['slither-scanner:9091']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 15s
+
+  # Mythril Scanner
+  - job_name: 'mythril-scanner'
+    static_configs:
+      - targets: ['mythril-scanner:9092']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 15s
+
+  # Manticore Scanner
+  - job_name: 'manticore-scanner'
+    static_configs:
+      - targets: ['manticore-scanner:9093']
+    metrics_path: '/metrics'
+    scrape_interval: 60s
+    scrape_timeout: 30s
+
+  # PostgreSQL Database
+  - job_name: 'scanner-postgres'
+    static_configs:
+      - targets: ['scanner-postgres:9187']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Redis Cache
+  - job_name: 'scanner-redis'
+    static_configs:
+      - targets: ['scanner-redis:9121']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Nginx Reverse Proxy
+  - job_name: 'scanner-nginx'
+    static_configs:
+      - targets: ['scanner-nginx:9113']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Node Exporter (if available)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+  # Blackbox Exporter for health checks
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - http://scanner-orchestrator:8000/health
+        - http://quantum-scanner:8000/health
+        - http://slither-scanner:8001/health
+        - http://mythril-scanner:8002/health
+        - http://manticore-scanner:8003/health
+        - http://scanner-dashboard:3000/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # Self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+# Remote write configuration for long-term storage (optional)
+# remote_write:
+#   - url: "https://prometheus-remote-write-endpoint/api/v1/write"
+#     headers:
+#       Authorization: "Bearer YOUR_TOKEN"
+
+# Remote read configuration (optional)
+# remote_read:
+#   - url: "https://prometheus-remote-read-endpoint/api/v1/read"
+#     headers:
+#       Authorization: "Bearer YOUR_TOKEN"

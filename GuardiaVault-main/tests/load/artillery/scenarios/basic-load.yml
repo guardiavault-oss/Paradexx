@@ -1,0 +1,151 @@
+# Artillery Load Test Configuration
+# Basic load test scenario for GuardiaVault API
+
+config:
+  target: "http://localhost:5000"
+  phases:
+    # Warm-up phase
+    - duration: 60
+      arrivalRate: 10
+      name: "Warm up"
+    # Ramp up phase
+    - duration: 120
+      arrivalRate: 10
+      rampTo: 50
+      name: "Ramp up load"
+    # Sustained load phase
+    - duration: 300
+      arrivalRate: 50
+      name: "Sustained load"
+    # Cool down phase
+    - duration: 60
+      arrivalRate: 50
+      rampTo: 10
+      name: "Cool down"
+
+  # Plugins
+  plugins:
+    expect: {}
+    metrics-by-endpoint: {}
+
+  # Performance thresholds
+  ensure:
+    maxErrorRate: 1 # Max 1% error rate
+    p95: 500 # 95th percentile response time < 500ms
+    p99: 1000 # 99th percentile response time < 1000ms
+
+  # Payload configuration
+  payload:
+    path: "../fixtures/test-data.csv"
+    fields:
+      - email
+      - password
+
+  # Variables
+  variables:
+    apiKey: "test-api-key-12345"
+
+  # HTTP defaults
+  http:
+    timeout: 30
+
+scenarios:
+  # Scenario 1: Health check
+  - name: "Health Check"
+    weight: 10
+    flow:
+      - get:
+          url: "/api/health"
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: status
+
+  # Scenario 2: Authentication
+  - name: "User Authentication"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"
+          expect:
+            - statusCode: 200
+            - hasProperty: token
+          capture:
+            - json: "$.token"
+              as: "authToken"
+
+  # Scenario 3: Get user vaults
+  - name: "Fetch User Vaults"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "test@guardiavault.com"
+            password: "TestPassword123!"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - get:
+          url: "/api/vaults"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+            - contentType: json
+
+  # Scenario 4: Vault creation
+  - name: "Create Vault"
+    weight: 15
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "test@guardiavault.com"
+            password: "TestPassword123!"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - post:
+          url: "/api/vaults"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            name: "Load Test Vault {{ $randomNumber() }}"
+            guardians:
+              - "0x1234567890123456789012345678901234567890"
+              - "0x2345678901234567890123456789012345678901"
+              - "0x3456789012345678901234567890123456789012"
+            checkInInterval: 30
+          expect:
+            - statusCode: 201
+            - hasProperty: vaultId
+
+  # Scenario 5: Check-in
+  - name: "Perform Check-in"
+    weight: 25
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "test@guardiavault.com"
+            password: "TestPassword123!"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - get:
+          url: "/api/vaults"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          capture:
+            - json: "$[0].id"
+              as: "vaultId"
+      - post:
+          url: "/api/vaults/{{ vaultId }}/checkin"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200

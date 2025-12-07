@@ -1,0 +1,73 @@
+# Artillery Soak Test
+# Tests system stability over extended period
+
+config:
+  target: "http://localhost:5000"
+  phases:
+    # Gradual ramp up
+    - duration: 300 # 5 minutes
+      arrivalRate: 10
+      rampTo: 50
+      name: "Ramp up"
+
+    # Sustained load for 1 hour
+    - duration: 3600 # 1 hour
+      arrivalRate: 50
+      name: "Soak - sustained load"
+
+    # Gradual ramp down
+    - duration: 300 # 5 minutes
+      arrivalRate: 50
+      rampTo: 0
+      name: "Ramp down"
+
+  ensure:
+    maxErrorRate: 2
+    p95: 800
+    p99: 1500
+
+scenarios:
+  - name: "Continuous User Activity"
+    weight: 100
+    flow:
+      # Login
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "test@guardiavault.com"
+            password: "TestPassword123!"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+
+      - think: 5
+
+      # Check vaults
+      - get:
+          url: "/api/vaults"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+
+      - think: 10
+
+      # Check-in
+      - post:
+          url: "/api/vaults/vault-1/checkin"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+
+      - think: 15
+
+      # View guardians
+      - get:
+          url: "/api/guardians"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+
+      - think: 5
+
+      # Logout
+      - post:
+          url: "/api/auth/logout"
+          headers:
+            Authorization: "Bearer {{ authToken }}"

@@ -1,0 +1,149 @@
+# Unified Quantum Mempool Monitor Configuration
+
+# Core Detection Settings
+detection:
+  threshold: 100
+  time_window: 600
+  confidence_threshold: 0.85
+  temporal_threshold: 0.7
+  statistical_threshold: 0.8
+  minimum_transactions: 10
+
+# Blockchain Networks
+bitcoin:
+  node_url: "http://localhost:8332"
+  rpc_user: "bitcoin_user"
+  rpc_password: "bitcoin_password"
+  websocket_url: "wss://mempool.space/api/v1/ws"
+  timeout: 30
+
+ethereum:
+  provider_url: "http://localhost:8545"
+  private_key: ""
+  gas_limit: 500000
+  timeout: 30
+
+# Database Configuration
+database:
+  connection_string: "sqlite:///quantum_mempool.db"
+  pool_size: 20
+  max_overflow: 30
+  pool_timeout: 30
+  pool_recycle: 3600
+  pool_pre_ping: true
+  ssl_mode: "disable"
+  query_timeout: 60
+  connection_timeout: 30
+  retry_attempts: 3
+  health_check_interval: 30
+
+# API Configuration
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  cors_origins: ["*"]
+  rate_limit: 1000
+  auth_required: false
+  jwt_secret: "your-secret-key-change-in-production"
+  jwt_algorithm: "HS256"
+  jwt_expiration: 3600
+
+# WebSocket Configuration
+websocket:
+  host: "0.0.0.0"
+  port: 8765
+  max_connections: 100
+  ping_interval: 20
+  ping_timeout: 20
+  close_timeout: 10
+  max_size: 1048576
+  compression: "deflate"
+
+# Alerting Configuration
+alerting:
+  enabled: true
+  channels: ["email", "slack"]
+  email_smtp_server: "smtp.gmail.com"
+  email_smtp_port: 587
+  email_username: ""
+  email_password: ""
+  slack_webhook_url: ""
+  discord_webhook_url: ""
+  telegram_bot_token: ""
+  telegram_chat_id: ""
+
+# Dashboard Configuration
+dashboard:
+  enabled: true
+  host: "0.0.0.0"
+  port: 8001
+  auto_refresh_interval: 30
+  max_data_points: 1000
+
+# Machine Learning Configuration
+ml:
+  enabled: true
+  model_path: "models/"
+  training_enabled: false
+  auto_retrain: false
+  retrain_interval_hours: 24
+  confidence_threshold: 0.8
+
+# Networks Configuration (for mempool monitoring)
+networks:
+  ethereum:
+    rpc_url: "http://localhost:8545"
+    chain_id: 1
+    is_active: true
+  polygon:
+    rpc_url: "http://localhost:8545"
+    chain_id: 137
+    is_active: false
+
+# Mempool Monitor Configuration
+mempool_monitor:
+  max_stored_txs: 10000
+  poll_interval_seconds: 0.1
+  cleanup_interval_seconds: 60.0
+  reconnect_delay_seconds: 5.0
+  request_timeout_seconds: 10.0
+  default_min_tx_value_eth: 0.001
+
+# Enterprise Security
+enterprise:
+  security:
+    hsm:
+      provider: "aws-cloudhsm"
+      fips_compliance: "level-3"
+      key_rotation_interval: "quarterly"
+      connection_timeout: 30
+      retry_attempts: 3
+    rbac:
+      backend: "eos-blockchain"
+      enforcement_mode: "strict"
+      separation_of_duties: true
+      multi_factor_auth: true
+      session_timeout: 3600
+    audit:
+      blockchain_audit_trail: true
+      immutable_logging: true
+      real_time_siem_integration: true
+      retention_period: "7_years"
+      encryption_enabled: true
+  
+  monitoring:
+    prometheus_enabled: true
+    prometheus_port: 9090
+    collection_interval: 60
+    retention_days: 365
+  
+  compliance:
+    frameworks: ["SOX", "GDPR", "PCI_DSS", "NIST", "ISO_27001"]
+    automated_reporting: true
+    continuous_monitoring: true
+
+# Environment Settings
+environment: "production"
+debug: false
+log_level: "INFO"

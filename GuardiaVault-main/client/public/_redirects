@@ -1,0 +1,18 @@
+# Netlify redirects file
+# This file is automatically copied to dist/public during build
+# Netlify reads this file to configure redirects
+# IMPORTANT: Netlify processes _redirects AFTER checking for physical files
+# So assets (CSS, JS) are served directly with correct MIME types
+
+# API requests go to Railway backend
+/api/* https://guardiavault-production.up.railway.app/api/:splat 200
+
+# CRITICAL: Explicitly serve assets with 404 if not found (don't fallback to index.html)
+# This ensures missing assets return 404, not HTML
+/assets/* /assets/:splat 404
+
+# SPA fallback - serve index.html for all non-file and non-asset requests
+# Netlify automatically serves files with extensions (css, js, png, etc.) before this redirect
+# This ensures assets are served with correct MIME types
+/* /index.html 200
+

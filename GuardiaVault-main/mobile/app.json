@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "GuardiaVault",
+    "slug": "guardiavault",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.guardiavault.app",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "GuardiaVault uses Face ID to securely authenticate your identity for vault check-ins and wallet operations.",
+        "NSCameraUsageDescription": "GuardiaVault may use the camera for QR code scanning when connecting wallets."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.guardiavault.app",
+      "permissions": [
+        "USE_FINGERPRINT",
+        "USE_BIOMETRIC",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "GuardiaVault uses Face ID to securely authenticate your identity."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#4f46e5"
+        }
+      ]
+    ],
+    "scheme": "guardiavault",
+    "extra": {
+      "walletconnectProjectId": "",
+      "apiUrl": "http://192.168.86.24:5000",
+      "chainId": "11155111"
+    }
+  }
+}

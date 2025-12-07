@@ -1,0 +1,56 @@
+{
+  "name": "apex-sniper",
+  "version": "2.0.0",
+  "description": "World-class Ethereum sniper bot for real token launches with Block-0 sniping and multi-RPC failover",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:dashboard\"",
+    "dev:backend": "tsx watch src/index.ts",
+    "dev:dashboard": "cd src/dashboard && npm run dev",
+    "build": "tsc && npm run build:dashboard",
+    "build:dashboard": "cd src/dashboard && npm run build",
+    "start": "node dist/index.js",
+    "test": "vitest",
+    "lint": "eslint src --ext .ts,.tsx"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.19.1",
+    "@uniswap/sdk-core": "^5.3.1",
+    "@uniswap/v2-sdk": "^4.4.1",
+    "@uniswap/v3-sdk": "^3.13.1",
+    "axios": "^1.7.7",
+    "bignumber.js": "^9.1.2",
+    "bullmq": "^5.12.12",
+    "cors": "^2.8.5",
+    "cron": "^3.1.7",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.2",
+    "eventemitter3": "^5.0.1",
+    "express": "^4.21.0",
+    "helmet": "^7.1.0",
+    "ioredis": "^5.4.1",
+    "node-cache": "^5.1.2",
+    "prisma": "^5.19.1",
+    "socket.io": "^4.7.5",
+    "telegraf": "^4.16.3",
+    "uuid": "^10.0.0",
+    "winston": "^3.14.2",
+    "ws": "^8.18.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.19.1",
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.5.12",
+    "concurrently": "^9.0.1",
+    "eslint": "^9.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.2",
+    "vitest": "^2.0.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,0 +1,22 @@
+[
+  {
+    "fileName": "main-overview.mdc",
+    "description": "Complete system overview focusing on the cryptographic inheritance vault architecture, guardian consensus mechanism, and subscription model"
+  },
+  {
+    "fileName": "cryptographic-algorithms.mdc",
+    "description": "Detailed documentation of the secret sharing implementation, passphrase generation, fragment distribution, and vault recovery protocols"
+  },
+  {
+    "fileName": "data-models.mdc",
+    "description": "Comprehensive documentation of vault, guardian, beneficiary, and subscription data models with their relationships and state transitions"
+  },
+  {
+    "fileName": "inheritance-flow.mdc",
+    "description": "End-to-end documentation of the inheritance triggering process, including check-in system, guardian attestation, and vault recovery workflow"
+  },
+  {
+    "fileName": "smart-contracts.mdc",
+    "description": "Detailed documentation of the GuardiaVault and SubscriptionEscrow smart contracts, including state management and critical functions"
+  }
+]

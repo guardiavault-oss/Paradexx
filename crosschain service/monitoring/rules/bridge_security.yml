@@ -1,0 +1,233 @@
+groups:
+- name: bridge_security_alerts
+  rules:
+  # High Error Rate
+  - alert: HighErrorRate
+    expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+    for: 2m
+    labels:
+      severity: critical
+      service: bridge-security
+    annotations:
+      summary: "High error rate detected"
+      description: "Error rate is {{ $value }} errors per second for {{ $labels.instance }}"
+
+  # High Response Time
+  - alert: HighResponseTime
+    expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+    for: 5m
+    labels:
+      severity: warning
+      service: bridge-security
+    annotations:
+      summary: "High response time detected"
+      description: "95th percentile response time is {{ $value }}s for {{ $labels.instance }}"
+
+  # High Memory Usage
+  - alert: HighMemoryUsage
+    expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) > 0.8
+    for: 5m
+    labels:
+      severity: warning
+      service: bridge-security
+    annotations:
+      summary: "High memory usage detected"
+      description: "Memory usage is {{ $value | humanizePercentage }} for {{ $labels.pod }}"
+
+  # High CPU Usage
+  - alert: HighCPUUsage
+    expr: (rate(container_cpu_usage_seconds_total[5m]) / container_spec_cpu_quota * container_spec_cpu_period) > 0.8
+    for: 5m
+    labels:
+      severity: warning
+      service: bridge-security
+    annotations:
+      summary: "High CPU usage detected"
+      description: "CPU usage is {{ $value | humanizePercentage }} for {{ $labels.pod }}"
+
+  # Database Connection Issues
+  - alert: DatabaseConnectionIssues
+    expr: up{job="postgres"} == 0
+    for: 1m
+    labels:
+      severity: critical
+      service: database
+    annotations:
+      summary: "Database connection lost"
+      description: "PostgreSQL database is not responding"
+
+  # Redis Connection Issues
+  - alert: RedisConnectionIssues
+    expr: up{job="redis"} == 0
+    for: 1m
+    labels:
+      severity: critical
+      service: redis
+    annotations:
+      summary: "Redis connection lost"
+      description: "Redis cache is not responding"
+
+  # Blockchain Network Issues
+  - alert: BlockchainNetworkIssues
+    expr: bridge_network_status{status="unhealthy"} == 1
+    for: 2m
+    labels:
+      severity: critical
+      service: blockchain
+    annotations:
+      summary: "Blockchain network issues detected"
+      description: "Network {{ $labels.network }} is unhealthy"
+
+  # Attestation Anomalies
+  - alert: HighAttestationAnomalies
+    expr: rate(bridge_attestation_anomalies_total[5m]) > 10
+    for: 2m
+    labels:
+      severity: warning
+      service: attestation-monitor
+    annotations:
+      summary: "High attestation anomaly rate"
+      description: "Anomaly rate is {{ $value }} per second"
+
+  # ML Model Performance Degradation
+  - alert: MLModelPerformanceDegradation
+    expr: bridge_ml_model_accuracy < 0.8
+    for: 5m
+    labels:
+      severity: warning
+      service: ml-detector
+    annotations:
+      summary: "ML model performance degraded"
+      description: "Model {{ $labels.model_name }} accuracy is {{ $value }}"
+
+  # Signature Validation Failures
+  - alert: HighSignatureValidationFailures
+    expr: rate(bridge_signature_validation_failures_total[5m]) > 5
+    for: 2m
+    labels:
+      severity: critical
+      service: crypto-validator
+    annotations:
+      summary: "High signature validation failure rate"
+      description: "Failure rate is {{ $value }} per second"
+
+  # Quorum Skew Detection
+  - alert: QuorumSkewDetected
+    expr: bridge_quorum_skew_percentage > 30
+    for: 1m
+    labels:
+      severity: critical
+      service: attestation-monitor
+    annotations:
+      summary: "Quorum skew detected"
+      description: "Quorum skew is {{ $value }}% for bridge {{ $labels.bridge_address }}"
+
+  # Liveness Gap Detection
+  - alert: LivenessGapDetected
+    expr: bridge_liveness_gap_detected == 1
+    for: 1m
+    labels:
+      severity: critical
+      service: liveness-monitor
+    annotations:
+      summary: "Liveness gap detected"
+      description: "Liveness gap detected for {{ $labels.network }}"
+
+  # Attack Detection
+  - alert: AttackDetected
+    expr: bridge_attack_detected == 1
+    for: 0m
+    labels:
+      severity: critical
+      service: attack-detection
+    annotations:
+      summary: "Attack detected"
+      description: "Attack type {{ $labels.attack_type }} detected for transaction {{ $labels.tx_hash }}"
+
+  # Resource Exhaustion
+  - alert: ResourceExhaustion
+    expr: container_memory_usage_bytes / container_spec_memory_limit_bytes > 0.95
+    for: 1m
+    labels:
+      severity: critical
+      service: bridge-security
+    annotations:
+      summary: "Resource exhaustion imminent"
+      description: "Memory usage is {{ $value | humanizePercentage }} for {{ $labels.pod }}"
+
+  # Pod Crash
+  - alert: PodCrash
+    expr: kube_pod_status_phase{phase="Failed"} == 1
+    for: 0m
+    labels:
+      severity: critical
+      service: bridge-security
+    annotations:
+      summary: "Pod crashed"
+      description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has crashed"
+
+  # Service Down
+  - alert: ServiceDown
+    expr: up{job="bridge-security-api"} == 0
+    for: 1m
+    labels:
+      severity: critical
+      service: bridge-security
+    annotations:
+      summary: "Service is down"
+      description: "Bridge security API service is not responding"
+
+  # Disk Space Low
+  - alert: DiskSpaceLow
+    expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.1
+    for: 5m
+    labels:
+      severity: warning
+      service: system
+    annotations:
+      summary: "Disk space is low"
+      description: "Disk space is {{ $value | humanizePercentage }} available on {{ $labels.instance }}"
+
+  # Network Partition
+  - alert: NetworkPartition
+    expr: count(up{job="bridge-security-api"}) < 2
+    for: 2m
+    labels:
+      severity: critical
+      service: bridge-security
+    annotations:
+      summary: "Network partition detected"
+      description: "Only {{ $value }} API instances are responding"
+
+  # Celery Queue Backlog
+  - alert: CeleryQueueBacklog
+    expr: celery_queue_length > 1000
+    for: 5m
+    labels:
+      severity: warning
+      service: celery
+    annotations:
+      summary: "Celery queue backlog"
+      description: "Queue {{ $labels.queue_name }} has {{ $value }} pending tasks"
+
+  # ML Model Training Failure
+  - alert: MLModelTrainingFailure
+    expr: bridge_ml_model_training_failed == 1
+    for: 0m
+    labels:
+      severity: warning
+      service: ml-detector
+    annotations:
+      summary: "ML model training failed"
+      description: "Model {{ $labels.model_name }} training failed"
+
+  # Blockchain Sync Issues
+  - alert: BlockchainSyncIssues
+    expr: bridge_blockchain_sync_delay_seconds > 300
+    for: 5m
+    labels:
+      severity: warning
+      service: blockchain
+    annotations:
+      summary: "Blockchain sync issues"
+      description: "Sync delay is {{ $value }}s for {{ $labels.network }}"

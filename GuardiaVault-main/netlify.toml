@@ -1,0 +1,193 @@
+# Netlify Configuration for GuardiaVault Frontend
+# This configuration deploys the React/Vite frontend to Netlify
+
+[build]
+  # Install command - explicitly use pnpm via corepack
+  # Unset NODE_ENV during install to ensure devDependencies are installed
+  # Netlify will automatically detect pnpm if pnpm-lock.yaml exists, but we explicitly configure it
+  installCommand = "unset NODE_ENV; corepack enable && corepack prepare pnpm@10.16.1 --activate && pnpm install --frozen-lockfile"
+  # Build command - ONLY build the Vite frontend (not the server)
+  # Netlify only needs the static frontend files, not the server build
+  # Use the build:client script which only builds the frontend
+  command = "pnpm run build:client"
+  # Directory containing the built static files
+  publish = "dist/public"
+
+[build.environment]
+  # Node version
+  NODE_VERSION = "20"
+  # Explicitly tell Netlify to use pnpm (not npm)
+  # This ensures Netlify uses pnpm even if npm is detected
+  NETLIFY_USE_PNPM = "true"
+  # Use pnpm as package manager (matches Docker version)
+  PNPM_VERSION = "10.16.1"
+  # Enable corepack for pnpm support
+  ENABLE_COREPACK = "1"
+  # NODE_ENV is not set here to ensure devDependencies (like vite) are installed
+  # The build script sets NODE_ENV=production internally where needed
+  
+  # WalletConnect Configuration
+  VITE_WALLETCONNECT_PROJECT_ID = "f32270e55fe94b09ccfc7a375022bb41"
+
+# Redirect all API requests to Railway backend
+[[redirects]]
+  from = "/api/*"
+  to = "https://guardiavault-production.up.railway.app/api/:splat"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}
+
+# CRITICAL: Explicitly exclude assets from SPA redirect
+# Netlify processes redirects in order, so we ensure assets are NOT caught by the SPA redirect
+# Assets with file extensions should be served directly with correct MIME types
+
+# CRITICAL: Exclude assets from SPA redirect
+# Assets must be served directly, not caught by the SPA redirect
+# Netlify processes redirects in order, so explicit exclusions must come first
+
+# Explicitly serve assets directory - these are Vite-built JS/CSS files
+[[redirects]]
+  from = "/assets/*"
+  to = "/assets/:splat"
+  status = 200
+  force = false
+  # This ensures assets are served directly if they exist
+
+# Explicitly serve icons directory
+[[redirects]]
+  from = "/icons/*"
+  to = "/icons/:splat"
+  status = 200
+  force = false
+  # This ensures icons are served directly if they exist
+
+# SPA fallback - redirect all non-file and non-API requests to index.html
+# IMPORTANT: force = false ensures Netlify serves existing files (assets) BEFORE applying redirect
+# This means CSS, JS, and other assets are served with correct MIME types automatically
+# The redirect only applies if the file doesn't exist (404)
+# Note: Netlify automatically serves files with extensions (css, js, etc.) before applying this redirect
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+  # Netlify will check for physical files first when force=false
+  # Assets will be served directly if they exist, with correct MIME types
+
+# Headers for security and performance
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+    # Content Security Policy
+    Content-Security-Policy = """
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://*.walletconnect.org https://*.web3modal.org https://*.coinbase.com;
+      style-src 'self' 'unsafe-inline';
+      img-src 'self' data: https:;
+      font-src 'self' data:;
+      connect-src 'self' https://guardiavault-production.up.railway.app https://*.railway.app https://*.walletconnect.org https://*.walletconnect.com https://*.web3modal.org https://api.web3modal.org https://pulse.walletconnect.org https://cca-lite.coinbase.com https://*.coinbase.com wss://*.walletconnect.org wss://*.walletconnect.com;
+      frame-src 'self' https://*.walletconnect.org https://*.coinbase.com;
+      frame-ancestors 'none';
+      base-uri 'self';
+      form-action 'self';
+    """
+    # Performance headers
+    X-DNS-Prefetch-Control = "on"
+    # Enable compression (Netlify handles this automatically, but we can hint)
+    Accept-Encoding = "gzip, br"
+
+# Asset caching and MIME types
+# CRITICAL: Explicit Content-Type headers ensure CSS/JS are never served as HTML
+# This prevents the MIME type errors even if redirects catch asset requests
+# These headers MUST come before the SPA redirect to ensure correct MIME types
+[[headers]]
+  for = "/assets/*.css"
+  [headers.values]
+    Content-Type = "text/css; charset=utf-8"
+    Cache-Control = "public, max-age=31536000, immutable"
+    X-Content-Type-Options = "nosniff"
+
+[[headers]]
+  for = "/assets/*.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+    Cache-Control = "public, max-age=31536000, immutable"
+    X-Content-Type-Options = "nosniff"
+
+# Also set headers for assets at root level (fallback)
+# CRITICAL: Ensure JS files are NEVER served as application/octet-stream
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Content-Type = "text/css; charset=utf-8"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+    X-Content-Type-Options = "nosniff"
+
+# Explicitly handle all JS files including vendor chunks
+[[headers]]
+  for = "/assets/vendor-*.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+    X-Content-Type-Options = "nosniff"
+
+[[headers]]
+  for = "/assets/index-*.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+    X-Content-Type-Options = "nosniff"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.png"
+  [headers.values]
+    Content-Type = "image/png"
+    Cache-Control = "public, max-age=31536000, immutable"
+    X-Content-Type-Options = "nosniff"
+
+# Explicit headers for icons directory
+[[headers]]
+  for = "/icons/*.png"
+  [headers.values]
+    Content-Type = "image/png"
+    Cache-Control = "public, max-age=31536000, immutable"
+    X-Content-Type-Options = "nosniff"
+
+[[headers]]
+  for = "*.jpg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.svg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# HTML files should have shorter cache with revalidation
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+

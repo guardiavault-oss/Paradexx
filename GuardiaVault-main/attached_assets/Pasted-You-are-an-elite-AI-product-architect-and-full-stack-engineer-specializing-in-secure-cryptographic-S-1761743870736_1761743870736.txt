@@ -1,0 +1,164 @@
+You are an elite AI product architect and full-stack engineer specializing in secure cryptographic SaaS systems. I want you to design, wireframe, and produce full code blueprints for a next-generation platform called GuardiaVault — a “Dead Man’s Switch for crypto.”
+
+🔒 CORE CONCEPT
+
+Build a system that guarantees safe inheritance of self-custodied crypto assets when the user dies or becomes incapacitated — without ever giving up private key control while alive.
+
+The product must solve the $200B+ problem of lost crypto due to death (Hal Finney, QuadrigaCX, Matthew Mellon, etc.).
+
+⚙️ TECHNICAL INNOVATION
+
+Combine four cryptographic primitives into one protocol:
+
+Shamir Secret Sharing – split private keys into 5 fragments (3-of-5 needed to recover)
+
+Time-Locked Encryption – fragments only decrypt after a missed check-in period + attested death
+
+Zero-Knowledge Death Verification – verify death using proofs (NFT death certificates, attestor consensus, or legal orders) without revealing identity
+
+Dead Man’s Switch – requires user check-ins every X days, or inheritance process begins automatically
+
+💻 SYSTEM ARCHITECTURE
+
+3 user roles:
+
+User (Owner) – configures check-ins, beneficiaries, guardians, and attestors
+
+Guardians – hold encrypted key fragments; cannot read until time-lock expires
+
+Attestors – confirm death using verifiable proofs
+
+3 phases of operation:
+
+Setup: User defines beneficiaries, guardians, attestors, and time periods
+
+Alive: Periodic check-ins (every 90 days via wallet + biometric)
+
+Death: After missed check-in + confirmed death → fragments decrypt → beneficiaries notified
+
+🔐 SECURITY PRINCIPLES
+
+Zero-custody architecture (platform never has access to private keys)
+
+On-chain timestamp registry for check-ins
+
+Encrypted fragment distribution to guardians
+
+Proof-of-death smart contract oracle (NFT or signed multisig)
+
+Emergency override if falsely triggered
+
+Progressive inheritance release (10% now, 30% in 1yr, 60% in 2yrs)
+
+🧠 BUILD REQUIREMENTS
+
+Create a complete MVP spec (backend, frontend, and contract layers) that includes:
+
+Smart Contracts (Solidity 0.8+)
+
+CheckInRegistry.sol — logs user check-ins, timestamps, and expiration logic
+
+FragmentMap.sol — maps guardians to encrypted fragment metadata
+
+VerificationOracle.sol — verifies death proofs via attestors or NFTs
+
+Backend (Node.js + TypeScript or FastAPI)
+
+Wallet authentication via signature
+
+Shamir key fragmentation / recombination module
+
+Time-lock encryption with timelock.dev or AGE encryption
+
+Redis + PostgreSQL for state tracking
+
+Email/SMS notification queue (SendGrid + Twilio)
+
+API endpoints for setup, check-ins, and proof submission
+
+Frontend (Next.js + TailwindCSS)
+
+Onboarding wizard (Wallet → Guardians → Beneficiaries → Attestors → Timing)
+
+“I’m Alive” check-in button (biometric + wallet signature)
+
+Guardian dashboard for accepting roles and holding encrypted fragments
+
+Beneficiary dashboard for inheritance claim process
+
+Mobile (React Native + Expo)
+
+Push notifications for check-ins
+
+Local secure fragment storage
+
+Biometric validation
+
+Crypto Stack
+
+Use SLIP39 for key splitting
+
+Use SnarkJS for ZK proofs
+
+Use ethers.js for wallet ops
+
+Use OpenZeppelin libraries for secure contracts
+
+🌍 INFRASTRUCTURE
+
+AWS (EC2, S3, RDS) with Cloudflare CDN
+
+GitHub Actions for CI/CD
+
+Datadog + Elastic for monitoring/logging
+
+SOC2-compliant data architecture
+
+Full encryption at rest and in transit (AES-256 / TLS1.3)
+
+💸 BUSINESS LOGIC
+
+Pricing Tiers:
+
+Basic: $99/yr → 1 wallet
+
+Pro: $299/yr → 5 wallets, advanced controls
+
+Family: $599/yr → unlimited wallets, lawyer support
+
+Enterprise: $5K+/yr → API integration
+
+Revenue Streams: Subscription SaaS, enterprise API, legal partner commissions, yield on dormant assets
+
+🧭 DESIGN PHILOSOPHY
+
+Think like Apple meets Chainlink: futuristic, elegant, trustworthy.
+UI should feel like a vault control center with minimal cognitive load.
+Use glowing “lifeline” visual for check-ins and countdowns.
+
+🔥 DELIVERABLES
+
+Full MVP architecture map (contracts + backend + frontend + mobile)
+
+Wireframes for user onboarding, guardian setup, and inheritance flow
+
+Example smart contracts + pseudocode for key logic
+
+Suggested product name variants, logo concept, and brand tagline
+
+Launch roadmap (90 days: dev, audit, beta, launch)
+
+Output in structured sections:
+
+[ARCHITECTURE OVERVIEW]
+[SMART CONTRACT DESIGN]
+[BACKEND API FLOW]
+[FRONTEND WIREFRAME + UX FLOW]
+[MOBILE APP LOGIC]
+[SECURITY MODEL]
+[BUSINESS MODEL]
+[BRANDING + TAGLINE]
+[LAUNCH PLAN]
+
+
+Focus on clarity, security, and long-term scalability. Treat this like a $100M crypto SaaS startup brief.

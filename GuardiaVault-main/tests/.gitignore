@@ -1,0 +1,51 @@
+# Test artifacts and reports
+*.log
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# E2E test artifacts
+tests/e2e/reports/
+tests/e2e/screenshots/
+tests/e2e/videos/
+playwright-report/
+test-results/
+
+# Load testing reports
+tests/load/artillery/reports/
+tests/load/k6/reports/
+
+# Security testing reports
+tests/security/reports/
+tests/security/zap/reports/
+
+# Performance reports
+tests/performance/reports/
+
+# Accessibility screenshots
+tests/accessibility/screenshots/
+
+# Visual regression baselines (commit baselines, not comparisons)
+tests/visual/snapshots/
+tests/visual/diffs/
+
+# Mutation testing
+tests/mutation/reports/
+.stryker-tmp/
+
+# Chaos testing logs
+tests/chaos/logs/
+
+# Test databases
+*.db
+*.sqlite
+
+# Environment files
+.env.test
+.env.test.local
+
+# Temporary files
+tmp/
+temp/
+*.tmp

@@ -1,0 +1,7 @@
+[package]
+name = "decision_proof"
+type = "bin"
+authors = ["GuardianX"]
+compiler_version = ">=0.20.0"
+
+[dependencies]

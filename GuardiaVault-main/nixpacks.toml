@@ -1,0 +1,9 @@
+# nixpacks.toml - Force Railway to use Docker
+[build]
+cmd = "echo 'Using Dockerfile'"
+
+[start]
+cmd = "sh start.sh"
+
+[variables]
+NODE_ENV = "production"

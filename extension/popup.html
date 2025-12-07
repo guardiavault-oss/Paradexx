@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paradox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="src/popup/styles.css">
+  <link rel="stylesheet" href="src/popup/styles-enhanced.css">
+</head>
+
+<body>
+  <div id="app">
+    <!-- Ambient Background -->
+    <div class="ambient-bg">
+      <div class="gradient-orb orb-1"></div>
+      <div class="gradient-orb orb-2"></div>
+      <div class="gradient-orb orb-3"></div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading" class="screen">
+      <div class="loading-content">
+        <div class="logo-container">
+          <div class="logo-ring"></div>
+          <div class="logo-icon">
+            <img src="public/logo.png" alt="Paradox" width="56" height="56" class="logo-image">
+          </div>
+        </div>
+        <div class="loading-text">
+          <span class="brand-name">Paradox</span>
+          <div class="loading-dots">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Welcome/Onboarding Screen -->
+    <div id="welcome-screen" class="screen hidden">
+      <div class="screen-inner">
+        <div class="welcome-header">
+          <div class="logo-mark large">
+            <img src="public/logo.png" alt="Paradox" width="80" height="80" class="logo-image">
+          </div>
+          <h1 class="welcome-title">Welcome to Paradox</h1>
+          <p class="welcome-subtitle">Choose how you want to secure your wallet</p>
+        </div>
+
+        <div class="onboarding-options">
+          <button class="onboarding-card" id="choose-seedphrase">
+            <div class="card-icon seedless">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </div>
+            <div class="card-content">
+              <h3 class="card-title">Easy Mode</h3>
+              <p class="card-desc">Simple 12-word recovery phrase. Write it down and you're set.</p>
+              <div class="card-features">
+                <span class="feature-tag">📝 Seed Phrase</span>
+                <span class="feature-tag">🛡️ Self Custody</span>
+              </div>
+            </div>
+            <span class="card-badge recommended">Recommended</span>
+          </button>
+
+          <button class="onboarding-card" id="choose-seedless">
+            <div class="card-icon advanced">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <div class="card-content">
+              <h3 class="card-title">Advanced Mode</h3>
+              <p class="card-desc">Guardian recovery with trusted contacts. No seed phrase needed.</p>
+              <div class="card-features">
+                <span class="feature-tag">👥 Guardian Recovery</span>
+                <span class="feature-tag">🔐 Shamir Secret</span>
+              </div>
+            </div>
+          </button>
+        </div>
+
+        <div class="welcome-footer">
+          <button class="btn btn-ghost" id="import-existing">
+            Already have a wallet? <span class="text-gradient">Import</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seedless Setup Screen -->
+    <div id="seedless-screen" class="screen hidden">
+      <div class="screen-inner">
+        <div class="screen-header">
+          <button class="back-btn" id="back-from-seedless">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h2 class="screen-title">Guardian Recovery</h2>
+          <div class="header-spacer"></div>
+        </div>
+
+        <div class="seedless-content">
+          <div class="guardian-info">
+            <div class="guardian-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="url(#guardianGrad)"
+                stroke-width="1.5">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                <defs>
+                  <linearGradient id="guardianGrad" x1="1" y1="3" x2="23" y2="21">
+                    <stop offset="0%" stop-color="#A855F7" />
+                    <stop offset="100%" stop-color="#6366F1" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <h3 class="seedless-title">Add Your Guardians</h3>
+            <p class="seedless-desc">Guardians are trusted people who can help you recover your wallet. Add at least 3
+              guardian email addresses.</p>
+          </div>
+
+          <div class="guardian-form">
+            <div id="guardian-emails-container">
+              <div class="input-group guardian-input-group">
+                <input type="email" class="input guardian-email-input" placeholder="Guardian 1 email" />
+              </div>
+              <div class="input-group guardian-input-group">
+                <input type="email" class="input guardian-email-input" placeholder="Guardian 2 email" />
+              </div>
+              <div class="input-group guardian-input-group">
+                <input type="email" class="input guardian-email-input" placeholder="Guardian 3 email" />
+              </div>
+            </div>
+
+            <button type="button" id="add-guardian-btn" class="btn btn-secondary btn-sm">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              <span>Add Another Guardian</span>
+            </button>
+          </div>
+
+          <div class="guardian-benefits">
+            <div class="benefit-item">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span>No seed phrase needed</span>
+            </div>
+            <div class="benefit-item">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span>2 of 3 guardians can recover</span>
+            </div>
+            <div class="benefit-item">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span>72-hour security timelock</span>
+            </div>
+          </div>
+
+          <div class="error-message hidden" id="guardian-setup-error"></div>
+
+          <button id="create-seedless-btn" class="btn btn-primary btn-lg">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            <span class="btn-text">Create Wallet</span>
+          </button>
+
+          <p class="seedless-note">
+            Guardians will receive an email with secure recovery instructions
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lock Screen -->
+    <div id="lock-screen" class="screen hidden">
+      <div class="screen-inner">
+        <div class="lock-header">
+          <div class="logo-mark">
+            <img src="public/logo.png" alt="Paradox" width="64" height="64" class="logo-image">
+          </div>
+          <h1 class="title">Paradox</h1>
+          <p class="subtitle" id="lock-subtitle">Welcome back</p>
+        </div>
+
+        <div class="lock-content">
+          <div class="input-group">
+            <label class="input-label">Password</label>
+            <div class="input-wrapper">
+              <input type="password" id="password-input" placeholder="Enter your password" autocomplete="off">
+              <button class="input-icon toggle-password" type="button">
+                <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                <svg class="eye-closed hidden" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <path
+                    d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="input-group hidden" id="confirm-group">
+            <label class="input-label">Confirm Password</label>
+            <div class="input-wrapper">
+              <input type="password" id="confirm-password-input" placeholder="Confirm your password" autocomplete="off">
+            </div>
+          </div>
+
+          <p id="unlock-error" class="error-message hidden"></p>
+
+          <button id="unlock-btn" class="btn btn-primary">
+            <span class="btn-text">Unlock</span>
+            <span class="btn-loader hidden"></span>
+          </button>
+
+          <button id="import-btn" class="btn btn-ghost hidden">
+            Import Existing Wallet
+          </button>
+        </div>
+
+        <div class="lock-footer">
+          <span class="footer-text">Secured by Paradox</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Wallet Screen -->
+    <div id="create-screen" class="screen hidden">
+      <div class="screen-inner">
+        <div class="screen-header">
+          <button class="back-btn" id="back-from-create">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h2 class="screen-title">Secret Recovery Phrase</h2>
+          <div class="header-spacer"></div>
+        </div>
+
+        <div class="create-content">
+          <div class="warning-banner">
+            <div class="warning-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </div>
+            <p>Write these words down in order and store them safely. Never share them with anyone.</p>
+          </div>
+
+          <div class="seed-phrase-container">
+            <div class="seed-phrase-grid" id="seed-phrase-box"></div>
+            <div class="seed-actions">
+              <button id="copy-seed-btn" class="btn btn-secondary btn-sm">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+                <span>Copy</span>
+              </button>
+              <button id="blur-seed-btn" class="btn btn-secondary btn-sm">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                <span>Show</span>
+              </button>
+            </div>
+          </div>
+
+          <label class="checkbox-container">
+            <input type="checkbox" id="seed-confirmed">
+            <span class="checkmark"></span>
+            <span class="checkbox-text">I've saved my recovery phrase securely</span>
+          </label>
+
+          <button id="continue-btn" class="btn btn-primary" disabled>
+            Continue
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Import Wallet Screen -->
+    <div id="import-screen" class="screen hidden">
+      <div class="screen-inner">
+        <div class="screen-header">
+          <button class="back-btn" id="back-to-create">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h2 class="screen-title">Import Wallet</h2>
+          <div class="header-spacer"></div>
+        </div>
+
+        <div class="import-content">
+          <div class="tab-switcher">
+            <button class="tab-btn active" data-import-type="phrase">Recovery Phrase</button>
+            <button class="tab-btn" data-import-type="key">Private Key</button>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">Recovery Phrase</label>
+            <textarea id="import-input" placeholder="Enter your 12 or 24 word recovery phrase" rows="4"></textarea>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">New Password</label>
+            <div class="input-wrapper">
+              <input type="password" id="import-password" placeholder="Min 8 characters" autocomplete="off">
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">Confirm Password</label>
+            <div class="input-wrapper">
+              <input type="password" id="import-confirm-password" placeholder="Confirm password" autocomplete="off">
+            </div>
+          </div>
+
+          <p id="import-error" class="error-message hidden"></p>
+
+          <button id="import-wallet-btn" class="btn btn-primary">
+            Import Wallet
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Wallet Screen -->
+    <div id="main-screen" class="screen hidden">
+      <div class="main-header">
+        <button class="network-pill" id="network-selector">
+          <span class="network-dot"></span>
+          <span id="current-network">Ethereum</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+        <div class="header-actions">
+          <button class="icon-btn" id="refresh-btn" title="Refresh">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+          </button>
+          <button class="icon-btn" id="settings-btn" title="Settings">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="wallet-card">
+        <div class="card-glow"></div>
+        <div class="card-content">
+          <div class="account-row">
+            <div class="account-avatar" id="account-avatar">
+              <div class="avatar-gradient"></div>
+            </div>
+            <div class="account-details">
+              <span class="account-label">Account 1</span>
+              <button class="address-btn" id="copy-address">
+                <span class="address-text" id="account-address">0x1234...5678</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+              </button>
+            </div>
+            <button class="icon-btn-sm" id="account-options">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="1" />
+                <circle cx="19" cy="12" r="1" />
+                <circle cx="5" cy="12" r="1" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="balance-display">
+            <span class="balance-value" id="balance-amount">0.00</span>
+            <span class="balance-symbol" id="balance-currency">ETH</span>
+          </div>
+          <span class="balance-fiat" id="balance-usd">$0.00 USD</span>
+
+          <div class="quick-actions">
+            <button class="action-btn" id="send-btn">
+              <div class="action-icon send">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="19" x2="12" y2="5" />
+                  <polyline points="5 12 12 5 19 12" />
+                </svg>
+              </div>
+              <span>Send</span>
+            </button>
+            <button class="action-btn" id="receive-btn">
+              <div class="action-icon receive">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <polyline points="19 12 12 19 5 12" />
+                </svg>
+              </div>
+              <span>Receive</span>
+            </button>
+            <button class="action-btn" id="swap-btn">
+              <div class="action-icon swap">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="17 1 21 5 17 9" />
+                  <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                  <polyline points="7 23 3 19 7 15" />
+                  <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                </svg>
+              </div>
+              <span>Swap</span>
+            </button>
+            <button class="action-btn" id="buy-btn">
+              <div class="action-icon buy">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="1" x2="12" y2="23" />
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+              </div>
+              <span>Buy</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="content-tabs">
+        <button class="content-tab active" data-tab="tokens">
+          <span>Tokens</span>
+          <span class="tab-count" id="token-count">0</span>
+        </button>
+        <button class="content-tab" data-tab="nfts">
+          <span>NFTs</span>
+          <span class="tab-count" id="nft-count">0</span>
+        </button>
+        <button class="content-tab" data-tab="activity">
+          <span>Activity</span>
+        </button>
+      </div>
+
+      <div class="content-area">
+        <div class="tab-panel active" id="tokens-tab">
+          <div class="token-list" id="token-list">
+            <!-- Tokens rendered here -->
+          </div>
+          <button class="add-token-btn" id="add-token-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span>Import Token</span>
+          </button>
+        </div>
+
+        <div class="tab-panel" id="nfts-tab">
+          <div class="nft-grid" id="nft-grid">
+            <!-- NFTs rendered here -->
+          </div>
+          <div class="empty-state" id="nfts-empty">
+            <div class="empty-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+            </div>
+            <p class="empty-title">No NFTs yet</p>
+            <p class="empty-subtitle">Your collectibles will appear here</p>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="activity-tab">
+          <div class="activity-list" id="activity-list">
+            <!-- Activity rendered here -->
+          </div>
+          <div class="empty-state" id="activity-empty">
+            <div class="empty-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+            </div>
+            <p class="empty-title">No activity yet</p>
+            <p class="empty-subtitle">Your transactions will appear here</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Send Screen -->
+    <div id="send-screen" class="screen hidden">
+      <div class="screen-inner">
+        <div class="screen-header">
+          <button class="back-btn" id="back-from-send">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h2 class="screen-title">Send</h2>
+          <div class="header-spacer"></div>
+        </div>
+
+        <div class="send-content">
+          <div class="token-selector" id="send-token-selector">
+            <div class="token-icon-lg">🔷</div>
+            <div class="token-info">
+              <span class="token-name">Ethereum</span>
+              <span class="token-balance">Balance: 0.00 ETH</span>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+
+          <div class="input-group">
+            <div class="input-header">
+              <label class="input-label">Amount</label>
+              <button class="max-btn" id="max-amount-btn">MAX</button>
+            </div>
+            <div class="input-wrapper amount-input">
+              <input type="text" id="send-amount" placeholder="0.00" autocomplete="off">
+              <span class="input-suffix">ETH</span>
+            </div>
+            <span class="input-subtext">≈ $0.00 USD</span>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">Recipient</label>
+            <div class="input-wrapper">
+              <input type="text" id="send-recipient" placeholder="Address or ENS name" autocomplete="off">
+              <button class="input-icon" id="paste-address">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                  <rect x="8" y="2" width="8" height="4" rx="1" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="gas-estimate">
+            <div class="gas-row">
+              <span class="gas-label">Estimated Gas</span>
+              <span class="gas-value" id="send-gas">~0.001 ETH</span>
+            </div>
+            <div class="gas-row">
+              <span class="gas-label">Max Total</span>
+              <span class="gas-value total" id="send-total">0.001 ETH</span>
+            </div>
+          </div>
+
+          <p id="send-error" class="error-message hidden"></p>
+
+          <button id="send-confirm-btn" class="btn btn-primary" disabled>
+            Review Send
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Receive Screen -->
+    <div id="receive-screen" class="screen hidden">
+      <div class="screen-inner">
+        <div class="screen-header">
+          <button class="back-btn" id="back-from-receive">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h2 class="screen-title">Receive</h2>
+          <div class="header-spacer"></div>
+        </div>
+
+        <div class="receive-content">
+          <div class="qr-container">
+            <div class="qr-code" id="qr-code">
+              <!-- QR code rendered here -->
+            </div>
+            <div class="qr-overlay"></div>
+          </div>
+
+          <div class="address-card">
+            <p class="address-label">Your Address</p>
+            <p class="address-full" id="receive-address">0x0000...0000</p>
+            <div class="address-actions">
+              <button class="btn btn-secondary btn-sm" id="copy-receive-address">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+                <span>Copy</span>
+              </button>
+              <button class="btn btn-secondary btn-sm" id="share-address">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                </svg>
+                <span>Share</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="receive-warning">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>Only send <strong id="receive-network">Ethereum</strong> assets to this address</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connection Request Screen -->
+    <div id="connect-screen" class="screen hidden">
+      <div class="screen-inner">
+        <div class="dapp-header">
+          <div class="dapp-icon">
+            <img id="connect-favicon" src="" alt="">
+          </div>
+          <h2 class="dapp-name" id="connect-site">Website</h2>
+          <p class="dapp-origin" id="connect-origin">https://example.com</p>
+        </div>
+
+        <div class="request-content">
+          <h3 class="request-title">Connect Wallet</h3>
+          <p class="request-desc">This app would like to:</p>
+
+          <div class="permissions-list">
+            <div class="permission-item">
+              <div class="permission-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </div>
+              <span>View your wallet address</span>
+            </div>
+            <div class="permission-item">
+              <div class="permission-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="1" y="4" width="22" height="16" rx="2" />
+                  <line x1="1" y1="10" x2="23" y2="10" />
+                </svg>
+              </div>
+              <span>Request transaction approvals</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="request-actions">
+          <button id="reject-connect" class="btn btn-secondary">Cancel</button>
+          <button id="approve-connect" class="btn btn-primary">Connect</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transaction Approval Screen -->
+    <div id="tx-screen" class="screen hidden">
+      <div class="screen-inner">
+        <div class="dapp-header compact">
+          <div class="dapp-icon sm">
+            <img id="tx-favicon" src="" alt="">
+          </div>
+          <span class="dapp-name" id="tx-site">Website</span>
+        </div>
+
+        <div class="tx-content">
+          <div class="tx-type-badge" id="tx-type">Send Transaction</div>
+
+          <div class="tx-details-card" id="tx-summary">
+            <!-- Transaction details -->
+          </div>
+
+          <button class="data-toggle" id="toggle-data">
+            <span>Transaction Data</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+          <pre class="tx-data hidden" id="tx-data"></pre>
+
+          <div class="fee-breakdown">
+            <div class="fee-row">
+              <span>Estimated Gas Fee</span>
+              <span id="tx-gas">0.001 ETH</span>
+            </div>
+            <div class="fee-row total">
+              <span>Total</span>
+              <span id="tx-total">0.001 ETH</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="request-actions">
+          <button id="reject-tx" class="btn btn-secondary">Reject</button>
+          <button id="approve-tx" class="btn btn-primary">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sign Message Screen -->
+    <div id="sign-screen" class="screen hidden">
+      <div class="screen-inner">
+        <div class="dapp-header compact">
+          <div class="dapp-icon sm">
+            <img id="sign-favicon" src="" alt="">
+          </div>
+          <span class="dapp-name" id="sign-site">Website</span>
+        </div>
+
+        <div class="sign-content">
+          <div class="sign-type-badge">Signature Request</div>
+          <p class="sign-desc">This site is requesting you sign a message:</p>
+
+          <div class="message-card" id="sign-message">
+            <!-- Message content -->
+          </div>
+        </div>
+
+        <div class="request-actions">
+          <button id="reject-sign" class="btn btn-secondary">Reject</button>
+          <button id="approve-sign" class="btn btn-primary">Sign</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Screen -->
+    <div id="settings-screen" class="screen hidden">
+      <div class="screen-inner">
+        <div class="screen-header">
+          <button class="back-btn" id="back-from-settings">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h2 class="screen-title">Settings</h2>
+          <div class="header-spacer"></div>
+        </div>
+
+        <div class="settings-content">
+          <div class="settings-section">
+            <h3 class="settings-section-title">Security</h3>
+            <div class="settings-list">
+              <button class="settings-item" id="reveal-seed">
+                <div class="settings-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                </div>
+                <div class="settings-info">
+                  <span class="settings-label">Reveal Recovery Phrase</span>
+                  <span class="settings-desc">View your secret recovery phrase</span>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+              <button class="settings-item" id="change-password">
+                <div class="settings-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                      d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+                  </svg>
+                </div>
+                <div class="settings-info">
+                  <span class="settings-label">Change Password</span>
+                  <span class="settings-desc">Update your wallet password</span>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+              <button class="settings-item" id="lock-wallet">
+                <div class="settings-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                </div>
+                <div class="settings-info">
+                  <span class="settings-label">Lock Wallet</span>
+                  <span class="settings-desc">Require password to use wallet</span>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3 class="settings-section-title">Networks</h3>
+            <div class="settings-list">
+              <button class="settings-item" id="manage-networks">
+                <div class="settings-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                    <path
+                      d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                  </svg>
+                </div>
+                <div class="settings-info">
+                  <span class="settings-label">Manage Networks</span>
+                  <span class="settings-desc">Add or remove networks</span>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3 class="settings-section-title">About</h3>
+            <div class="settings-list">
+              <div class="settings-item static">
+                <div class="settings-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                </div>
+                <div class="settings-info">
+                  <span class="settings-label">Version</span>
+                  <span class="settings-desc">1.0.0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Network Dropdown -->
+    <div id="network-dropdown" class="dropdown hidden">
+      <div class="dropdown-header">
+        <span>Select Network</span>
+      </div>
+      <div class="dropdown-list">
+        <button class="dropdown-item active" data-chain="0x1">
+          <span class="chain-dot eth"></span>
+          <span class="chain-name">Ethereum</span>
+          <svg class="check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </button>
+        <button class="dropdown-item" data-chain="0x89">
+          <span class="chain-dot polygon"></span>
+          <span class="chain-name">Polygon</span>
+          <svg class="check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </button>
+        <button class="dropdown-item" data-chain="0x38">
+          <span class="chain-dot bnb"></span>
+          <span class="chain-name">BNB Chain</span>
+          <svg class="check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </button>
+        <button class="dropdown-item" data-chain="0xa4b1">
+          <span class="chain-dot arbitrum"></span>
+          <span class="chain-name">Arbitrum</span>
+          <svg class="check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </button>
+        <button class="dropdown-item" data-chain="0xa">
+          <span class="chain-dot optimism"></span>
+          <span class="chain-name">Optimism</span>
+          <svg class="check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </button>
+        <button class="dropdown-item" data-chain="0x2105">
+          <span class="chain-dot base"></span>
+          <span class="chain-name">Base</span>
+          <svg class="check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- MEV Shield Screen -->
+    <div id="mev-shield-screen" class="screen hidden">
+      <!-- Content loaded dynamically -->
+    </div>
+
+    <!-- Swap/Bridge Screen -->
+    <div id="swap-bridge-screen" class="screen hidden">
+      <!-- Content loaded dynamically -->
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden">
+      <div class="toast-icon"></div>
+      <span class="toast-message"></span>
+    </div>
+  </div>
+
+  <script type="module" src="src/popup/index.js"></script>
+</body>
+
+</html>
