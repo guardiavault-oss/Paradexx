@@ -13,14 +13,16 @@ dist/
 build/
 out/
 
-# Environment variables
+# Environment variables - NEVER commit these
 .env
 .env.local
+.env.*.local
 .env.development.local
 .env.test.local
 .env.production.local
 *.env
 !.env.example
+!.env.schema
 
 # Python
 __pycache__/
