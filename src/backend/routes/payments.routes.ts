@@ -58,6 +58,39 @@ router.post('/create-checkout', authenticateToken, async (req: Request, res: Res
     const { priceId, product, tier } = req.body;
     const userId = req.userId;
 
+    // Get user from database
+    const user = await (prisma.user as any).findUnique({
+      where: { id: userId },
+      select: { id: true, stripeCustomerId: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Get or create Stripe customer
+    const stripe = await getUncachableStripeClient();
+    let customerId = user.stripeCustomerId;
+
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        metadata: { userId: user.id },
+      });
+      customerId = customer.id;
+      // Update user with stripe customer id
+      await (prisma.user as any).update({
+        where: { id: userId },
+        data: { stripeCustomerId: customerId },
+      });
+    }
+
+    const baseUrl = process.env.REPLIT_DOMAINS
+      ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
+      : process.env.FRONTEND_URL || 'http://localhost:5000';
+
+    const targetPriceId = priceId;
+    const mode = 'subscription' as const;
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ['card'],

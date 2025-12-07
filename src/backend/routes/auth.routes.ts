@@ -719,7 +719,7 @@ router.get('/oauth/google/callback', async (req: Request, res: Response) => {
       return res.redirect(`${frontendUrl}/login?error=token_exchange_failed`);
     }
 
-    const tokenData = await tokenResponse.json();
+    const tokenData = await tokenResponse.json() as { access_token: string; token_type: string; expires_in: number };
 
     // Get user info from Google
     const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
@@ -730,7 +730,7 @@ router.get('/oauth/google/callback', async (req: Request, res: Response) => {
       return res.redirect(`${frontendUrl}/login?error=userinfo_failed`);
     }
 
-    const googleUser = await userInfoResponse.json();
+    const googleUser = await userInfoResponse.json() as { id: string; email: string; name?: string; picture?: string };
     const { id: googleId, email, name, picture } = googleUser;
 
     if (!email) {
