@@ -3,7 +3,7 @@ import { Settings, Bell, ChevronDown, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { NotificationCenter } from './NotificationCenter';
 import { NetworkSelector } from './NetworkSelector';
-import { Button } from './ui/Button';
+import { Button } from './ui/button';
 
 interface HeaderProps {
   type: 'degen' | 'regen';
