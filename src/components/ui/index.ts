@@ -1,10 +1,10 @@
 // Core UI Components
-export { Button } from './Button';
-export { Badge } from './Badge';
+export { Button } from './button';
+export { Badge } from './badge';
 export { GlassCard } from './GlassCard';
-export { Avatar } from './Avatar';
+export { Avatar } from './avatar';
 export { NumberTicker } from './NumberTicker';
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './Tooltip';
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './tooltip';
 
 // Animation Components
 export { StaggeredList } from './StaggeredList';
