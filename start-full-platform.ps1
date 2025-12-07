@@ -73,8 +73,8 @@ function Set-EnvironmentVariables {
     $env:VITE_CROSSCHAIN_URL = "http://localhost:8001"
     
     # Blockchain RPC (using public endpoints for development)
-    $env:ETHEREUM_RPC_URL = "https://eth-mainnet.g.alchemy.com/v2/KQDdqBIVP39M0b1A_2nwMXvFAFyYNfzT"
-    $env:ETH_RPC_URL = "https://eth-mainnet.g.alchemy.com/v2/KQDdqBIVP39M0b1A_2nwMXvFAFyYNfzT"
+    $env:ETHEREUM_RPC_URL = "https://eth-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY_HERE"
+    $env:ETH_RPC_URL = "https://eth-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY_HERE"
     $env:POLYGON_RPC_URL = "https://polygon.llamarpc.com"
     $env:BSC_RPC_URL = "https://bsc-dataseed.binance.org"
     $env:ARB_RPC_URL = "https://arb1.arbitrum.io/rpc"
@@ -82,10 +82,10 @@ function Set-EnvironmentVariables {
     $env:FLASHBOTS_RPC = "https://rpc.flashbots.net"
     
     # API Keys
-    $env:ALCHEMY_API_KEY = "KQDdqBIVP39M0b1A_2nwMXvFAFyYNfzT"
-    $env:ETHERSCAN_API_KEY = "SBHWY68WVXPC58XJB7FC812MK73192WY6V"
-    $env:ONEINCH_API_KEY = "pz32NE87fPUJrLFQj7SLYIL2bzyF73Lv"
-    $env:BLOCKNATIVE_API_KEY = "aad44046-3c9d-4bde-9229-0a9d692d1168"
+    $env:ALCHEMY_API_KEY = "YOUR_ALCHEMY_API_KEY_HERE"
+    $env:ETHERSCAN_API_KEY = "YOUR_ETHERSCAN_API_KEY_HERE"
+    $env:ONEINCH_API_KEY = "YOUR_1INCH_API_KEY_HERE"
+    $env:BLOCKNATIVE_API_KEY = "YOUR_BLOCKNATIVE_API_KEY_HERE"
     
     # Feature Flags
     $env:ENABLE_SNIPER_BOT = "true"
