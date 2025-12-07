@@ -327,6 +327,10 @@ export default function DashboardNew({
           <CustomTokenImport
             isOpen={true}
             onClose={() => setActiveFeaturePage(null)}
+            onImport={(token) => {
+              console.log("Token imported:", token);
+              setActiveFeaturePage(null);
+            }}
             walletType={type}
           />
         );
@@ -348,7 +352,8 @@ export default function DashboardNew({
       case "help":
         return (
           <HelpCenter
-            type={type}
+            isOpen={true}
+            walletType={type}
             onClose={() => setActiveFeaturePage(null)}
           />
         );
@@ -1035,7 +1040,6 @@ export default function DashboardNew({
           >
             <TradingPageEnhanced
               type={type}
-              walletAddress={walletAddress}
               onClose={() => setActiveTab("home")}
             />
           </motion.div>
@@ -1155,9 +1159,7 @@ export default function DashboardNew({
         <BottomNav
           activeTab={activeTab}
           onTabChange={setActiveTab}
-          type={type}
-          degenPercent={degenPercent}
-          regenPercent={regenPercent}
+          tribe={type}
         />
       )}
       {/* For feature pages, original code showed bottom nav with activeTab="more" */}
@@ -1168,9 +1170,7 @@ export default function DashboardNew({
             setActiveFeaturePage(null);
             setActiveTab(tab);
           }}
-          type={type}
-          degenPercent={degenPercent}
-          regenPercent={regenPercent}
+          tribe={type}
         />
       )}
     </PageLayout>

@@ -1,11 +1,12 @@
 import { motion } from 'motion/react';
 import { ReactNode } from 'react';
 
-interface GlassCardProps {
+export interface GlassCardProps {
   children: ReactNode;
   className?: string;
   hover?: boolean;
   glow?: boolean;
+  glowColor?: string;
   onClick?: () => void;
 }
 
@@ -14,8 +15,15 @@ export function GlassCard({
   className = '',
   hover = true,
   glow = false,
+  glowColor,
   onClick,
 }: GlassCardProps) {
+  const glowShadow = glowColor 
+    ? `0 0 30px ${glowColor}40`
+    : glow 
+      ? '0 0 30px rgba(var(--accent-primary-rgb),0.2)' 
+      : 'none';
+  
   return (
     <motion.div
       whileHover={hover ? { scale: 1.02, y: -2 } : {}}
@@ -30,13 +38,13 @@ export function GlassCard({
         p-6
         transition-all
         ${onClick ? 'cursor-pointer' : ''}
-        ${glow ? 'shadow-[0_0_30px_rgba(var(--accent-primary-rgb),0.2)]' : ''}
         ${className}
       `}
       style={{
-        background: glow
+        background: (glow || glowColor)
           ? 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)'
           : undefined,
+        boxShadow: glowShadow,
       }}
     >
       {/* Glass effect overlay */}

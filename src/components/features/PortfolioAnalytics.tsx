@@ -41,7 +41,8 @@ import { FullscreenLoading } from "../ui/LoadingStates";
 import { Button, Badge, GlassCard } from "../ui";
 
 interface PortfolioAnalyticsProps {
-  onBack: () => void;
+  onBack?: () => void;
+  onClose?: () => void;
   type?: "degen" | "regen";
 }
 
@@ -80,6 +81,7 @@ interface RiskMetrics {
 
 export function PortfolioAnalytics({
   onBack,
+  onClose,
   type = "degen",
 }: PortfolioAnalyticsProps) {
   const [activeTab, setActiveTab] = useState<
@@ -323,7 +325,7 @@ export function PortfolioAnalytics({
               <motion.button
                 whileHover={{ x: -4 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={onBack}
+                onClick={onClose || onBack}
                 className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               >
                 <ArrowLeft className="w-5 h-5" />

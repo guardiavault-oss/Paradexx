@@ -27,13 +27,17 @@ interface Airdrop {
 
 interface AirdropPageProps {
     onBack?: () => void;
+    onClose?: () => void;
     type: "degen" | "regen";
 }
 
-export function AirdropPage({ onBack, type }: AirdropPageProps) {
+export function AirdropPage({ onBack, onClose, type }: AirdropPageProps) {
     // Use design system theme styles
     const theme = getThemeStyles(type);
     const primaryColor = theme.primaryColor;
+    
+    // Support both onBack and onClose
+    const handleClose = onClose || onBack;
 
     const [activeTab, setActiveTab] = useState<'airdrops' | 'farming' | 'eligible'>('airdrops');
     const [airdrops, setAirdrops] = useState<Airdrop[]>([]);
