@@ -18,6 +18,10 @@ out/
 .env.local
 .env.*.local
 .env.development.local
+.env.production.local
+.env.backup
+.env.staging
+.env.testing
 .env.test.local
 .env.production.local
 *.env

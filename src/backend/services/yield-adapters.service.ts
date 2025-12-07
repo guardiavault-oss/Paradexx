@@ -8,7 +8,7 @@ dotenv.config();
 const LIDO_ADAPTER_ADDRESS = process.env.LIDO_ADAPTER_ADDRESS || '0xC30F4DE8666c79757116517361dFE6764A6Dc128';
 const AAVE_ADAPTER_ADDRESS = process.env.AAVE_ADAPTER_ADDRESS || '0xcc27a22d92a8B03D822974CDeD6BB74c63Ac0ae1';
 const YIELD_VAULT_ADDRESS = process.env.YIELD_VAULT_ADDRESS || '0x86bE7Bf7Ef3Af62BB7e56a324a11fdBA7f3AfbBb';
-const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || 'https://eth-sepolia.g.alchemy.com/v2/KQDdqBIVP39M0b1A_2nwMXvFAFyYNfzT';
+const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || 'https://eth-sepolia.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY_HERE';
 
 // Simplified ABI for adapters (common functions)
 const ADAPTER_ABI = [

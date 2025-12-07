@@ -36,7 +36,7 @@ railway variables --set SEPOLIA_RPC_URL="https://sepolia.infura.io/v3/YOUR_INFUR
 railway variables --set VITE_SEPOLIA_RPC_URL="https://sepolia.infura.io/v3/YOUR_INFURA_API_KEY_HERE"
 railway variables --set VITE_WALLETCONNECT_PROJECT_ID="f32270e55fe94b09ccfc7a375022bb41"
 railway variables --set PRIVATE_KEY="0x82da6f42acceda8c644074bd21581a088b55442b2b85e7a4e075b023da47c7ea"
-railway variables --set ETHERSCAN_API_KEY="SBHWY68WVXPC58XJB7FC812MK73192WY6V"
+railway variables --set ETHERSCAN_API_KEY="YOUR_ETHERSCAN_API_KEY_HERE"
 railway variables --set LOG_LEVEL="info"
 railway variables --set DEBUG="false"
 ```

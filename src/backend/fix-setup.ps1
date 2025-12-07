@@ -21,7 +21,7 @@ if (Test-Path .env) {
         $apiKey = $matches[1]
         if ($apiKey -eq 'your-1inch-api-key-here' -or $apiKey -eq 'your-1inch-api-key') {
             Write-Host "   ⚠️  ONEINCH_API_KEY is still set to placeholder!" -ForegroundColor Yellow
-            Write-Host "   Please update .env file with your actual API key: pz32NE87fPUJrLFQj7SLYIL2bzyF73Lv" -ForegroundColor Yellow
+            Write-Host "   Please update .env file with your actual API key: YOUR_1INCH_API_KEY_HERE" -ForegroundColor Yellow
         } else {
             Write-Host "   ✅ ONEINCH_API_KEY is set: $($apiKey.Substring(0, [Math]::Min(20, $apiKey.Length)))..." -ForegroundColor Green
         }
@@ -50,7 +50,7 @@ if ($envContent -match 'DATABASE_URL\s*=\s*([^\s]+)') {
 
 Write-Host "`n✅ Setup check complete!" -ForegroundColor Green
 Write-Host "`nNext steps:" -ForegroundColor Cyan
-Write-Host "1. Make sure .env has ONEINCH_API_KEY=pz32NE87fPUJrLFQj7SLYIL2bzyF73Lv" -ForegroundColor White
+Write-Host "1. Make sure .env has ONEINCH_API_KEY=YOUR_1INCH_API_KEY_HERE" -ForegroundColor White
 Write-Host "2. Update DATABASE_URL with your PostgreSQL password" -ForegroundColor White
 Write-Host "3. Run: npm run test:api" -ForegroundColor White
 

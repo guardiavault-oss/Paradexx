@@ -39,11 +39,11 @@ docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=your_password postgres
 
 **Current Value:** The `.env` file has `ONEINCH_API_KEY=your-1inch-api-key-here`
 
-**Required Value:** `ONEINCH_API_KEY=pz32NE87fPUJrLFQj7SLYIL2bzyF73Lv`
+**Required Value:** `ONEINCH_API_KEY=YOUR_1INCH_API_KEY_HERE`
 
 **Fix:** Update `src/backend/.env` file:
 ```bash
-ONEINCH_API_KEY=pz32NE87fPUJrLFQj7SLYIL2bzyF73Lv
+ONEINCH_API_KEY=YOUR_1INCH_API_KEY_HERE
 ```
 
 ## Next Steps
@@ -52,7 +52,7 @@ ONEINCH_API_KEY=pz32NE87fPUJrLFQj7SLYIL2bzyF73Lv
    ```powershell
    # Edit src/backend/.env
    # Change: ONEINCH_API_KEY=your-1inch-api-key-here
-   # To: ONEINCH_API_KEY=pz32NE87fPUJrLFQj7SLYIL2bzyF73Lv
+   # To: ONEINCH_API_KEY=YOUR_1INCH_API_KEY_HERE
    ```
 
 2. **Start PostgreSQL:**

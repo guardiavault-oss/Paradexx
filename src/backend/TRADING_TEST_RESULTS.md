@@ -5,7 +5,7 @@
 ### ✅ What's Working
 
 1. **1inch API Connection** ✅
-   - API key validated: `pz32NE87fPUJrLFQj7SLYIL2bzyF73Lv`
+   - API key validated: `YOUR_1INCH_API_KEY_HERE`
    - Successfully connected to 1inch API
    - Found **1,077 supported tokens**
 

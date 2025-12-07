@@ -38,7 +38,7 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token": "your_jwt_token_here...",
     "expiresIn": 3600
   }
 }
