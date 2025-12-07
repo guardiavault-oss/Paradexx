@@ -1611,8 +1611,8 @@ const SplitScreenView: React.FC<{
   );
 };
 
-// Main component
-export default function App() {
+// Main content component (wrapped by App with providers)
+function AppContent() {
   const [showSplash, setShowSplash] = useState(true); // Show splash screen first
   const [showWalletEntry, setShowWalletEntry] = useState(false); // Show after splash completes
   const [showLoginModal, setShowLoginModal] = useState(false); // Login modal
