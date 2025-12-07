@@ -9,10 +9,9 @@ cmds = [
 
 [phases.build]
 cmds = [
-  "cd src/backend && npm run build",
-  "cd src/backend && npx prisma migrate deploy"
+  "cd src/backend && npm install && npx prisma generate && npm run build"
 ]
 
 [start]
-cmd = "cd src/backend && npm start"
+cmd = "cd src/backend && npx prisma db push --accept-data-loss && npm start"
 
