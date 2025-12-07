@@ -1,8 +1,27 @@
-// Wallet Service - Blockchain wallet operations with ethers.js
+// Wallet Service - Blockchain wallet operations with ethers.js (PRODUCTION)
 
 import { ethers } from 'ethers';
 import { logger } from '../services/logger.service';
 import crypto, { CipherGCM, DecipherGCM } from 'crypto';
+import axios from 'axios';
+
+// API Configuration
+const MORALIS_API_KEY = process.env.MORALIS_API_KEY;
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
+const COINGECKO_API = 'https://api.coingecko.com/api/v3';
+
+// Log API status on load
+if (MORALIS_API_KEY) {
+  logger.info('✅ Moralis API configured for token discovery');
+} else {
+  logger.warn('⚠️ MORALIS_API_KEY not set - token discovery limited');
+}
+
+if (ETHERSCAN_API_KEY) {
+  logger.info('✅ Etherscan API configured for transaction history');
+} else {
+  logger.warn('⚠️ ETHERSCAN_API_KEY not set - transaction history limited');
+}
 
 // Chain configuration
 const CHAIN_CONFIG: Record<string, any> = {
@@ -202,23 +221,33 @@ class WalletService {
   }
 
   /**
-   * Get balance in USD
+   * Get balance in USD using CoinGecko API
    */
   async getBalanceUSD(balance: string, chain: string): Promise<number> {
     try {
-      // TODO: Fetch current price from CoinGecko or similar
-      // Mock prices for now
-      const prices: Record<string, number> = {
-        ethereum: 2000,
-        polygon: 0.8,
-        bsc: 300,
-        arbitrum: 2000,
-        optimism: 2000,
-        base: 2000,
+      // Map chain names to CoinGecko IDs
+      const coinGeckoIds: Record<string, string> = {
+        ethereum: 'ethereum',
+        polygon: 'matic-network',
+        bsc: 'binancecoin',
+        arbitrum: 'ethereum',
+        optimism: 'ethereum',
+        base: 'ethereum',
       };
 
-      const price = prices[chain] || 0;
-      return parseFloat(balance) * price;
+      const coinId = coinGeckoIds[chain];
+      if (!coinId) {
+        logger.warn(`No CoinGecko ID for chain: ${chain}`);
+        return 0;
+      }
+
+      // Fetch live price from CoinGecko
+      const response = await axios.get(
+        `${COINGECKO_API}/simple/price?ids=${coinId}&vs_currencies=usd`
+      );
+      
+      const price = response.data[coinId]?.usd || 0;
+      return Number.parseFloat(balance) * price;
     } catch (error) {
       logger.error('Get balance USD error:', error);
       return 0;
@@ -257,61 +286,125 @@ class WalletService {
   }
 
   /**
-   * Get all ERC20 tokens for wallet
+   * Get all ERC20 tokens for wallet using Moralis API
    */
   async getTokens(address: string, chain: string): Promise<any[]> {
     try {
-      // TODO: Use Moralis, Alchemy, or similar to get all tokens
-      // For now, return mock data
-      return [
+      if (!MORALIS_API_KEY) {
+        logger.warn('Moralis API key not configured - cannot fetch tokens');
+        return [];
+      }
+
+      // Map chain names to Moralis chain IDs
+      const moralisChains: Record<string, string> = {
+        ethereum: 'eth',
+        polygon: 'polygon',
+        bsc: 'bsc',
+        arbitrum: 'arbitrum',
+        optimism: 'optimism',
+        base: 'base',
+      };
+
+      const moralisChain = moralisChains[chain] || 'eth';
+
+      // Fetch token balances from Moralis
+      const response = await axios.get(
+        `https://deep-index.moralis.io/api/v2.2/${address}/erc20`,
         {
-          address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-          symbol: 'USDC',
-          name: 'USD Coin',
-          balance: '1000.50',
-          decimals: 6,
-          priceUSD: 1,
-          valueUSD: 1000.50,
-        },
-        {
-          address: '0xdac17f958d2ee523a2206206994597c13d831ec7',
-          symbol: 'USDT',
-          name: 'Tether USD',
-          balance: '500.00',
-          decimals: 6,
-          priceUSD: 1,
-          valueUSD: 500.00,
-        },
-      ];
+          headers: {
+            'X-API-Key': MORALIS_API_KEY,
+          },
+          params: {
+            chain: moralisChain,
+          },
+        }
+      );
+
+      // Transform Moralis response to our format
+      const tokens = response.data.map((token: any) => ({
+        address: token.token_address,
+        symbol: token.symbol,
+        name: token.name,
+        balance: (Number(token.balance) / Math.pow(10, token.decimals)).toFixed(6),
+        decimals: token.decimals,
+        priceUSD: token.usd_price || 0,
+        valueUSD: token.usd_value || 0,
+        logo: token.logo || null,
+        verified: token.verified_contract || false,
+      }));
+
+      return tokens;
     } catch (error) {
       logger.error('Get tokens error:', error);
-      throw new Error('Failed to get tokens');
+      return []; // Return empty array on error instead of throwing
     }
   }
 
   /**
-   * Get transaction history
+   * Get transaction history using Etherscan API
    */
   async getTransactions(address: string, chain: string): Promise<any[]> {
     try {
-      // TODO: Use Etherscan API or similar to get transaction history
-      // For now, return mock data
-      return [
-        {
-          hash: '0x123...',
-          from: address,
-          to: '0x456...',
-          value: '1.0',
-          type: 'send',
-          status: 'confirmed',
-          timestamp: new Date(),
-          gasUsed: '21000',
-          gasPriceGwei: '50',
+      if (!ETHERSCAN_API_KEY) {
+        logger.warn('Etherscan API key not configured - cannot fetch transactions');
+        return [];
+      }
+
+      // Map chain names to block explorer APIs
+      const explorers: Record<string, string> = {
+        ethereum: 'https://api.etherscan.io/api',
+        polygon: 'https://api.polygonscan.com/api',
+        bsc: 'https://api.bscscan.com/api',
+        arbitrum: 'https://api.arbiscan.io/api',
+        optimism: 'https://api-optimistic.etherscan.io/api',
+        base: 'https://api.basescan.org/api',
+      };
+
+      const explorerApi = explorers[chain];
+      if (!explorerApi) {
+        logger.warn(`No explorer API for chain: ${chain}`);
+        return [];
+      }
+
+      // Fetch transactions from block explorer
+      const response = await axios.get(explorerApi, {
+        params: {
+          module: 'account',
+          action: 'txlist',
+          address: address,
+          startblock: 0,
+          endblock: 99999999,
+          page: 1,
+          offset: 50, // Limit to 50 most recent
+          sort: 'desc',
+          apikey: ETHERSCAN_API_KEY,
         },
-      ];
+      });
+
+      if (response.data.status !== '1') {
+        logger.warn(`Explorer API error: ${response.data.message}`);
+        return [];
+      }
+
+      // Transform response to our format
+      const transactions = response.data.result.map((tx: any) => ({
+        hash: tx.hash,
+        from: tx.from,
+        to: tx.to,
+        value: (Number(tx.value) / 1e18).toFixed(6),
+        type: tx.from.toLowerCase() === address.toLowerCase() ? 'send' : 'receive',
+        status: tx.isError === '0' ? 'confirmed' : 'failed',
+        timestamp: new Date(Number(tx.timeStamp) * 1000),
+        gasUsed: tx.gasUsed,
+        gasPriceGwei: (Number(tx.gasPrice) / 1e9).toFixed(2),
+        blockNumber: tx.blockNumber,
+        nonce: tx.nonce,
+      }));
+
+      return transactions;
     } catch (error) {
       logger.error('Get transactions error:', error);
-      throw new Error('Failed to get transactions');
+      return []; // Return empty array on error instead of throwing
     }
   }
 

@@ -1,4 +1,4 @@
-// Authentication Routes - Custom Email/Password with Verification
+// Authentication Routes - Custom Email/Password with Verification (PRODUCTION)
 
 import { Router, Request, Response } from 'express';
 import { logger } from '../services/logger.service';
@@ -10,22 +10,14 @@ import { authenticateToken } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Dev mode flag - bypass database for testing
-const DEV_MODE = process.env.NODE_ENV === 'development';
+// Admin account - has access to all subscription tiers (configured via env vars)
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@paradex.trade';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
-// Admin account - has access to all subscription tiers
-const ADMIN_EMAIL = 'admin@DualGen.io';
-const ADMIN_PASSWORD = 'DualGen2024!Admin';
-
-// Demo user for dev mode (no database required)
-const DEMO_USER = {
-  id: 'demo-user-001',
-  email: process.env.DEMO_ACCOUNT_EMAIL || 'demo@paradox.io',
-  password: process.env.DEMO_ACCOUNT_PASSWORD || 'demo123456',
-  username: 'DemoUser',
-  displayName: 'Demo User',
-  avatar: null,
-};
+// Log status
+if (ADMIN_EMAIL && ADMIN_PASSWORD) {
+  logger.info('✅ Admin account configured');
+}
 
 // Subscription tiers configuration
 const SUBSCRIPTION_TIERS = {
@@ -75,12 +67,10 @@ router.post('/send-verification', async (req: Request, res: Response) => {
     // Normalize email
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Check if email is already registered (in production)
-    if (!DEV_MODE) {
-      const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-      if (existing) {
-        return res.status(409).json({ error: 'Email already registered. Please sign in.' });
-      }
+    // Check if email is already registered
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (existing) {
+      return res.status(409).json({ error: 'Email already registered. Please sign in.' });
     }
 
     // Send verification code
@@ -107,24 +97,6 @@ router.post('/verify-code', async (req: Request, res: Response) => {
     const { verificationToken, code } = req.body;
 
     logger.info(`[AUTH] Verify code request - Token: ${verificationToken?.substring(0, 8)}..., Code: ${code}`);
-
-    // Dev mode: Auto-verify (bypass email verification)
-    if (DEV_MODE) {
-      logger.info(`[AUTH] 🔧 DEV MODE: Auto-verifying email (bypass enabled)`);
-
-      // In dev mode, just call verifyCode with any code - it will auto-verify
-      // Pass a dummy code since it will be bypassed
-      const result = verificationService.verifyCode(
-        String(verificationToken || 'dev-token').trim(),
-        String(code || '123456').trim()
-      );
-
-      return res.json({
-        success: true,
-        email: result.email || 'dev@paradex.trade',
-        message: 'Email verified successfully (dev mode)',
-      });
-    }
 
     // Validate inputs
     if (!verificationToken || !code) {
@@ -208,8 +180,8 @@ router.post('/register', async (req: Request, res: Response) => {
     // Normalize email
     const normalizedEmail = email.toLowerCase().trim();
 
-    // In production, verify the email was verified
-    if (!DEV_MODE && verificationToken) {
+    // Verify the email was verified (required for registration)
+    if (verificationToken) {
       const verifiedEmail = verificationService.getVerifiedEmail(verificationToken);
       if (!verifiedEmail || verifiedEmail !== normalizedEmail) {
         return res.status(400).json({ error: 'Email not verified or verification expired' });
@@ -218,23 +190,7 @@ router.post('/register', async (req: Request, res: Response) => {
       verificationService.deleteToken(verificationToken);
     }
 
-    // Dev mode: skip database, return mock user
-    if (DEV_MODE) {
-      const userId = `dev-user-${Date.now()}`;
-      const tokens = generateTokens(userId);
-
-      return res.json({
-        user: {
-          id: userId,
-          email: normalizedEmail,
-          username: username || normalizedEmail.split('@')[0],
-          emailVerified: true,
-        },
-        ...tokens,
-      });
-    }
-
-    // Production: use database
+    // Check if email already exists
     const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (existing) {
       return res.status(409).json({ error: 'Email already registered' });
@@ -319,68 +275,9 @@ router.post('/login', async (req: Request, res: Response) => {
       });
     }
 
-    // Demo account - works in all environments with Elite access
-    if (normalizedEmail === DEMO_USER.email && password === DEMO_USER.password) {
-      const tokens = generateTokens(DEMO_USER.id);
-      return res.json({
-        user: {
-          id: DEMO_USER.id,
-          email: DEMO_USER.email,
-          username: DEMO_USER.username,
-          displayName: DEMO_USER.displayName,
-          avatar: null,
-          isDemo: true,
-        },
-        profile: {
-          id: DEMO_USER.id,
-          email: DEMO_USER.email,
-          name: DEMO_USER.displayName,
-          username: DEMO_USER.username,
-          avatar: null,
-          subscription_tier: 'elite',
-          all_features_unlocked: true,
-          biometric_enabled: false,
-          created_at: new Date().toISOString(),
-        },
-        ...tokens,
-      });
-    }
-
-    // Dev mode: accept any valid-looking credentials for testing
-    if (DEV_MODE) {
-      const isAnyUser = normalizedEmail && password && password.length >= 6;
-
-      if (isAnyUser) {
-        const userId = `dev-user-${Date.now()}`;
-        const tokens = generateTokens(userId);
-
-        return res.json({
-          user: {
-            id: userId,
-            email: normalizedEmail,
-            username: normalizedEmail.split('@')[0],
-            displayName: normalizedEmail.split('@')[0],
-            avatar: null,
-          },
-          profile: {
-            id: userId,
-            email: normalizedEmail,
-            name: normalizedEmail.split('@')[0],
-            username: normalizedEmail.split('@')[0],
-            avatar: null,
-            subscription_tier: 'free',
-            biometric_enabled: false,
-            created_at: new Date().toISOString(),
-          },
-          ...tokens,
-        });
-      }
-      return res.status(401).json({ error: 'Invalid credentials (dev mode: use any email with 6+ char password)' });
-    }
-
-    // Production: use database
+    // Production: use database for authentication
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !user.passwordHash) {
+    if (!user?.passwordHash) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -436,18 +333,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Refresh token required' });
     }
 
-    // Dev mode: just verify and regenerate tokens without database
-    if (DEV_MODE) {
-      try {
-        const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as { userId: string };
-        const tokens = generateTokens(decoded.userId);
-        return res.json(tokens);
-      } catch {
-        return res.status(401).json({ error: 'Invalid refresh token' });
-      }
-    }
-
-    // Production: use database
+    // Verify and decode the refresh token
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as { userId: string };
 
     const session = await prisma.session.findUnique({
@@ -479,33 +365,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
 // GET /api/auth/me - Get current user
 router.get('/me', authenticateToken, async (req: Request, res: Response) => {
   try {
-    // Dev mode: return mock user based on token
-    if (DEV_MODE) {
-      const userId = req.userId || 'dev-user';
-      return res.json({
-        user: {
-          id: userId,
-          email: 'dev@example.com',
-          username: 'DevUser',
-          displayName: 'Dev User',
-          avatar: null,
-        },
-        profile: {
-          id: userId,
-          email: 'dev@example.com',
-          name: 'Dev User',
-          username: 'DevUser',
-          avatar: null,
-          subscription_tier: 'premium',
-          degenx_tier: 'pro',
-          guardianx_tier: 'advanced',
-          biometric_enabled: false,
-          created_at: new Date().toISOString(),
-        },
-      });
-    }
-
-    // Production: use database
+    // Fetch user from database
     const user = await prisma.user.findUnique({
       where: { id: req.userId! },
       select: {
@@ -557,7 +417,7 @@ router.post('/logout', authenticateToken, async (req: Request, res: Response) =>
   try {
     const token = req.headers.authorization?.split(' ')[1];
 
-    if (token && !DEV_MODE) {
+    if (token) {
       // Delete session
       await prisma.session.deleteMany({
         where: { token },
@@ -613,15 +473,6 @@ router.get('/subscription-tiers', (req: Request, res: Response) => {
 router.put('/me', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { username, displayName, bio } = req.body;
-
-    if (DEV_MODE) {
-      return res.json({
-        id: req.userId,
-        username,
-        displayName,
-        bio,
-      });
-    }
 
     const user = await prisma.user.update({
       where: { id: req.userId },
@@ -744,8 +595,8 @@ router.get('/oauth/google/callback', async (req: Request, res: Response) => {
         const stateData = JSON.parse(Buffer.from(state as string, 'base64').toString());
         mode = stateData.mode || 'login';
       }
-    } catch (e) {
-      // Ignore state parsing errors
+    } catch {
+      // State parsing failed, use default mode
     }
 
     // Find or create user based on mode
@@ -784,19 +635,8 @@ router.get('/oauth/google/callback', async (req: Request, res: Response) => {
       logger.info(`Linked Google account to existing user: ${email}`);
     }
 
-    // Generate JWT tokens
-    const tokens = generateTokens(user.id);
-
-    // Parse state to get redirect URL
-    let redirectPath = '/';
-    try {
-      if (state) {
-        const stateData = JSON.parse(Buffer.from(state as string, 'base64').toString());
-        redirectPath = stateData.redirect || '/';
-      }
-    } catch (e) {
-      // Ignore state parsing errors
-    }
+    // Generate JWT tokens (user is guaranteed to exist at this point)
+    const tokens = generateTokens(user!.id);
 
     // Redirect to frontend with tokens (use root path, frontend handles tokens)
     const redirectUrl = `${frontendUrl}/?` +

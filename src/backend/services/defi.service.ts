@@ -1,4 +1,4 @@
-// DeFi Service - 1inch, DEX aggregation, swap routing
+// DeFi Service - 1inch, DEX aggregation, swap routing (PRODUCTION)
 
 import axios from 'axios';
 import { logger } from '../services/logger.service';
@@ -10,10 +10,11 @@ dotenv.config();
 
 const ONEINCH_API = 'https://api.1inch.dev';
 const ONEINCH_API_KEY = process.env.ONEINCH_API_KEY;
-const DEV_MODE = !ONEINCH_API_KEY;
 
-if (!ONEINCH_API_KEY) {
-  logger.warn('⚠️  ONEINCH_API_KEY not set. Trading/swap features will use mock data (dev mode).');
+if (ONEINCH_API_KEY) {
+  logger.info('✅ 1inch API configured - swap features enabled');
+} else {
+  logger.error('❌ ONEINCH_API_KEY not set - swap features will fail. Set this env var for trading.');
 }
 
 export interface SwapQuote {
@@ -45,48 +46,34 @@ export interface SwapTransaction {
 }
 
 export class OneInchService {
-  private chainId: number;
-  private apiKey: string;
-  private isDevMode: boolean;
+  private readonly chainId: number;
+  private readonly apiKey: string;
 
   constructor(chainId: number = 1) {
     this.chainId = chainId;
     this.apiKey = process.env.ONEINCH_API_KEY || ONEINCH_API_KEY || '';
-    this.isDevMode = !this.apiKey;
     
-    if (this.isDevMode) {
-      logger.warn(`[1inch] Running in dev mode for chainId ${chainId}`);
+    if (!this.apiKey) {
+      logger.warn(`[1inch] No API key for chainId ${chainId} - swap operations will fail`);
     }
   }
 
-  // Generate mock quote for dev mode
-  private getMockQuote(fromToken: string, toToken: string, amount: string): SwapQuote {
-    const mockToAmount = (BigInt(amount) * BigInt(99) / BigInt(100)).toString();
-    return {
-      fromToken,
-      toToken,
-      fromAmount: amount,
-      toAmount: mockToAmount,
-      estimatedGas: '250000',
-      protocols: [{ name: 'Uniswap V3', part: 100, fromTokenAddress: fromToken, toTokenAddress: toToken }],
-      dex: 'Uniswap V3',
-      priceImpact: 0.5,
-      slippage: 1,
-    };
+  // Validate API key is configured
+  private ensureApiKey(): void {
+    if (!this.apiKey) {
+      throw new Error('1inch API key not configured. Set ONEINCH_API_KEY environment variable.');
+    }
   }
 
-  // Get swap quote
+  // Get swap quote - PRODUCTION ONLY (no mock data)
   async getQuote(
     fromToken: string,
     toToken: string,
     amount: string,
     slippage: number = 1
   ): Promise<SwapQuote> {
-    // Return mock data in dev mode
-    if (this.isDevMode) {
-      logger.info('[1inch-dev] Returning mock quote');
-      return this.getMockQuote(fromToken, toToken, amount);
-    }
+    // Ensure API key is configured
+    this.ensureApiKey();
 
     try {
       const response = await axios.get(
@@ -133,18 +120,8 @@ export class OneInchService {
     slippage: number = 1,
     disableEstimate: boolean = false
   ): Promise<SwapTransaction> {
-    // Return mock transaction in dev mode
-    if (this.isDevMode) {
-      logger.info('[1inch-dev] Returning mock swap transaction');
-      return {
-        from: fromAddress,
-        to: '0x1111111254EEB25477B68fb85Ed929f73A960582',
-        data: '0x',
-        value: fromToken === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' ? amount : '0',
-        gas: '250000',
-        gasPrice: '20000000000',
-      };
-    }
+    // Ensure API key is configured
+    this.ensureApiKey();
 
     try {
       const response = await axios.get(
@@ -183,16 +160,8 @@ export class OneInchService {
 
   // Get supported tokens
   async getSupportedTokens(): Promise<Record<string, any>> {
-    // Return mock tokens in dev mode
-    if (this.isDevMode) {
-      logger.info('[1inch-dev] Returning mock tokens');
-      return {
-        '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE': { symbol: 'ETH', name: 'Ethereum', decimals: 18 },
-        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48': { symbol: 'USDC', name: 'USD Coin', decimals: 6 },
-        '0xdAC17F958D2ee523a2206206994597C13D831ec7': { symbol: 'USDT', name: 'Tether USD', decimals: 6 },
-        '0x6B175474E89094C44Da98b954EesecdDAD3A9436': { symbol: 'DAI', name: 'Dai Stablecoin', decimals: 18 },
-      };
-    }
+    // Ensure API key is configured
+    this.ensureApiKey();
 
     try {
       const response = await axios.get(
@@ -323,7 +292,7 @@ export class OneInchService {
 
 // Multi-chain DEX aggregator
 export class DexAggregator {
-  private oneInch: Map<number, OneInchService> = new Map();
+  private readonly oneInch: Map<number, OneInchService> = new Map();
 
   constructor() {
     // Initialize for multiple chains
@@ -379,7 +348,7 @@ export class TokenPriceService {
       );
 
       const ethPrice = await this.getEthPrice();
-      const tokenPrice = (parseFloat(quote.toAmount) / 1e18) * ethPrice;
+      const tokenPrice = (Number.parseFloat(quote.toAmount) / 1e18) * ethPrice;
 
       return tokenPrice;
     } catch (error) {

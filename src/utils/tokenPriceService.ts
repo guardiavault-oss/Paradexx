@@ -99,13 +99,61 @@ const SCAM_PATTERNS = [
   /bonus/i
 ];
 
-// Get token price
+// Get token price - using CoinGecko API
 export async function getTokenPrice(symbol: string): Promise<TokenPrice | null> {
-  // In production: Call CoinGecko/CoinMarketCap API
-  // const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${symbol}&vs_currencies=usd&include_24hr_change=true`);
-  
-  // Mock implementation
-  return KNOWN_TOKENS[symbol.toUpperCase()] || null;
+  try {
+    // Map common symbols to CoinGecko IDs
+    const symbolToCoinGeckoId: Record<string, string> = {
+      'ETH': 'ethereum',
+      'BTC': 'bitcoin',
+      'USDC': 'usd-coin',
+      'USDT': 'tether',
+      'ARB': 'arbitrum',
+      'UNI': 'uniswap',
+      'AAVE': 'aave',
+      'LINK': 'chainlink',
+      'DAI': 'dai',
+      'MATIC': 'matic-network',
+      'BNB': 'binancecoin',
+    };
+
+    const coinId = symbolToCoinGeckoId[symbol.toUpperCase()];
+    if (!coinId) {
+      // Fallback to cache for unknown tokens
+      return KNOWN_TOKENS[symbol.toUpperCase()] || null;
+    }
+
+    // Fetch from CoinGecko
+    const response = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true&include_7d_change=true&include_market_cap=true&include_24hr_vol=true`
+    );
+
+    if (!response.ok) {
+      console.warn(`CoinGecko API error for ${symbol}:`, response.status);
+      return KNOWN_TOKENS[symbol.toUpperCase()] || null;
+    }
+
+    const data = await response.json();
+    const tokenData = data[coinId];
+
+    if (!tokenData) {
+      return KNOWN_TOKENS[symbol.toUpperCase()] || null;
+    }
+
+    return {
+      symbol: symbol.toUpperCase(),
+      address: KNOWN_TOKENS[symbol.toUpperCase()]?.address || '0x0',
+      price: tokenData.usd || 0,
+      priceChange24h: tokenData.usd_24h_change || 0,
+      priceChange7d: 0, // Not directly available, would need separate endpoint
+      marketCap: tokenData.usd_market_cap || 0,
+      volume24h: tokenData.usd_24h_vol || 0,
+      lastUpdated: Date.now(),
+    };
+  } catch (error) {
+    console.error(`Error fetching price for ${symbol}:`, error);
+    return KNOWN_TOKENS[symbol.toUpperCase()] || null;
+  }
 }
 
 // Get multiple token prices

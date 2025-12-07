@@ -269,62 +269,9 @@ class APIClient {
 // Create API client instances
 export const api = new APIClient(process.env.NEXT_PUBLIC_API_URL || '');
 
-// Mock API for development
-export const mockApi = {
-  /**
-   * Get wallet balance
-   */
-  getBalance: async (address: string): Promise<{ balance: string; tokens: any[] }> => {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    return {
-      balance: '1.5234',
-      tokens: [
-        { symbol: 'ETH', balance: '1.5234', value: 3047.89 },
-        { symbol: 'USDC', balance: '1000.00', value: 1000.00 },
-      ],
-    };
-  },
-
-  /**
-   * Get transaction history
-   */
-  getTransactions: async (address: string, limit: number = 10): Promise<any[]> => {
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    return Array.from({ length: limit }).map((_, i) => ({
-      hash: `0x${Math.random().toString(16).slice(2)}`,
-      from: address,
-      to: `0x${Math.random().toString(16).slice(2, 42)}`,
-      value: (Math.random() * 10).toFixed(4),
-      timestamp: Date.now() - i * 3600000,
-      status: 'confirmed',
-    }));
-  },
-
-  /**
-   * Get token price
-   */
-  getTokenPrice: async (symbol: string): Promise<{ price: number; change24h: number }> => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    return {
-      price: Math.random() * 5000,
-      change24h: (Math.random() - 0.5) * 20,
-    };
-  },
-
-  /**
-   * Get NFTs
-   */
-  getNFTs: async (address: string): Promise<any[]> => {
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    return Array.from({ length: 5 }).map((_, i) => ({
-      id: i,
-      name: `NFT #${i + 1}`,
-      collection: 'Paradox Collection',
-      image: `https://picsum.photos/seed/${i}/400/400`,
-      floorPrice: (Math.random() * 5).toFixed(2),
-    }));
-  },
-};
+// NOTE: All mock API functions have been removed.
+// Use the real api client above for all API calls in production.
+// The backend now uses real integrations: CoinGecko, Moralis, Etherscan, 1inch
 
 // Add authentication interceptor
 api.addInterceptor({
