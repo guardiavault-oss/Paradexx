@@ -1194,6 +1194,71 @@ class ResendEmailService implements EmailService {
     });
   }
 
+  // Guardian notification when vault is triggered
+  async sendInheritanceGuardianVaultTriggeredNotification(params: {
+    to: string;
+    guardianName: string;
+    ownerName: string;
+    vaultName: string;
+    timelockDays: number;
+    actionLink: string;
+  }): Promise<void> {
+    const content = `
+      <h2 style="${emailStyles.title}">⚠️ Inheritance Vault Triggered - Action Required</h2>
+      
+      <div style="${emailStyles.warning}">
+        <p style="margin: 0; color: #f59e0b;">
+          ⚠️ A vault you're guarding has been triggered
+        </p>
+      </div>
+      
+      <p style="${emailStyles.text}">
+        Hi ${params.guardianName},
+      </p>
+      
+      <p style="${emailStyles.text}">
+        The inheritance vault <strong>"${params.vaultName}"</strong> belonging to 
+        <strong>${params.ownerName}</strong> has been triggered due to inactivity.
+      </p>
+      
+      <div style="${emailStyles.card}">
+        <p style="margin: 0; color: #888888; font-size: 14px;">Timelock Period:</p>
+        <p style="margin: 10px 0 0 0; font-size: 24px; color: #f59e0b;">
+          ${params.timelockDays} days remaining
+        </p>
+        <p style="margin: 10px 0 0 0; font-size: 14px; color: #666666;">
+          During this time, the owner can cancel the trigger if they're still active.
+        </p>
+      </div>
+      
+      <p style="${emailStyles.text}">
+        <strong>As a guardian, you may be asked to:</strong>
+      </p>
+      <ul style="margin: 15px 0; padding-left: 20px; color: #aaaaaa; font-size: 14px;">
+        <li style="margin-bottom: 8px;">Verify the owner's inactivity is legitimate</li>
+        <li style="margin-bottom: 8px;">Approve the asset distribution to beneficiaries</li>
+        <li style="margin-bottom: 8px;">Help contact the vault owner if possible</li>
+      </ul>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${params.actionLink}" style="${emailStyles.button}">
+          Review Vault Status
+        </a>
+      </div>
+      
+      <p style="${emailStyles.text}; font-size: 14px; color: #666666;">
+        If you believe this trigger is in error, please try to contact 
+        ${params.ownerName} directly to have them check in.
+      </p>
+    `;
+
+    await this.send({
+      to: params.to,
+      subject: `⚠️ Guardian Alert: ${params.vaultName} vault triggered`,
+      html: baseTemplate(content),
+    });
+  }
+
   // Seedless wallet - Guardian shard notification
   async sendGuardianShardNotification(params: {
     to: string;

@@ -105,10 +105,7 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+    <div
       className="bg-[var(--bg-base)] text-[var(--text-primary)] pb-24 md:pb-20 pt-20"
     >
       {/* Settings Navigation Header (Inline) */}
@@ -893,6 +890,6 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
           Paradex Wallet v2.0.0 • Built with ❤️ for {isDegen ? 'Degens' : 'Regens'}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

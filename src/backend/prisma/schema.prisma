@@ -64,6 +64,7 @@ model User {
   priceAlerts       PriceAlert[]
   addressBook       AddressBookEntry[]
   wcSessions        WalletConnectSession[]
+  inheritanceVaults InheritanceVault[]
   
   @@index([email])
   @@index([oauthId])
@@ -935,8 +936,10 @@ model InheritanceVault {
   
   // Relations
   beneficiaries   VaultBeneficiary[]
+  guardians       VaultGuardian[]
   activities      VaultActivity[]
   notifications   VaultNotification[]
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@index([userId])
   @@index([status])
@@ -975,6 +978,45 @@ model VaultBeneficiary {
   
   @@index([vaultId])
   @@index([email])
+}
+
+// VaultGuardian model - Guardians for inheritance vault oversight
+model VaultGuardian {
+  id              String   @id @default(cuid())
+  vaultId         String
+  
+  // Guardian info
+  name            String
+  email           String
+  walletAddress   String?
+  relationship    String?
+  
+  // Invitation
+  inviteToken     String?  @unique
+  inviteExpiresAt DateTime?
+  
+  // Status
+  status          String   @default("invited") // invited, active, declined, removed
+  acceptedAt      DateTime?
+  declinedAt      DateTime?
+  
+  // Trust metrics
+  trustScore      Int      @default(0)
+  responseTime    Int?     // Average response time in hours
+  
+  // Activity
+  lastActiveAt    DateTime?
+  votesCount      Int      @default(0)
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  vault           InheritanceVault @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  
+  @@index([vaultId])
+  @@index([email])
+  @@index([status])
 }
 
 // VaultActivity model - Track user activity for inactivity detection

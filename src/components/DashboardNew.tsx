@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { getThemeStyles } from "../design-system";
 import {
   Wallet,
@@ -1001,97 +1001,114 @@ export default function DashboardNew({
   );
 
   const getPageContent = () => {
-    if (activeFeaturePage) {
-      return (
-        <div className="min-h-screen pt-4">
-          {renderFeature()}
-        </div>
-      );
-    }
-
-    if (activeTab === "trading") {
-      return (
-        <motion.div
-          drag="x"
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={0.2}
-          onDragEnd={(e, { offset, velocity }) => {
-            const swipe = Math.abs(offset.x) * velocity.x;
-            if (swipe > 10000) {
-              handleSwipe("left");
-            } else if (swipe < -10000) {
-              handleSwipe("right");
-            }
-          }}
-        >
-          <TradingPageEnhanced
-            type={type}
-            walletAddress={walletAddress}
-            onClose={() => setActiveTab("home")}
-          />
-        </motion.div>
-      );
-    }
-
-    if (activeTab === "activity") {
-      return (
-        <motion.div
-          drag="x"
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={0.2}
-          onDragEnd={(e, { offset, velocity }) => {
-            const swipe = Math.abs(offset.x) * velocity.x;
-            if (swipe > 10000) {
-              handleSwipe("left");
-            } else if (swipe < -10000) {
-              handleSwipe("right");
-            }
-          }}
-        >
-          <ActivityPage
-            type={type}
-            onClose={() => setActiveTab("home")}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
-        </motion.div>
-      );
-    }
-
-    if (activeTab === "more") {
-      return (
-        <motion.div
-          drag="x"
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={0.2}
-          onDragEnd={(e, { offset, velocity }) => {
-            const swipe = Math.abs(offset.x) * velocity.x;
-            if (swipe > 10000) {
-              handleSwipe("left");
-            } else if (swipe < -10000) {
-              handleSwipe("right");
-            }
-          }}
-        >
-          <MoreMenu
-            type={type}
-            onClose={() => setActiveTab("home")}
-            onNavigate={(page) => {
-              console.log("Navigate to:", page);
-              setActiveFeaturePage(page);
-            }}
-          />
-        </motion.div>
-      );
-    }
-
-    // Default: Home Dashboard
     return (
-      <Container maxWidth="7xl" className="px-4 md:px-6">
-        <VStack spacing="lg" className="md:space-y-8">
-          {renderDashboardContent()}
-        </VStack>
-      </Container>
+      <AnimatePresence mode="wait" initial={false}>
+        {activeFeaturePage ? (
+          <motion.div 
+            key={`feature-${activeFeaturePage}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="min-h-screen pt-4"
+          >
+            {renderFeature()}
+          </motion.div>
+        ) : activeTab === "trading" ? (
+          <motion.div
+            key="trading-tab"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.2}
+            onDragEnd={(e, { offset, velocity }) => {
+              const swipe = Math.abs(offset.x) * velocity.x;
+              if (swipe > 10000) {
+                handleSwipe("left");
+              } else if (swipe < -10000) {
+                handleSwipe("right");
+              }
+            }}
+          >
+            <TradingPageEnhanced
+              type={type}
+              walletAddress={walletAddress}
+              onClose={() => setActiveTab("home")}
+            />
+          </motion.div>
+        ) : activeTab === "activity" ? (
+          <motion.div
+            key="activity-tab"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.2}
+            onDragEnd={(e, { offset, velocity }) => {
+              const swipe = Math.abs(offset.x) * velocity.x;
+              if (swipe > 10000) {
+                handleSwipe("left");
+              } else if (swipe < -10000) {
+                handleSwipe("right");
+              }
+            }}
+          >
+            <ActivityPage
+              type={type}
+              onClose={() => setActiveTab("home")}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+            />
+          </motion.div>
+        ) : activeTab === "more" ? (
+          <motion.div
+            key="more-tab"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.2}
+            onDragEnd={(e, { offset, velocity }) => {
+              const swipe = Math.abs(offset.x) * velocity.x;
+              if (swipe > 10000) {
+                handleSwipe("left");
+              } else if (swipe < -10000) {
+                handleSwipe("right");
+              }
+            }}
+          >
+            <MoreMenu
+              type={type}
+              onClose={() => setActiveTab("home")}
+              onNavigate={(page) => {
+                console.log("Navigate to:", page);
+                setActiveFeaturePage(page);
+              }}
+            />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="home-tab"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <Container maxWidth="7xl" className="px-4 md:px-6">
+              <VStack spacing="lg" className="md:space-y-8">
+                {renderDashboardContent()}
+              </VStack>
+            </Container>
+          </motion.div>
+        )}
+      </AnimatePresence>
     );
   };
 

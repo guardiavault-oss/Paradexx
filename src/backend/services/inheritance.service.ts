@@ -33,6 +33,14 @@ export interface AddBeneficiaryInput {
   percentage: number;
 }
 
+export interface AddGuardianInput {
+  vaultId: string;
+  name: string;
+  email: string;
+  walletAddress?: string;
+  relationship?: string;
+}
+
 export interface UpdateVaultInput {
   name?: string;
   description?: string;
@@ -612,6 +620,280 @@ export class InheritanceService {
 
   getInactivityOptions() {
     return INACTIVITY_OPTIONS;
+  }
+
+  // Guardian Management Methods
+  async addGuardian(input: AddGuardianInput, userId: string) {
+    const { vaultId, name, email, walletAddress, relationship } = input;
+
+    const vault = await prisma.inheritanceVault.findFirst({
+      where: { id: vaultId, userId },
+    });
+
+    if (!vault) {
+      throw new Error('Vault not found');
+    }
+
+    if (vault.status !== 'active') {
+      throw new Error('Can only add guardians to active vaults');
+    }
+
+    // Check if guardian already exists
+    const existingGuardian = await prisma.vaultGuardian.findFirst({
+      where: { vaultId, email },
+    });
+
+    if (existingGuardian) {
+      throw new Error('This email is already added as a guardian');
+    }
+
+    const inviteToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    const guardian = await prisma.vaultGuardian.create({
+      data: {
+        vaultId,
+        name,
+        email,
+        walletAddress,
+        relationship,
+        inviteToken,
+        inviteExpiresAt: expiresAt,
+        status: 'invited',
+      },
+    });
+
+    await this.recordActivity(vaultId, 'guardian_invited', `Invited guardian: ${name}`);
+
+    // Send guardian invitation email via Resend
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const currentGuardians = await prisma.vaultGuardian.count({ where: { vaultId } });
+
+    await emailService.sendGuardianInvitation({
+      to: email,
+      guardianName: name,
+      ownerName: user?.displayName || user?.email || 'A Paradex user',
+      inviteLink: `${process.env.FRONTEND_URL}/inheritance/guardian/accept/${inviteToken}`,
+      threshold: vault.requiresGuardianApproval ? 2 : 1,
+      totalGuardians: currentGuardians,
+    });
+
+    return guardian;
+  }
+
+  async getGuardians(vaultId: string, userId: string) {
+    const vault = await prisma.inheritanceVault.findFirst({
+      where: { id: vaultId, userId },
+    });
+
+    if (!vault) {
+      throw new Error('Vault not found');
+    }
+
+    const guardians = await prisma.vaultGuardian.findMany({
+      where: { vaultId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return guardians;
+  }
+
+  async removeGuardian(guardianId: string, userId: string) {
+    const guardian = await prisma.vaultGuardian.findUnique({
+      where: { id: guardianId },
+      include: { vault: true },
+    });
+
+    if (!guardian?.vault || guardian.vault.userId !== userId) {
+      throw new Error('Guardian not found');
+    }
+
+    if (guardian.vault.status !== 'active') {
+      throw new Error('Can only remove guardians from active vaults');
+    }
+
+    await prisma.vaultGuardian.delete({
+      where: { id: guardianId },
+    });
+
+    await this.recordActivity(guardian.vaultId, 'guardian_removed', `Removed guardian: ${guardian.name}`);
+
+    return { success: true };
+  }
+
+  async acceptGuardianInvite(inviteToken: string) {
+    const guardian = await prisma.vaultGuardian.findFirst({
+      where: { inviteToken },
+      include: { vault: { include: { user: true } } },
+    });
+
+    if (!guardian) {
+      throw new Error('Invalid invitation token');
+    }
+
+    if (guardian.status !== 'invited') {
+      throw new Error('Invitation has already been processed');
+    }
+
+    if (guardian.inviteExpiresAt && guardian.inviteExpiresAt < new Date()) {
+      throw new Error('Invitation has expired');
+    }
+
+    const updated = await prisma.vaultGuardian.update({
+      where: { id: guardian.id },
+      data: {
+        status: 'active',
+        acceptedAt: new Date(),
+        inviteToken: null,
+        inviteExpiresAt: null,
+      },
+    });
+
+    await this.recordActivity(guardian.vaultId, 'guardian_accepted', `Guardian accepted: ${guardian.name}`);
+
+    // Notify owner that guardian accepted
+    if (guardian.vault.user?.email) {
+      await emailService.sendGuardianAcceptedNotification({
+        to: guardian.vault.user.email,
+        ownerName: guardian.vault.user.displayName || guardian.vault.user.email,
+        guardianName: guardian.name,
+        guardianEmail: guardian.email,
+      });
+    }
+
+    return updated;
+  }
+
+  async declineGuardianInvite(inviteToken: string, reason?: string) {
+    const guardian = await prisma.vaultGuardian.findFirst({
+      where: { inviteToken },
+      include: { vault: { include: { user: true } } },
+    });
+
+    if (!guardian) {
+      throw new Error('Invalid invitation token');
+    }
+
+    if (guardian.status !== 'invited') {
+      throw new Error('Invitation has already been processed');
+    }
+
+    const updated = await prisma.vaultGuardian.update({
+      where: { id: guardian.id },
+      data: {
+        status: 'declined',
+        declinedAt: new Date(),
+        inviteToken: null,
+        inviteExpiresAt: null,
+      },
+    });
+
+    await this.recordActivity(guardian.vaultId, 'guardian_declined', `Guardian declined: ${guardian.name}`);
+
+    // Notify owner that guardian declined
+    if (guardian.vault.user?.email) {
+      await emailService.sendGuardianDeclinedNotification({
+        to: guardian.vault.user.email,
+        ownerName: guardian.vault.user.displayName || guardian.vault.user.email,
+        guardianName: guardian.name,
+        guardianEmail: guardian.email,
+        reason,
+      });
+    }
+
+    return updated;
+  }
+
+  async resendGuardianInvite(guardianId: string, userId: string) {
+    const guardian = await prisma.vaultGuardian.findUnique({
+      where: { id: guardianId },
+      include: { vault: true },
+    });
+
+    if (!guardian?.vault || guardian.vault.userId !== userId) {
+      throw new Error('Guardian not found');
+    }
+
+    if (guardian.status !== 'invited') {
+      throw new Error('Can only resend to pending guardians');
+    }
+
+    const inviteToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    await prisma.vaultGuardian.update({
+      where: { id: guardianId },
+      data: {
+        inviteToken,
+        inviteExpiresAt: expiresAt,
+      },
+    });
+
+    const currentGuardians = await prisma.vaultGuardian.count({ where: { vaultId: guardian.vaultId } });
+    const user = await prisma.user.findUnique({ where: { id: guardian.vault.userId } });
+
+    await emailService.sendGuardianInvitation({
+      to: guardian.email,
+      guardianName: guardian.name,
+      ownerName: user?.displayName || user?.email || 'A Paradex user',
+      inviteLink: `${process.env.FRONTEND_URL}/inheritance/guardian/accept/${inviteToken}`,
+      threshold: guardian.vault.requiresGuardianApproval ? 2 : 1,
+      totalGuardians: currentGuardians,
+    });
+
+    await this.recordActivity(guardian.vaultId, 'guardian_invite_resent', `Resent invite to: ${guardian.name}`);
+
+    return { success: true };
+  }
+
+  // Notify all guardians when vault is triggered
+  async notifyGuardiansOfTrigger(vaultId: string) {
+    const vault = await prisma.inheritanceVault.findUnique({
+      where: { id: vaultId },
+      include: {
+        beneficiaries: true,
+      },
+    });
+
+    if (!vault) {
+      throw new Error('Vault not found');
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: vault.userId } });
+    const guardians = await prisma.vaultGuardian.findMany({
+      where: { vaultId, status: 'active' },
+    });
+
+    const ownerName = user?.displayName || user?.email || 'The vault owner';
+
+    for (const guardian of guardians) {
+      try {
+        await emailService.sendInheritanceGuardianVaultTriggeredNotification({
+          to: guardian.email,
+          guardianName: guardian.name,
+          ownerName,
+          vaultName: vault.name,
+          timelockDays: 7,
+          actionLink: `${process.env.FRONTEND_URL}/inheritance/guardian/review/${vaultId}`,
+        });
+
+        await prisma.vaultNotification.create({
+          data: {
+            vaultId,
+            type: 'guardian_vault_triggered',
+            recipientEmail: guardian.email,
+            recipientType: 'guardian',
+            subject: `Inheritance Vault Triggered - Action Required`,
+          },
+        });
+
+        logger.info(`[InheritanceService] Notified guardian ${guardian.email} of vault trigger`);
+      } catch (error) {
+        logger.error(`[InheritanceService] Failed to notify guardian ${guardian.email}:`, error);
+      }
+    }
+
+    return { notifiedCount: guardians.length };
   }
 }
 

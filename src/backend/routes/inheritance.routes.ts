@@ -226,4 +226,125 @@ router.post('/admin/process-inactivity', async (req: Request, res: Response) => 
   }
 });
 
+// ============ Guardian Management Routes ============
+
+// Get guardians for a vault
+router.get('/:vaultId/guardians', async (req: Request, res: Response) => {
+  try {
+    const { vaultId } = req.params;
+    const guardians = await inheritanceService.getGuardians(vaultId, req.userId!);
+    res.json({ guardians });
+  } catch (error: any) {
+    logger.error('Get guardians error:', error);
+    res.status(400).json({ error: error.message || 'Failed to get guardians' });
+  }
+});
+
+// Add a guardian to a vault
+router.post('/:vaultId/guardians', async (req: Request, res: Response) => {
+  try {
+    const { vaultId } = req.params;
+    const { name, email, walletAddress, relationship } = req.body;
+
+    if (!name || !email) {
+      return res.status(400).json({ error: 'Name and email are required' });
+    }
+
+    const guardian = await inheritanceService.addGuardian(
+      { vaultId, name, email, walletAddress, relationship },
+      req.userId!
+    );
+
+    res.status(201).json({ 
+      guardian, 
+      message: `Guardian invitation sent to ${email}` 
+    });
+  } catch (error: any) {
+    logger.error('Add guardian error:', error);
+    res.status(400).json({ error: error.message || 'Failed to add guardian' });
+  }
+});
+
+// Remove a guardian from a vault
+router.delete('/:vaultId/guardians/:guardianId', async (req: Request, res: Response) => {
+  try {
+    const { guardianId } = req.params;
+
+    await inheritanceService.removeGuardian(guardianId, req.userId!);
+
+    res.json({ success: true, message: 'Guardian removed successfully' });
+  } catch (error: any) {
+    logger.error('Remove guardian error:', error);
+    res.status(400).json({ error: error.message || 'Failed to remove guardian' });
+  }
+});
+
+// Resend guardian invitation
+router.post('/:vaultId/guardians/:guardianId/resend', async (req: Request, res: Response) => {
+  try {
+    const { guardianId } = req.params;
+
+    await inheritanceService.resendGuardianInvite(guardianId, req.userId!);
+
+    res.json({ success: true, message: 'Guardian invitation resent' });
+  } catch (error: any) {
+    logger.error('Resend guardian invite error:', error);
+    res.status(400).json({ error: error.message || 'Failed to resend invitation' });
+  }
+});
+
+// Accept guardian invitation (public route - no auth required)
+router.post('/guardian/accept/:token', async (req: Request, res: Response) => {
+  try {
+    const { token } = req.params;
+
+    const guardian = await inheritanceService.acceptGuardianInvite(token);
+
+    res.json({ 
+      success: true, 
+      guardian,
+      message: 'Guardian invitation accepted. Thank you for protecting this vault!' 
+    });
+  } catch (error: any) {
+    logger.error('Accept guardian invite error:', error);
+    res.status(400).json({ error: error.message || 'Failed to accept invitation' });
+  }
+});
+
+// Decline guardian invitation (public route - no auth required)
+router.post('/guardian/decline/:token', async (req: Request, res: Response) => {
+  try {
+    const { token } = req.params;
+    const { reason } = req.body;
+
+    await inheritanceService.declineGuardianInvite(token, reason);
+
+    res.json({ 
+      success: true, 
+      message: 'Guardian invitation declined' 
+    });
+  } catch (error: any) {
+    logger.error('Decline guardian invite error:', error);
+    res.status(400).json({ error: error.message || 'Failed to decline invitation' });
+  }
+});
+
+// Notify all guardians when vault is triggered (internal use)
+router.post('/:vaultId/notify-guardians', async (req: Request, res: Response) => {
+  try {
+    const { vaultId } = req.params;
+
+    const result = await inheritanceService.notifyGuardiansOfTrigger(vaultId);
+
+    res.json({ 
+      success: true, 
+      notifiedCount: result.notifiedCount,
+      message: `Notified ${result.notifiedCount} guardians` 
+    });
+  } catch (error: any) {
+    logger.error('Notify guardians error:', error);
+    res.status(400).json({ error: error.message || 'Failed to notify guardians' });
+  }
+});
+
 export default router;
