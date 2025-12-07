@@ -4,7 +4,6 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ReactNode } from 'react';
 
 // Create a client with optimized defaults
@@ -37,14 +36,12 @@ const queryClient = new QueryClient({
 
 interface ApiProviderProps {
     children: ReactNode;
-    enableDevtools?: boolean;
 }
 
-export function ApiProvider({ children, enableDevtools = process.env.NODE_ENV === 'development' }: ApiProviderProps) {
+export function ApiProvider({ children }: ApiProviderProps) {
     return (
         <QueryClientProvider client={queryClient}>
             {children}
-            {enableDevtools && <ReactQueryDevtools initialIsOpen={false} />}
         </QueryClientProvider>
     );
 }
