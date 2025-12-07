@@ -93,3 +93,10 @@ dump.rdb
 
 # Archives
 docs/archive/
+
+# Oracle JDK large files
+Oracle_JDK-25/lib/modules
+Oracle_JDK-25/lib/**/*.so
+Oracle_JDK-25/lib/**/*.dylib
+Oracle_JDK-25/lib/**/*.dll
+Oracle_JDK-25/bin/**
