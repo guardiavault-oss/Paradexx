@@ -11,14 +11,16 @@ function validateRpcUrl(url: string): boolean {
   }
 }
 
-const rpcUrl = process.env.ETH_RPC_URL || 'https://eth.drpc.org';
+// Use reliable public RPCs with fallbacks
+const DEFAULT_ETH_RPC = 'https://ethereum-rpc.publicnode.com';
+const rpcUrl = process.env.ETH_RPC_URL || DEFAULT_ETH_RPC;
 if (!validateRpcUrl(rpcUrl)) {
   logger.error('[SniperService] Invalid RPC URL configured, using default');
 }
 
 const config = {
   rpc: {
-    mainnet: validateRpcUrl(rpcUrl) ? rpcUrl : 'https://eth.drpc.org',
+    mainnet: validateRpcUrl(rpcUrl) ? rpcUrl : DEFAULT_ETH_RPC,
     websocket: process.env.ETH_WS_URL || ''
   },
   wallet: {

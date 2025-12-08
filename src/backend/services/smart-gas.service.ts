@@ -58,14 +58,51 @@ interface GasHistory {
     weeklyPattern: { dayOfWeek: number; hourOfDay: number; avgGas: bigint }[];
 }
 
-const CHAIN_RPC_URLS: Record<number, string> = {
-    1: process.env.ETH_RPC_URL || 'https://eth.drpc.org',
-    137: process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com',
-    56: process.env.BSC_RPC_URL || 'https://bsc-dataseed.binance.org',
-    42161: process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc',
-    10: process.env.OPTIMISM_RPC_URL || 'https://mainnet.optimism.io',
-    8453: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
-    43114: process.env.AVAX_RPC_URL || 'https://api.avax.network/ext/bc/C/rpc',
+// Multiple RPC endpoints per chain for fallback reliability
+const CHAIN_RPC_URLS: Record<number, string[]> = {
+    1: [
+        process.env.ETH_RPC_URL || '',
+        'https://ethereum-rpc.publicnode.com',
+        'https://rpc.ankr.com/eth',
+        'https://eth.llamarpc.com',
+        'https://1rpc.io/eth',
+    ].filter(Boolean),
+    137: [
+        process.env.POLYGON_RPC_URL || '',
+        'https://polygon-bor-rpc.publicnode.com',
+        'https://rpc.ankr.com/polygon',
+        'https://polygon.llamarpc.com',
+    ].filter(Boolean),
+    56: [
+        process.env.BSC_RPC_URL || '',
+        'https://bsc-rpc.publicnode.com',
+        'https://rpc.ankr.com/bsc',
+        'https://bsc-dataseed1.binance.org',
+    ].filter(Boolean),
+    42161: [
+        process.env.ARBITRUM_RPC_URL || '',
+        'https://arbitrum-one-rpc.publicnode.com',
+        'https://rpc.ankr.com/arbitrum',
+        'https://arb1.arbitrum.io/rpc',
+    ].filter(Boolean),
+    10: [
+        process.env.OPTIMISM_RPC_URL || '',
+        'https://optimism-rpc.publicnode.com',
+        'https://rpc.ankr.com/optimism',
+        'https://mainnet.optimism.io',
+    ].filter(Boolean),
+    8453: [
+        process.env.BASE_RPC_URL || '',
+        'https://base-rpc.publicnode.com',
+        'https://base.llamarpc.com',
+        'https://mainnet.base.org',
+    ].filter(Boolean),
+    43114: [
+        process.env.AVAX_RPC_URL || '',
+        'https://avalanche-c-chain-rpc.publicnode.com',
+        'https://rpc.ankr.com/avalanche',
+        'https://api.avax.network/ext/bc/C/rpc',
+    ].filter(Boolean),
 };
 
 class SmartGasService extends EventEmitter {
@@ -101,15 +138,34 @@ class SmartGasService extends EventEmitter {
                 this.recordHistory(chainId, gasPrice);
                 this.emit('gasPriceUpdate', { chainId, gasPrice });
             } catch (error) {
-                logger.error(`Failed to fetch gas for chain ${chainId}:`, error);
+                // Only log at debug level to reduce noise - gas fetch failures are common
+                logger.debug(`Failed to fetch gas for chain ${chainId}:`, error instanceof Error ? error.message : error);
             }
         }));
     }
 
     private async fetchGasPrice(chainId: number): Promise<GasPrice> {
-        const rpcUrl = CHAIN_RPC_URLS[chainId];
-        if (!rpcUrl) throw new Error(`No RPC URL for chain ${chainId}`);
+        const rpcUrls = CHAIN_RPC_URLS[chainId];
+        if (!rpcUrls || rpcUrls.length === 0) throw new Error(`No RPC URL for chain ${chainId}`);
 
+        // Try each RPC URL until one works
+        let lastError: Error | null = null;
+        
+        for (const rpcUrl of rpcUrls) {
+            try {
+                return await this.fetchGasPriceFromRpc(rpcUrl);
+            } catch (error) {
+                lastError = error instanceof Error ? error : new Error(String(error));
+                // Continue to next RPC
+            }
+        }
+
+        throw lastError || new Error(`All RPC endpoints failed for chain ${chainId}`);
+    }
+
+    private async fetchGasPriceFromRpc(rpcUrl: string): Promise<GasPrice> {
+        const timeout = 5000; // 5 second timeout per RPC
+        
         try {
             // Try EIP-1559 fee data first
             const [feeHistory, gasPrice] = await Promise.all([
@@ -118,13 +174,13 @@ class SmartGasService extends EventEmitter {
                     method: 'eth_feeHistory',
                     params: [4, 'latest', [25, 50, 75]],
                     id: 1,
-                }).catch(() => null),
+                }, { timeout }).catch(() => null),
                 axios.post(rpcUrl, {
                     jsonrpc: '2.0',
                     method: 'eth_gasPrice',
                     params: [],
                     id: 2,
-                }),
+                }, { timeout }),
             ]);
 
             const currentGas = BigInt(gasPrice.data.result);
@@ -155,7 +211,7 @@ class SmartGasService extends EventEmitter {
                 timestamp: new Date(),
             };
         } catch (error) {
-            throw new Error(`Failed to fetch gas price: ${error}`);
+            throw new Error(`Failed to fetch gas price from ${rpcUrl}: ${error instanceof Error ? error.message : error}`);
         }
     }
 
