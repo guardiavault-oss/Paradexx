@@ -267,4 +267,142 @@ router.get('/gas', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/market/search - Search for tokens (public)
+router.get('/search', async (req: Request, res: Response) => {
+  try {
+    const { q, query } = req.query;
+    const searchQuery = (q || query || '') as string;
+
+    if (!searchQuery || searchQuery.length < 2) {
+      return res.status(400).json({ error: 'Search query must be at least 2 characters' });
+    }
+
+    const response = await axios.get(`${COINGECKO_API}/search`, {
+      params: { query: searchQuery },
+    });
+
+    const coins = response.data.coins?.slice(0, 20).map((coin: any) => ({
+      id: coin.id,
+      name: coin.name,
+      symbol: coin.symbol,
+      thumb: coin.thumb,
+      marketCapRank: coin.market_cap_rank,
+    })) || [];
+
+    res.json({ results: coins, query: searchQuery });
+  } catch (error: any) {
+    logger.error('Search tokens error:', error.message);
+    res.status(500).json({ error: 'Failed to search tokens' });
+  }
+});
+
+// GET /api/market/token/:id - Get token details (public)
+router.get('/token/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const response = await axios.get(`${COINGECKO_API}/coins/${id}`, {
+      params: {
+        localization: false,
+        tickers: false,
+        community_data: false,
+        developer_data: false,
+        sparkline: false,
+      },
+    });
+
+    const coin = response.data;
+    
+    res.json({
+      id: coin.id,
+      symbol: coin.symbol,
+      name: coin.name,
+      image: coin.image?.large,
+      description: coin.description?.en?.substring(0, 500),
+      marketData: {
+        currentPrice: coin.market_data?.current_price?.usd,
+        marketCap: coin.market_data?.market_cap?.usd,
+        marketCapRank: coin.market_cap_rank,
+        totalVolume: coin.market_data?.total_volume?.usd,
+        high24h: coin.market_data?.high_24h?.usd,
+        low24h: coin.market_data?.low_24h?.usd,
+        priceChange24h: coin.market_data?.price_change_percentage_24h,
+        priceChange7d: coin.market_data?.price_change_percentage_7d,
+        priceChange30d: coin.market_data?.price_change_percentage_30d,
+        circulatingSupply: coin.market_data?.circulating_supply,
+        totalSupply: coin.market_data?.total_supply,
+        ath: coin.market_data?.ath?.usd,
+        athDate: coin.market_data?.ath_date?.usd,
+        atl: coin.market_data?.atl?.usd,
+        atlDate: coin.market_data?.atl_date?.usd,
+      },
+      links: {
+        homepage: coin.links?.homepage?.[0],
+        twitter: coin.links?.twitter_screen_name ? `https://twitter.com/${coin.links.twitter_screen_name}` : null,
+        telegram: coin.links?.telegram_channel_identifier ? `https://t.me/${coin.links.telegram_channel_identifier}` : null,
+        reddit: coin.links?.subreddit_url,
+        github: coin.links?.repos_url?.github?.[0],
+      },
+      categories: coin.categories,
+    });
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      return res.status(404).json({ error: 'Token not found' });
+    }
+    logger.error('Get token details error:', error.message);
+    res.status(500).json({ error: 'Failed to get token details' });
+  }
+});
+
+// GET /api/market/stats - Global market stats (public)
+router.get('/stats', async (_req: Request, res: Response) => {
+  try {
+    const response = await axios.get(`${COINGECKO_API}/global`);
+    const data = response.data.data;
+
+    res.json({
+      totalMarketCap: data.total_market_cap?.usd,
+      totalVolume24h: data.total_volume?.usd,
+      marketCapChange24h: data.market_cap_change_percentage_24h_usd,
+      btcDominance: data.market_cap_percentage?.btc,
+      ethDominance: data.market_cap_percentage?.eth,
+      activeCryptocurrencies: data.active_cryptocurrencies,
+      upcomingIcos: data.upcoming_icos,
+      ongoingIcos: data.ongoing_icos,
+      endedIcos: data.ended_icos,
+      markets: data.markets,
+      lastUpdated: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    logger.error('Get market stats error:', error.message);
+    res.status(500).json({ error: 'Failed to get market stats' });
+  }
+});
+
+// GET /api/market/price - Get simple price for multiple tokens (public)
+router.get('/price', async (req: Request, res: Response) => {
+  try {
+    const { ids, vs_currencies = 'usd' } = req.query;
+
+    if (!ids) {
+      return res.status(400).json({ error: 'ids parameter required (comma-separated coin ids)' });
+    }
+
+    const response = await axios.get(`${COINGECKO_API}/simple/price`, {
+      params: {
+        ids,
+        vs_currencies,
+        include_24hr_change: true,
+        include_market_cap: true,
+        include_24hr_vol: true,
+      },
+    });
+
+    res.json(response.data);
+  } catch (error: any) {
+    logger.error('Get prices error:', error.message);
+    res.status(500).json({ error: 'Failed to get prices' });
+  }
+});
+
 export default router;

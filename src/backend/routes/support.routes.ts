@@ -283,6 +283,82 @@ router.put('/tickets/:ticketId', authenticateToken, async (req: Request, res: Re
   }
 });
 
+// Public FAQ endpoint
+router.get('/faq', async (_req: Request, res: Response) => {
+  try {
+    const faqs = [
+      {
+        id: '1',
+        category: 'General',
+        question: 'What is Paradex?',
+        answer: 'Paradex is an advanced crypto wallet platform with built-in DeFi features, MEV protection, inheritance vaults, and security tools.',
+      },
+      {
+        id: '2',
+        category: 'General',
+        question: 'Is Paradex safe to use?',
+        answer: 'Yes, Paradex uses industry-standard security practices including encryption, biometric authentication, and multi-signature support for large transactions.',
+      },
+      {
+        id: '3',
+        category: 'Security',
+        question: 'What is MEV protection?',
+        answer: 'MEV (Maximal Extractable Value) protection prevents front-running and sandwich attacks on your transactions by routing them through private mempools.',
+      },
+      {
+        id: '4',
+        category: 'Security',
+        question: 'How do I enable 2FA?',
+        answer: 'Go to Settings > Security > Two-Factor Authentication and follow the setup wizard to link your authenticator app.',
+      },
+      {
+        id: '5',
+        category: 'Inheritance',
+        question: 'What are Inheritance Vaults?',
+        answer: 'Inheritance Vaults allow you to set up trusted guardians and beneficiaries who can access your assets after a period of inactivity.',
+      },
+      {
+        id: '6',
+        category: 'Inheritance',
+        question: 'How do Guardians work?',
+        answer: 'Guardians are trusted contacts who verify your identity and can help recover your account or approve inheritance distributions.',
+      },
+      {
+        id: '7',
+        category: 'DeFi',
+        question: 'What DEXs does Paradex support?',
+        answer: 'Paradex aggregates quotes from major DEXs including Uniswap, 1inch, ParaSwap, and LI.FI across Ethereum, Polygon, Arbitrum, and more.',
+      },
+      {
+        id: '8',
+        category: 'DeFi',
+        question: 'How do cross-chain swaps work?',
+        answer: 'Cross-chain swaps use bridge protocols to move assets between different blockchains in a single transaction.',
+      },
+      {
+        id: '9',
+        category: 'Fees',
+        question: 'What are Paradex fees?',
+        answer: 'Paradex charges no platform fees for standard swaps. You only pay network gas fees and standard DEX fees.',
+      },
+      {
+        id: '10',
+        category: 'Account',
+        question: 'How do I recover my account?',
+        answer: 'Use the recovery option with your backup seed phrase or guardian recovery if you have set up guardians.',
+      },
+    ];
+
+    res.json({
+      faqs,
+      categories: ['General', 'Security', 'Inheritance', 'DeFi', 'Fees', 'Account'],
+    });
+  } catch (error) {
+    logger.error('Get FAQ error:', error);
+    res.status(500).json({ error: 'Failed to get FAQs' });
+  }
+});
+
 router.get('/status', async (_req: Request, res: Response) => {
   try {
     let dbStatus = 'operational';

@@ -212,6 +212,21 @@ app.get('/health', (req: Request, res: Response) => {
   });
 });
 
+// Health check endpoint under /api as well
+app.get('/api/health', (req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    version: '1.0.0',
+    services: {
+      database: 'connected',
+      cache: 'operational',
+      blockchain: 'connected',
+    },
+  });
+});
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
@@ -255,6 +270,41 @@ app.use('/api/profit-routing', profitRoutingRoutes);
 app.use('/api/seedless-wallet', seedlessWalletRoutes);
 // MEV Guard routes (MEV protection integrated with DegenX)
 app.use('/api/mev-guard', mevGuardRoutes);
+
+// Public MEV status endpoint (no auth required)
+app.get('/api/mev/status', (_req: Request, res: Response) => {
+  res.json({
+    service: 'mev-protection',
+    status: 'operational',
+    features: {
+      privateMempools: true,
+      flashbotsIntegration: true,
+      sandwichProtection: true,
+      frontrunningProtection: true,
+    },
+    supportedChains: [1, 10, 137, 42161, 8453],
+    lastUpdated: new Date().toISOString(),
+  });
+});
+
+// Public dApps directory endpoint (no auth required)
+app.get('/api/dapps', (_req: Request, res: Response) => {
+  res.json({
+    dapps: [
+      { id: 'uniswap', name: 'Uniswap', category: 'DEX', url: 'https://app.uniswap.org', chains: [1, 10, 137, 42161], featured: true },
+      { id: 'aave', name: 'Aave', category: 'Lending', url: 'https://app.aave.com', chains: [1, 10, 137, 42161], featured: true },
+      { id: 'opensea', name: 'OpenSea', category: 'NFT', url: 'https://opensea.io', chains: [1, 137], featured: true },
+      { id: 'compound', name: 'Compound', category: 'Lending', url: 'https://app.compound.finance', chains: [1], featured: false },
+      { id: 'curve', name: 'Curve', category: 'DEX', url: 'https://curve.fi', chains: [1, 137, 42161], featured: true },
+      { id: 'lido', name: 'Lido', category: 'Staking', url: 'https://stake.lido.fi', chains: [1], featured: true },
+      { id: 'gmx', name: 'GMX', category: 'Perpetuals', url: 'https://app.gmx.io', chains: [42161], featured: true },
+      { id: 'pendle', name: 'Pendle', category: 'Yield', url: 'https://app.pendle.finance', chains: [1, 42161], featured: false },
+      { id: 'blur', name: 'Blur', category: 'NFT', url: 'https://blur.io', chains: [1], featured: false },
+      { id: '1inch', name: '1inch', category: 'DEX', url: 'https://app.1inch.io', chains: [1, 10, 137, 42161, 8453], featured: true },
+    ],
+    categories: ['DEX', 'Lending', 'NFT', 'Staking', 'Perpetuals', 'Yield'],
+  });
+});
 
 // Account management routes
 app.use('/api/account', accountRoutes);

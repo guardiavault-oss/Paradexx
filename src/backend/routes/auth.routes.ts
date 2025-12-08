@@ -55,6 +55,29 @@ function generateTokens(userId: string) {
   return { accessToken, refreshToken };
 }
 
+// POST /api/auth/nonce - Get nonce for wallet signature login
+router.post('/nonce', async (req: Request, res: Response) => {
+  try {
+    const { walletAddress } = req.body;
+
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'walletAddress is required' });
+    }
+
+    // Generate a nonce for the wallet to sign
+    const nonce = `Sign this message to authenticate with Paradex.\n\nNonce: ${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+
+    res.json({
+      nonce,
+      walletAddress: walletAddress.toLowerCase(),
+      expiresIn: 300, // 5 minutes
+    });
+  } catch (error) {
+    logger.error('Get nonce error:', error);
+    res.status(500).json({ error: 'Failed to generate nonce' });
+  }
+});
+
 // POST /api/auth/send-verification - Send email verification code
 router.post('/send-verification', async (req: Request, res: Response) => {
   try {

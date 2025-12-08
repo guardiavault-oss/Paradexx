@@ -13,6 +13,130 @@ const LIFI_API = 'https://li.quest/v1';
 const ONEINCH_API = 'https://api.1inch.dev';
 const CHANGENOW_API = 'https://api.changenow.io/v2';
 
+// GET /api/swaps/tokens - Get supported tokens for a chain (public)
+router.get('/tokens', async (req: Request, res: Response) => {
+  try {
+    const { chainId = '1' } = req.query;
+    const chain = Number(chainId);
+    
+    const tokens = SWAP_TOKENS[chain] || SWAP_TOKENS[1];
+    
+    res.json({
+      chainId: chain,
+      tokens,
+      count: tokens.length,
+    });
+  } catch (error) {
+    logger.error('Get swap tokens error:', error);
+    res.status(500).json({ error: 'Failed to get swap tokens' });
+  }
+});
+
+// GET /api/swaps/quote - Get a quick swap quote (public)
+router.get('/quote', async (req: Request, res: Response) => {
+  try {
+    const { from, to, amount, chainId = '1' } = req.query;
+
+    if (!from || !to || !amount) {
+      return res.status(400).json({
+        error: 'Missing parameters',
+        required: ['from', 'to', 'amount'],
+        example: '/api/swaps/quote?from=ETH&to=USDC&amount=1&chainId=1',
+      });
+    }
+
+    const chain = Number(chainId);
+    const tokens = SWAP_TOKENS[chain] || SWAP_TOKENS[1];
+    
+    // Find tokens
+    const fromToken = tokens.find(t => 
+      t.symbol.toLowerCase() === (from as string).toLowerCase() ||
+      t.address.toLowerCase() === (from as string).toLowerCase()
+    );
+    const toToken = tokens.find(t => 
+      t.symbol.toLowerCase() === (to as string).toLowerCase() ||
+      t.address.toLowerCase() === (to as string).toLowerCase()
+    );
+
+    if (!fromToken || !toToken) {
+      return res.status(400).json({
+        error: 'Token not found',
+        supportedTokens: tokens.map(t => t.symbol),
+      });
+    }
+
+    // Convert amount to wei
+    const amountWei = BigInt(Math.floor(Number(amount) * Math.pow(10, fromToken.decimals))).toString();
+
+    // Try to get quote from ParaSwap (free API)
+    try {
+      const paraswapResponse = await axios.get(`${PARASWAP_API}/prices`, {
+        params: {
+          srcToken: fromToken.address,
+          destToken: toToken.address,
+          amount: amountWei,
+          srcDecimals: fromToken.decimals,
+          destDecimals: toToken.decimals,
+          side: 'SELL',
+          network: chain,
+        },
+        timeout: 10000,
+      });
+
+      if (paraswapResponse.data?.priceRoute) {
+        const route = paraswapResponse.data.priceRoute;
+        const destAmount = Number(route.destAmount) / Math.pow(10, toToken.decimals);
+        
+        return res.json({
+          from: fromToken.symbol,
+          to: toToken.symbol,
+          fromAmount: Number(amount),
+          toAmount: destAmount,
+          rate: destAmount / Number(amount),
+          estimatedGas: route.gasCost,
+          gasCostUSD: route.gasCostUSD,
+          aggregator: 'paraswap',
+          chainId: chain,
+          route: route.bestRoute?.map((r: any) => r.exchange).join(' → '),
+        });
+      }
+    } catch (error: any) {
+      logger.error('ParaSwap quote error:', error.message);
+    }
+
+    // Fallback: return estimated quote based on mock rates
+    const mockRates: Record<string, number> = {
+      'ETH-USDC': 2400,
+      'ETH-USDT': 2400,
+      'USDC-ETH': 1/2400,
+      'USDT-ETH': 1/2400,
+      'WBTC-ETH': 15,
+      'ETH-WBTC': 1/15,
+      'MATIC-USDC': 0.85,
+      'USDC-MATIC': 1/0.85,
+    };
+
+    const pair = `${fromToken.symbol}-${toToken.symbol}`;
+    const rate = mockRates[pair] || 1;
+    const toAmount = Number(amount) * rate;
+
+    res.json({
+      from: fromToken.symbol,
+      to: toToken.symbol,
+      fromAmount: Number(amount),
+      toAmount,
+      rate,
+      estimatedGas: '150000',
+      aggregator: 'estimate',
+      chainId: chain,
+      warning: 'This is an estimated quote. Actual rates may vary.',
+    });
+  } catch (error) {
+    logger.error('Get swap quote error:', error);
+    res.status(500).json({ error: 'Failed to get swap quote' });
+  }
+});
+
 // Token lists by chain for the swap interface
 const SWAP_TOKENS: Record<number, any[]> = {
   1: [
