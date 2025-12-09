@@ -354,27 +354,75 @@ router.post('/honeypot-check', async (req: Request, res: Response) => {
 // GET /api/degenx/analytics/pnl - Get P&L stats
 router.get('/analytics/pnl', async (req: Request, res: Response) => {
   try {
-    const { chainId, timeframe } = req.query;
+    const userId = (req as any).userId;
+    const { chainId = '1', timeframe = '30d' } = req.query;
 
-    // TODO: Implement P&L calculation
-    // 1. Fetch all user transactions
-    // 2. Calculate cost basis
-    // 3. Calculate current value
-    // 4. Calculate realized/unrealized gains
+    // Fetch user's transaction history from database
+    let transactions: any[] = [];
+    
+    if (prisma) {
+      try {
+        transactions = await prisma.transaction.findMany({
+          where: { 
+            userId,
+            chainId: Number(chainId),
+            createdAt: {
+              gte: timeframe === '7d' 
+                ? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+                : timeframe === '30d'
+                ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+                : timeframe === '90d'
+                ? new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+                : new Date(0),
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+      } catch (dbErr) {
+        logger.debug('P&L DB query failed, using empty transactions:', dbErr);
+      }
+    }
 
-    const mockPnL = {
-      totalInvested: '5000',
-      currentValue: '6500',
-      realizedPnL: '500',
-      unrealizedPnL: '1000',
-      totalPnL: '1500',
-      pnlPercentage: 30,
-      wins: 12,
-      losses: 3,
-      winRate: 80,
-    };
+    // Calculate P&L from transactions
+    let totalInvested = 0;
+    let currentValue = 0;
+    let realizedPnL = 0;
+    let wins = 0;
+    let losses = 0;
 
-    res.json(mockPnL);
+    for (const tx of transactions) {
+      if (tx.type === 'swap' || tx.type === 'buy') {
+        const invested = Number(tx.amountInUSD || 0);
+        const received = Number(tx.amountOutUSD || 0);
+        totalInvested += invested;
+        currentValue += received;
+        
+        if (tx.status === 'completed') {
+          const pnl = received - invested;
+          realizedPnL += pnl;
+          if (pnl > 0) wins++;
+          else if (pnl < 0) losses++;
+        }
+      }
+    }
+
+    const unrealizedPnL = currentValue - totalInvested - realizedPnL;
+    const totalPnL = realizedPnL + unrealizedPnL;
+    const pnlPercentage = totalInvested > 0 ? (totalPnL / totalInvested) * 100 : 0;
+    const totalTrades = wins + losses;
+    const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
+
+    res.json({
+      totalInvested: totalInvested.toFixed(2),
+      currentValue: currentValue.toFixed(2),
+      realizedPnL: realizedPnL.toFixed(2),
+      unrealizedPnL: unrealizedPnL.toFixed(2),
+      totalPnL: totalPnL.toFixed(2),
+      pnlPercentage: Math.round(pnlPercentage),
+      wins,
+      losses,
+      winRate: Math.round(winRate),
+    });
   } catch (error: any) {
     logger.error('P&L error:', error);
     res.status(500).json({ error: error.message || 'Failed to get P&L' });

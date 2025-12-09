@@ -7,9 +7,6 @@ import crypto from 'crypto';
 
 const router = Router();
 
-// Dev mode flag
-const DEV_MODE = process.env.NODE_ENV === 'development';
-
 // All routes require authentication
 router.use(authenticateToken);
 
@@ -18,21 +15,31 @@ router.use(authenticateToken);
 // GET /api/will - List user's wills
 router.get('/', async (req: Request, res: Response) => {
     try {
-        if (DEV_MODE) {
-            // Return mock wills for dev mode
-            return res.json([
-                {
-                    id: 'will-001',
-                    name: 'My Digital Will',
-                    template: 'standard',
-                    status: 'draft',
-                    beneficiaryCount: 3,
-                    totalAllocation: 100,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                }
-            ]);
+        // Fetch real wills from database
+        if (!prisma) {
+            return res.json([]); // No database connection, return empty array
         }
+        
+        const wills = await prisma.smartWill.findMany({
+            where: { userId: req.userId },
+            include: {
+                beneficiaries: true,
+                charities: true,
+            },
+            orderBy: { updatedAt: 'desc' },
+        });
+
+        return res.json(wills.map((will: any) => ({
+            id: will.id,
+            name: will.name,
+            template: will.template,
+            status: will.status,
+            beneficiaryCount: will.beneficiaries?.length || 0,
+            totalAllocation: (will.beneficiaries?.reduce((sum: number, b: any) => sum + (b.allocation || 0), 0) || 0) +
+                            (will.charities?.reduce((sum: number, c: any) => sum + (c.allocation || 0), 0) || 0),
+            createdAt: will.createdAt,
+            updatedAt: will.updatedAt,
+        })));
 
         const wills = await prisma.smartWill.findMany({
             where: { userId: req.userId! },
@@ -56,25 +63,8 @@ router.get('/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
 
-        if (DEV_MODE) {
-            return res.json({
-                id,
-                name: 'My Digital Will',
-                template: 'standard',
-                status: 'draft',
-                metadataHash: '',
-                onChainId: null,
-                beneficiaries: [
-                    { id: 'b1', name: 'Emma Wilson', wallet: '0x3c4d...7e8f', allocation: 40, relationship: 'Daughter' },
-                    { id: 'b2', name: 'James Taylor', wallet: '0x8f2a...3c5d', allocation: 35, relationship: 'Son' },
-                    { id: 'b3', name: 'Charity Foundation', wallet: '0x1a9b...6f4e', allocation: 25, relationship: 'Organization' },
-                ],
-                guardians: [],
-                charities: [],
-                conditions: [],
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-            });
+        if (!prisma) {
+            return res.status(503).json({ error: 'Database not available' });
         }
 
         const will = await prisma.smartWill.findFirst({
@@ -127,25 +117,8 @@ router.post('/', async (req: Request, res: Response) => {
             });
         }
 
-        if (DEV_MODE) {
-            // Return mock created will for dev mode
-            const mockWill = {
-                id: `will-${Date.now()}`,
-                userId: req.userId,
-                name,
-                template: template || 'standard',
-                status: 'draft',
-                metadataHash: metadataHash || '',
-                onChainId: null,
-                beneficiaries: beneficiaries || [],
-                guardians: guardians || [],
-                charities: charities || [],
-                conditions: conditions || [],
-                messages: messages || [],
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-            };
-            return res.json(mockWill);
+        if (!prisma) {
+            return res.status(503).json({ error: 'Database not available' });
         }
 
         // Create will with related data

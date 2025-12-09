@@ -1,5 +1,5 @@
 // Unified Mempool Service API Client
-// Base URL: http://localhost:8002
+// Base URL configured via environment or fallback
 
 import {
   demoServiceStatus,
@@ -16,9 +16,9 @@ interface ApiConfig {
 }
 
 const config: ApiConfig = {
-  baseURL: 'http://localhost:8002',
+  baseURL: process.env.NEXT_PUBLIC_MEMPOOL_API_URL || 'http://localhost:8002',
   timeout: 30000,
-  useMockData: true, // Set to false when real API is available
+  useMockData: false, // Real API by default - will fallback to demo data on failure
 };
 
 class UnifiedApiClient {

@@ -244,16 +244,43 @@ app.post('/api/guardians/invite', async (req, res) => {
 // GET /api/auth/me - Get current user info
 app.get('/api/auth/me', async (req, res) => {
     try {
-        // For development, return a mock user
-        const mockUser = {
-            id: 'dev-user-123',
-            email: 'guardefi@gmail.com',
-            username: 'dev_user',
-            isEmailVerified: true,
-            createdAt: new Date().toISOString()
-        };
+        // Get user ID from JWT token
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
 
-        res.json(mockUser);
+        const token = authHeader.split(' ')[1];
+        let decoded: any;
+        
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
+        } catch (jwtErr) {
+            return res.status(401).json({ error: 'Invalid token' });
+        }
+
+        // Look up user from in-memory storage or return from token
+        const userId = decoded.userId;
+        const user = users.get(decoded.email);
+        
+        if (user) {
+            res.json({
+                id: user.id,
+                email: user.email,
+                username: user.username || user.email.split('@')[0],
+                isEmailVerified: user.isEmailVerified,
+                createdAt: user.createdAt
+            });
+        } else {
+            // User authenticated via token but not in memory - return token data
+            res.json({
+                id: userId,
+                email: decoded.email,
+                username: decoded.email?.split('@')[0] || 'user',
+                isEmailVerified: true,
+                createdAt: new Date().toISOString()
+            });
+        }
     } catch (error) {
         logger.error('Get user info error:', error);
         res.status(500).json({ error: 'Failed to get user info' });

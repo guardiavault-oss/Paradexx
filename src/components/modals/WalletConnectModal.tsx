@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getThemeStyles } from '../../design-system';
 import {
@@ -34,27 +34,8 @@ interface WalletConnectModalProps {
   type: 'degen' | 'regen';
 }
 
-// Mock data for demonstration
-const mockSessions: WalletConnectSession[] = [
-  {
-    topic: '1',
-    peerMeta: {
-      name: 'Uniswap',
-      url: 'https://app.uniswap.org',
-      icons: ['🦄'],
-    },
-    connectedAt: Date.now() - 3600000, // 1 hour ago
-  },
-  {
-    topic: '2',
-    peerMeta: {
-      name: 'OpenSea',
-      url: 'https://opensea.io',
-      icons: ['🌊'],
-    },
-    connectedAt: Date.now() - 7200000, // 2 hours ago
-  },
-];
+// API URL for backend
+const API_URL = import.meta.env.VITE_API_URL || 'https://paradexx-production.up.railway.app';
 
 // Haptic feedback utility
 const triggerHaptic = (style: 'light' | 'medium' | 'heavy' = 'light') => {
@@ -209,12 +190,31 @@ export function WalletConnectModal({ isOpen, onClose, type }: WalletConnectModal
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sessions, setSessions] = useState<WalletConnectSession[]>(mockSessions);
+  const [sessions, setSessions] = useState<WalletConnectSession[]>([]);
   const [loading, setLoading] = useState(false);
 
   const isDegen = type === 'degen';
   const accentColor = isDegen ? '#DC143C' : '#0080FF';
   const secondaryColor = isDegen ? '#8B0000' : '#000080';
+
+  // Fetch active WalletConnect sessions on mount
+  useEffect(() => {
+    const fetchSessions = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/walletconnect/sessions`);
+        if (response.ok) {
+          const data = await response.json();
+          setSessions(data.sessions || []);
+        }
+      } catch (err) {
+        console.debug('Failed to fetch WalletConnect sessions:', err);
+      }
+    };
+    
+    if (isOpen) {
+      fetchSessions();
+    }
+  }, [isOpen]);
 
   // Filter sessions based on search
   const filteredSessions = sessions.filter(
