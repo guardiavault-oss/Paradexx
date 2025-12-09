@@ -19,7 +19,7 @@ export const PREMIUM_FEATURES = {
 export type PremiumFeatureId = typeof PREMIUM_FEATURES[keyof typeof PREMIUM_FEATURES];
 
 export interface ModeAccessRequest extends Request {
-  userId: string;
+  userId?: string;
   walletMode?: 'degen' | 'regen' | 'dual';
   hasDualModeAccess?: boolean;
   unlockedFeatures?: PremiumFeatureId[];

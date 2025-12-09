@@ -104,7 +104,7 @@ const ParticleShader: React.FC<{ type: "degen" | "regen" }> = ({
   type,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
   const startTimeRef = useRef<number>(Date.now());
 
   useEffect(() => {
@@ -386,7 +386,7 @@ const FeatureBackground: React.FC<{
   type: "degen" | "regen";
 }> = ({ type }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
   const startTimeRef = useRef<number>(Date.now());
 
   useEffect(() => {
@@ -775,7 +775,7 @@ const DegenFireOverlay: React.FC<{
   isSelected: boolean;
 }> = ({ isVisible, isSelected }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
   const startTimeRef = useRef<number>(Date.now());
 
   useEffect(() => {
@@ -936,7 +936,7 @@ const PageTransition: React.FC<{
   triggerKey?: number;
 }> = ({ isActive, type, triggerKey = 0 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
   const startTimeRef = useRef<number>(Date.now());
   const progressRef = useRef<number>(0);
 
@@ -1183,7 +1183,7 @@ const RegenFireOverlay: React.FC<{
   isSelected?: boolean;
 }> = ({ isVisible, isSelected }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
   const startTimeRef = useRef<number>(Date.now());
 
   useEffect(() => {
@@ -1997,8 +1997,8 @@ function AppContent() {
                   key="wallet-entry"
                   onCreateWallet={handleCreateWallet}
                   onLoginWallet={handleLoginWallet}
-                  onShowTerms={(e) => { e?.preventDefault(); setShowTerms(true); }}
-                  onShowPrivacy={(e) => { e?.preventDefault(); setShowPrivacy(true); }}
+                  onShowTerms={() => { setShowTerms(true); }}
+                  onShowPrivacy={() => { setShowPrivacy(true); }}
                 />
               ) : showOnboarding ? (
                 <GlassOnboarding

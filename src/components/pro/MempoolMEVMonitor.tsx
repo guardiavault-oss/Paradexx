@@ -516,32 +516,42 @@ export default function MempoolMEVMonitor({ type = 'degen', onClose }: MempoolME
                                         <p>No transactions in mempool</p>
                                     </div>
                                 ) : mempoolTxs?.data?.transactions ? (
-                                    <div className="space-y-2 max-h-96 overflow-y-auto">
-                                        {mempoolTxs.data.transactions.map((tx: any, index: number) => (
-                                            <div
-                                                key={index}
-                                                className="p-3 bg-slate-900/50 rounded-lg border border-slate-700 hover:border-purple-500/50 transition-colors"
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-2">
-                                                        <Badge variant={tx.is_suspicious ? "destructive" : "secondary"}>
-                                                            {tx.network || selectedNetwork}
-                                                        </Badge>
-                                                        <span className="text-sm font-mono text-slate-300">
-                                                            {tx.hash?.slice(0, 10)}...{tx.hash?.slice(-8)}
-                                                        </span>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <div className="text-sm font-bold">
-                                                            {(tx.value / 1e18).toFixed(4)} ETH
+                                    <>
+                                        <div className="space-y-2 max-h-96 overflow-y-auto">
+                                            {mempoolTxs.data.transactions.filter((tx: any) => {
+                                                if (showSuspiciousOnly && !tx.is_suspicious) return false;
+                                                if (!searchQuery) return true;
+                                                const query = searchQuery.toLowerCase();
+                                                return (
+                                                    tx.hash?.toLowerCase().includes(query) ||
+                                                    tx.from_address?.toLowerCase().includes(query) ||
+                                                    tx.to_address?.toLowerCase().includes(query)
+                                                );
+                                            }).map((tx: any, index: number) => (
+                                                <div
+                                                    key={index}
+                                                    className="p-3 bg-slate-900/50 rounded-lg border border-slate-700 hover:border-purple-500/50 transition-colors"
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <Badge variant={tx.is_suspicious ? "destructive" : "secondary"}>
+                                                                {tx.network || selectedNetwork}
+                                                            </Badge>
+                                                            <span className="text-sm font-mono text-slate-300">
+                                                                {tx.hash?.slice(0, 10)}...{tx.hash?.slice(-8)}
+                                                            </span>
                                                         </div>
-                                                        <div className="text-xs text-slate-400">
-                                                            Risk: {tx.risk_score?.toFixed(2) || 'N/A'}
+                                                        <div className="text-right">
+                                                            <div className="text-sm font-bold">
+                                                                {(tx.value / 1e18).toFixed(4)} ETH
+                                                            </div>
+                                                            <div className="text-xs text-slate-400">
+                                                                Risk: {tx.risk_score?.toFixed(2) || 'N/A'}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            ))}
                                         </div>
                                         {mempoolTxs.data.transactions.filter((tx: any) => {
                                             if (showSuspiciousOnly && !tx.is_suspicious) return false;

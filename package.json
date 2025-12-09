@@ -69,22 +69,48 @@
         "zustand": "^5.0.9"
     },
     "devDependencies": {
+        "@testing-library/jest-dom": "^6.9.1",
+        "@testing-library/react": "^16.3.0",
+        "@types/d3-array": "^3.2.2",
+        "@types/d3-color": "^3.1.3",
+        "@types/d3-ease": "^3.0.2",
+        "@types/d3-interpolate": "^3.0.4",
+        "@types/d3-path": "^3.1.1",
+        "@types/d3-scale": "^4.0.9",
+        "@types/d3-shape": "^3.1.7",
+        "@types/d3-time": "^3.0.4",
+        "@types/d3-timer": "^3.0.2",
         "@types/node": "^20.10.0",
+        "@types/phoenix": "^1.6.7",
         "@types/qrcode": "^1.5.6",
         "@types/react": "^19.2.7",
         "@types/react-dom": "^19.2.3",
+        "@types/ws": "^8.18.1",
         "@vitejs/plugin-react-swc": "^3.10.2",
-        "vite": "6.3.5"
+        "@vitest/coverage-v8": "^4.0.15",
+        "@vitest/ui": "^4.0.15",
+        "jsdom": "^27.3.0",
+        "vite": "6.3.5",
+        "vitest": "^4.0.15"
     },
     "scripts": {
         "dev": "vite",
         "build": "vite build",
+        "preview": "vite preview",
         "start": "node src/backend/dist/server.js",
         "start:backend": "cd src/backend && pnpm start",
         "build:all": "pnpm build && cd src/backend && pnpm build",
+        "typecheck": "tsc --noEmit",
+        "lint": "eslint src --ext .ts,.tsx --max-warnings 0",
+        "lint:fix": "eslint src --ext .ts,.tsx --fix",
+        "test": "vitest",
+        "test:ci": "vitest run --coverage",
+        "test:ui": "vitest --ui",
         "test:api": "npx tsx src/backend/tests/comprehensive-api-test.ts",
         "check:deploy": "npx tsx scripts/deployment-readiness-check.ts",
         "db:push": "cd src/backend && npx prisma db push",
-        "db:migrate": "cd src/backend && npx prisma migrate deploy"
+        "db:migrate": "cd src/backend && npx prisma migrate deploy",
+        "clean": "rimraf build dist .cache node_modules/.vite",
+        "prepare": "husky install || true"
     }
 }

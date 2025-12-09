@@ -332,3 +332,69 @@ export function useWhaleAlerts(hours = 24, chainId = 1) {
 
   return { alerts, loading };
 }
+
+// Hook for known whale wallets
+export function useKnownWhales(chainId = 1) {
+  const [whales, setWhales] = useState<WhaleWallet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchKnownWhales = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(
+          `${API_URL}/api/whale-tracker/known-whales?chainId=${chainId}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setWhales(data.whales || []);
+        } else {
+          setError('Failed to fetch known whales');
+        }
+      } catch (err) {
+        logger.error('Failed to fetch known whales:', err);
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchKnownWhales();
+  }, [chainId]);
+
+  return { whales, loading, error };
+}
+
+// Hook for whale statistics
+export function useWhaleStats(chainId = 1) {
+  const [stats, setStats] = useState<WhaleStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(
+          `${API_URL}/api/whale-tracker/stats?chainId=${chainId}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setStats(data.stats || null);
+        } else {
+          setError('Failed to fetch whale stats');
+        }
+      } catch (err) {
+        logger.error('Failed to fetch whale stats:', err);
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, [chainId]);
+
+  return { stats, loading, error };
+}

@@ -207,7 +207,7 @@ export function NotFound({
 export function NotFoundInline({
   type = 'degen',
   title = 'Not Found',
-  message = 'The content you're looking for doesn't exist.',
+  message = "The content you're looking for doesn't exist.",
   action,
 }: {
   type?: 'degen' | 'regen';

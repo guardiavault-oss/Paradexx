@@ -183,3 +183,27 @@ export const testSummary = {
     'ChangeNOW and Onramper both operational',
   ],
 };
+
+// Add actual tests
+import { describe, it, expect } from 'vitest';
+
+describe('Integration Test Scenarios', () => {
+  it('should have auth-flow test scenario defined', () => {
+    expect(frontendTestScenarios['auth-flow']).toBeDefined();
+    expect(frontendTestScenarios['auth-flow'].expectedAPIs).toContain('/api/auth/register');
+  });
+
+  it('should have payment-flow test scenario defined', () => {
+    expect(frontendTestScenarios['payment-flow']).toBeDefined();
+  });
+
+  it('should have wallet-swap test scenario defined', () => {
+    expect(frontendTestScenarios['wallet-swap']).toBeDefined();
+  });
+
+  it('should have test summary', () => {
+    expect(testSummary).toBeDefined();
+    expect(testSummary.totalScenarios).toBeGreaterThan(0);
+    expect(testSummary.expectedWorkingAPIs).toBeGreaterThan(0);
+  });
+});

@@ -208,38 +208,38 @@ export const defiService = {
         timestamp: string;
         hash: string;
         status: string;
-    }>>> => {
-    const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-    });
+    }>> => {
+        const params = new URLSearchParams({
+            page: page.toString(),
+            limit: limit.toString(),
+        });
 
-    if (type) params.append('type', type);
+        if (type) params.append('type', type);
 
-    const response = await apiClient.get<PaginatedResponse<{
-        id: string;
-        type: string;
+        const response = await apiClient.get<PaginatedResponse<{
+            id: string;
+            type: string;
+            protocol: string;
+            amount: string;
+            timestamp: string;
+            hash: string;
+            status: string;
+        }>>(`/api/defi/history?${params}`);
+        return response.data;
+    },
+
+    // Get gas estimates for DeFi operations
+    getGasEstimate: async (operation: {
         protocol: string;
+        type: 'stake' | 'unstake' | 'lend' | 'borrow' | 'provide-liquidity' | 'remove-liquidity';
         amount: string;
-        timestamp: string;
-        hash: string;
-        status: string;
-    }>>(`/api/defi/history?${params}`);
-    return response.data;
-},
-
-// Get gas estimates for DeFi operations
-getGasEstimate: async (operation: {
-    protocol: string;
-    type: 'stake' | 'unstake' | 'lend' | 'borrow' | 'provide-liquidity' | 'remove-liquidity';
-    amount: string;
-}): Promise<ApiResponse<{ gasLimit: string; gasPrice: string; estimatedCost: string }>> => {
-    const response = await apiClient.post<ApiResponse<{ gasLimit: string; gasPrice: string; estimatedCost: string }>>(
-        '/api/defi/gas-estimate',
-        operation
-    );
-    return response.data;
-},
+    }): Promise<ApiResponse<{ gasLimit: string; gasPrice: string; estimatedCost: string }>> => {
+        const response = await apiClient.post<ApiResponse<{ gasLimit: string; gasPrice: string; estimatedCost: string }>>(
+            '/api/defi/gas-estimate',
+            operation
+        );
+        return response.data;
+    },
 
     // Close position
     closePosition: async (positionId: string): Promise<ApiResponse<{ hash: string }>> => {

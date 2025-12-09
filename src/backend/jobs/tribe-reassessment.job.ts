@@ -59,8 +59,8 @@ export async function runTribeReassessmentJob(): Promise<{
                             userId,
                             success: true,
                             previousTribe,
-                            newTribe: result.tribe,
-                            tribeChanged: previousTribe !== result.tribe,
+                            newTribe: result?.tribe || previousTribe,
+                            tribeChanged: previousTribe !== result?.tribe,
                         };
                     } catch (error) {
                         logger.error(`[${JOB_NAME}] Error reassessing user ${userId}:`, error);
@@ -138,7 +138,7 @@ export async function checkAndReassessUser(userId: string): Promise<{
                 userId,
                 success: true,
                 previousTribe,
-                newTribe: result.tribe,
+                newTribe: result?.tribe || previousTribe,
             },
         };
     } catch (error) {
