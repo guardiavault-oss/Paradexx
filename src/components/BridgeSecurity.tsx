@@ -32,40 +32,11 @@ import {
   FileText,
   Download,
 } from "lucide-react";
+import { useBridgesList, type Bridge, type SecurityAlert } from "../hooks/useBridgesList";
 
 interface BridgeSecurityProps {
   type: "degen" | "regen";
   onClose: () => void;
-}
-
-interface Bridge {
-  id: string;
-  name: string;
-  address: string;
-  logo?: string;
-  securityScore: number;
-  riskLevel: "low" | "medium" | "high" | "critical";
-  fees: number;
-  avgTime: string;
-  isAudited: boolean;
-  recentIssues: string[];
-  totalVolume: string;
-  supported: string[];
-  status: "active" | "degraded" | "compromised";
-  anomalyDetected?: boolean;
-  lastAudit?: string;
-  validators: number;
-}
-
-interface SecurityAlert {
-  id: string;
-  bridgeId: string;
-  bridgeName: string;
-  severity: "low" | "medium" | "high" | "critical";
-  type: string;
-  message: string;
-  timestamp: number;
-  resolved: boolean;
 }
 
 export function BridgeSecurity({ type, onClose }: BridgeSecurityProps) {
@@ -76,6 +47,9 @@ export function BridgeSecurity({ type, onClose }: BridgeSecurityProps) {
   const [toChain, setToChain] = useState("Polygon");
 
   const isDegen = type === "degen";
+
+  // Real API data from useBridgesList hook
+  const { bridges, alerts, loading, refresh } = useBridgesList();
 
   const colors = {
     primary: isDegen ? "#ff3366" : "#00d4ff",
@@ -88,128 +62,6 @@ export function BridgeSecurity({ type, onClose }: BridgeSecurityProps) {
       ? "0 0 20px rgba(255, 51, 102, 0.3), 0 0 40px rgba(255, 149, 0, 0.2)"
       : "0 0 20px rgba(0, 212, 255, 0.3), 0 0 40px rgba(0, 255, 136, 0.2)",
   };
-
-  // Mock bridge data
-  const bridges: Bridge[] = [
-    {
-      id: "1",
-      name: "Stargate Finance",
-      address: "0x8731d54E9D02c286767d56ac03e8037C07e01e98",
-      securityScore: 8.5,
-      riskLevel: "low",
-      fees: 0.05,
-      avgTime: "5 min",
-      isAudited: true,
-      recentIssues: [],
-      totalVolume: "$2.4B",
-      supported: ["Ethereum", "Polygon", "Arbitrum", "Optimism"],
-      status: "active",
-      lastAudit: "2024-02-15",
-      validators: 15,
-    },
-    {
-      id: "2",
-      name: "Synapse Protocol",
-      address: "0x2796317b0fF8538F253012862c06787Adfb8cEb6",
-      securityScore: 7.8,
-      riskLevel: "low",
-      fees: 0.04,
-      avgTime: "4 min",
-      isAudited: true,
-      recentIssues: [],
-      totalVolume: "$1.8B",
-      supported: ["Ethereum", "Polygon", "BSC", "Avalanche"],
-      status: "active",
-      lastAudit: "2024-01-20",
-      validators: 12,
-    },
-    {
-      id: "3",
-      name: "Across Protocol",
-      address: "0x4D9079Bb4165aeb4084c526a32695dCfd2F77381",
-      securityScore: 8.2,
-      riskLevel: "low",
-      fees: 0.03,
-      avgTime: "3 min",
-      isAudited: true,
-      recentIssues: [],
-      totalVolume: "$1.2B",
-      supported: ["Ethereum", "Polygon", "Arbitrum", "Optimism", "Base"],
-      status: "active",
-      lastAudit: "2024-03-01",
-      validators: 18,
-    },
-    {
-      id: "4",
-      name: "Multichain Bridge",
-      address: "0x1234567890abcdef1234567890abcdef12345678",
-      securityScore: 3.2,
-      riskLevel: "critical",
-      fees: 0.02,
-      avgTime: "3 min",
-      isAudited: false,
-      recentIssues: [
-        "Anomaly detected 2 hours ago",
-        "Signature validation concerns",
-        "Low quorum diversity",
-      ],
-      totalVolume: "$450M",
-      supported: ["Ethereum", "BSC", "Polygon"],
-      status: "compromised",
-      anomalyDetected: true,
-      validators: 5,
-    },
-    {
-      id: "5",
-      name: "Hop Protocol",
-      address: "0xb8901acB165ed027E32754E0FFe830802919727f",
-      securityScore: 7.5,
-      riskLevel: "medium",
-      fees: 0.06,
-      avgTime: "6 min",
-      isAudited: true,
-      recentIssues: [],
-      totalVolume: "$980M",
-      supported: ["Ethereum", "Polygon", "Optimism", "Arbitrum"],
-      status: "active",
-      lastAudit: "2024-02-01",
-      validators: 10,
-    },
-  ];
-
-  // Mock security alerts
-  const alerts: SecurityAlert[] = [
-    {
-      id: "1",
-      bridgeId: "4",
-      bridgeName: "Multichain Bridge",
-      severity: "critical",
-      type: "Anomaly Detected",
-      message: "Unusual transaction pattern detected. Possible security compromise.",
-      timestamp: Date.now() - 1000 * 60 * 120,
-      resolved: false,
-    },
-    {
-      id: "2",
-      bridgeId: "5",
-      bridgeName: "Hop Protocol",
-      severity: "medium",
-      type: "Validator Change",
-      message: "Validator set changed. Review new validator list.",
-      timestamp: Date.now() - 1000 * 60 * 60 * 5,
-      resolved: true,
-    },
-    {
-      id: "3",
-      bridgeId: "2",
-      bridgeName: "Synapse Protocol",
-      severity: "low",
-      type: "High Volume",
-      message: "Unusually high bridging volume detected.",
-      timestamp: Date.now() - 1000 * 60 * 60 * 24,
-      resolved: true,
-    },
-  ];
 
   // Filter bridges by route
   const availableBridges = bridges.filter(
