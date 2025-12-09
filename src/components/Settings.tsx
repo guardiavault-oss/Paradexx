@@ -28,6 +28,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { copyToClipboard } from '../utils/clipboard';
+import { useSettings } from '../hooks/useSettings';
 
 interface SettingsProps {
   type: 'degen' | 'regen';
@@ -48,43 +49,17 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
   const accentColor = theme.primaryColor;
   const secondaryColor = theme.secondaryColor;
 
-  // Settings state
-  const [settings, setSettings] = useState({
-    // Profile
-    name: 'Crypto Degen',
-    email: 'degen@paradex.wallet',
-    walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f3f4a',
-
-    // Security
-    twoFactorEnabled: true,
-    biometricsEnabled: false,
-    autoLockTime: 5,
-
-    // Privacy
-    privacyMode: 'medium' as 'low' | 'medium' | 'high',
-    hideBalances: false,
-    analyticsEnabled: true,
-
-    // Notifications
-    pushNotifications: true,
-    tradeAlerts: true,
-    securityAlerts: true,
-    priceAlerts: true,
-    soundEnabled: true,
-
-    // Preferences
-    defaultNetwork: 'ethereum',
-    slippageTolerance: 0.5,
-    gasPreset: 'medium',
-    currency: 'USD',
-    language: 'en',
-    theme: 'dark',
-
-    // Advanced
-    rpcUrl: 'https://eth-mainnet.g.alchemy.com/v2/...',
-    apiKey: 'pdx_live_**********************',
-    developerMode: false,
-  });
+  // Use real settings from hook with localStorage + backend sync
+  const {
+    settings,
+    saving,
+    toggleSetting,
+    updateSetting,
+    save,
+    exportSettings,
+    importSettings,
+    generateApiKey,
+  } = useSettings();
 
   const tabs: { id: SettingsTab; label: string; icon: any }[] = [
     { id: 'profile', label: 'Profile', icon: Key },
@@ -96,12 +71,11 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
   ];
 
   const handleToggle = (key: string) => {
-    setSettings(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
+    toggleSetting(key as keyof typeof settings);
   };
 
-  const handleSave = () => {
-    // Simulate save
-    console.log('Saving settings:', settings);
+  const handleSave = async () => {
+    await save();
   };
 
   return (
@@ -218,7 +192,7 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                     <input
                       type="text"
                       value={settings.name}
-                      onChange={(e) => setSettings(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => updateSetting('name', e.target.value)}
                       className="w-full px-4 py-3 rounded-lg bg-[var(--bg-base)] border border-[var(--border-neutral)]/10 text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-neutral)]/30"
                     />
                   </div>
@@ -230,7 +204,7 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                     <input
                       type="email"
                       value={settings.email}
-                      onChange={(e) => setSettings(prev => ({ ...prev, email: e.target.value }))}
+                      onChange={(e) => updateSetting('email', e.target.value)}
                       className="w-full px-4 py-3 rounded-lg bg-[var(--bg-base)] border border-[var(--border-neutral)]/10 text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-neutral)]/30"
                     />
                   </div>
@@ -375,7 +349,7 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                         key={minutes}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => setSettings(prev => ({ ...prev, autoLockTime: minutes }))}
+                        onClick={() => updateSetting('autoLockTime', minutes)}
                         className="w-full p-3 rounded-lg flex items-center justify-between transition-all"
                         style={{
                           background: settings.autoLockTime === minutes ? `${accentColor}20` : 'rgba(255, 255, 255, 0.03)',
@@ -455,7 +429,7 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                         key={level}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => setSettings(prev => ({ ...prev, privacyMode: level }))}
+                        onClick={() => updateSetting('privacyMode', level)}
                         className="w-full p-4 rounded-lg flex items-center justify-between transition-all"
                         style={{
                           background: settings.privacyMode === level ? `${accentColor}20` : 'rgba(255, 255, 255, 0.03)',
@@ -615,7 +589,7 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                   </label>
                   <select
                     value={settings.defaultNetwork}
-                    onChange={(e) => setSettings(prev => ({ ...prev, defaultNetwork: e.target.value }))}
+                    onChange={(e) => updateSetting('defaultNetwork', e.target.value)}
                     className="w-full px-4 py-3 rounded-lg bg-[var(--bg-base)] border border-[var(--border-neutral)]/10 text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-neutral)]/30"
                   >
                     <option value="ethereum">Ethereum</option>
@@ -639,7 +613,7 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                       type="number"
                       step="0.1"
                       value={settings.slippageTolerance}
-                      onChange={(e) => setSettings(prev => ({ ...prev, slippageTolerance: parseFloat(e.target.value) }))}
+                      onChange={(e) => updateSetting('slippageTolerance', parseFloat(e.target.value))}
                       className="w-full px-4 py-3 rounded-lg bg-[var(--bg-base)] border border-[var(--border-neutral)]/10 text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-neutral)]/30"
                     />
                   </div>
@@ -654,7 +628,7 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                           key={preset}
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
-                          onClick={() => setSettings(prev => ({ ...prev, gasPreset: preset }))}
+                          onClick={() => updateSetting('gasPreset', preset)}
                           className="p-3 rounded-lg font-bold text-sm capitalize transition-all"
                           style={{
                             background: settings.gasPreset === preset ? accentColor : 'rgba(255, 255, 255, 0.05)',
@@ -678,7 +652,7 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                     </label>
                     <select
                       value={settings.currency}
-                      onChange={(e) => setSettings(prev => ({ ...prev, currency: e.target.value }))}
+                      onChange={(e) => updateSetting('currency', e.target.value)}
                       className="w-full px-4 py-3 rounded-lg bg-[var(--bg-base)] border border-[var(--border-neutral)]/10 text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-neutral)]/30"
                     >
                       <option value="USD">USD ($)</option>
@@ -694,7 +668,7 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                     </label>
                     <select
                       value={settings.language}
-                      onChange={(e) => setSettings(prev => ({ ...prev, language: e.target.value }))}
+                      onChange={(e) => updateSetting('language', e.target.value)}
                       className="w-full px-4 py-3 rounded-lg bg-[var(--bg-base)] border border-[var(--border-neutral)]/10 text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-neutral)]/30"
                     >
                       <option value="en">English</option>
@@ -745,7 +719,7 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                   <input
                     type="text"
                     value={settings.rpcUrl}
-                    onChange={(e) => setSettings(prev => ({ ...prev, rpcUrl: e.target.value }))}
+                    onChange={(e) => updateSetting('rpcUrl', e.target.value)}
                     className="w-full px-4 py-3 rounded-lg bg-[var(--bg-base)] border border-[var(--border-neutral)]/10 text-[var(--text-primary)] font-mono text-sm focus:outline-none focus:border-[var(--border-neutral)]/30"
                   />
                   <p className="text-xs text-[var(--text-primary)]/40 mt-2">Use custom RPC endpoint for transactions</p>
