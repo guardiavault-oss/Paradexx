@@ -1808,9 +1808,11 @@ function AppContent() {
     console.log("Onboarding complete:", data);
     console.log("Seed phrase:", seedPhrase);
 
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
     try {
       // Register user with backend
-      const response = await fetch('http://localhost:3001/api/auth/register', {
+      const response = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1836,9 +1838,12 @@ function AppContent() {
       setIsAuthenticated(true);
     }
 
-    // After wallet creation, show tribe selection
+    // After wallet creation, show the Degen/Regen split screen selection
     setShowOnboarding(false);
-    setShowTribeOnboarding(true);
+    // Reset to show split screen (selectedSide = null shows SplitScreenView)
+    setSelectedSide(null);
+    setShowTribeOnboarding(false);
+    setShowDashboard(false);
   };
 
   const handleTribeComplete = (results: any) => {
