@@ -48,6 +48,9 @@ import { Activity as ActivityPage } from "./Activity";
 import { NFTGallery } from "./NFTGallery";
 import Portfolio from "./Portfolio";
 import { MoreMenu } from "./MoreMenu";
+
+// Import hooks
+import { useDashboard } from "../hooks/useDashboard";
 import { SwapPageEnhanced } from "./SwapPageEnhanced";
 import { TradingPageEnhanced } from "./TradingPageEnhanced";
 import { BuyPage } from "./BuyPage";
@@ -154,105 +157,17 @@ export default function DashboardNew({
   // Notifications count (mock)
   const [unreadNotifications] = useState(3);
 
-  // Daily Use Widgets Data
-  const [gasPrice, setGasPrice] = useState({
-    slow: 12,
-    standard: 15,
-    fast: 22,
-  });
-  const [myTokens] = useState([
-    {
-      symbol: "ETH",
-      balance: "2.5",
-      value: 6125.8,
-      icon: "⟠",
-      change24h: 3.2,
-      chartData: [
-        2300, 2350, 2280, 2400, 2380, 2450, 2500, 2480, 2520,
-        2490,
-      ],
-    },
-    {
-      symbol: "USDC",
-      balance: "10000",
-      value: 10000,
-      icon: "💵",
-      change24h: 0.01,
-      chartData: [
-        1, 1.001, 0.999, 1, 1.001, 1, 0.999, 1, 1.001, 1,
-      ],
-    },
-    {
-      symbol: "WBTC",
-      balance: "0.05",
-      value: 2162.5,
-      icon: "₿",
-      change24h: -1.4,
-      chartData: [
-        44000, 43800, 43500, 43200, 43100, 43000, 42950, 42800,
-        43100, 43200,
-      ],
-    },
-    {
-      symbol: "SOL",
-      balance: "45.2",
-      value: 4450.34,
-      icon: "◎",
-      change24h: 8.7,
-      chartData: [85, 88, 90, 92, 95, 97, 98, 96, 99, 102],
-    },
-  ]);
-  const [watchlist] = useState([
-    {
-      symbol: "ETH",
-      price: 2450.32,
-      change24h: 3.2,
-      starred: true,
-    },
-    {
-      symbol: "BTC",
-      price: 43250.0,
-      change24h: -1.4,
-      starred: true,
-    },
-    {
-      symbol: "SOL",
-      price: 98.45,
-      change24h: 8.7,
-      starred: true,
-    },
-  ]);
-  const [pendingTxs] = useState([
-    {
-      hash: "0x1a2b...3c4d",
-      action: "Swap ETH → USDC",
-      status: "pending",
-      timeLeft: "2m",
-    },
-    {
-      hash: "0x5e6f...7g8h",
-      action: "Approve USDC",
-      status: "confirming",
-      timeLeft: "1m",
-    },
-  ]);
-  const [activePositions] = useState([
-    {
-      protocol: "Aave",
-      asset: "USDC",
-      amount: 5000,
-      apy: 4.2,
-      type: "lending",
-    },
-    {
-      protocol: "Uniswap",
-      asset: "ETH/USDC",
-      amount: 2500,
-      apy: 12.5,
-      type: "liquidity",
-    },
-  ]);
-  const [priceAlerts] = useState([]);
+  // Fetch real dashboard data from hook
+  const {
+    tokens: myTokens,
+    watchlist,
+    pendingTxs,
+    positions: activePositions,
+    gasPrice,
+    priceAlerts,
+    loading: dashboardLoading,
+    refresh: refreshDashboard,
+  } = useDashboard(user.walletAddress);
 
   const handleNavigate = (path: string) => {
     if (path === "/settings") {
@@ -767,13 +682,7 @@ export default function DashboardNew({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => {
-                setGasPrice({
-                  slow: 12,
-                  standard: 15,
-                  fast: 22,
-                });
-              }}
+              onClick={() => refreshDashboard()}
               className="text-xs"
             >
               <RefreshCw className="w-3 h-3" />
