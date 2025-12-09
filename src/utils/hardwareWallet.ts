@@ -1,5 +1,19 @@
 import { logger } from '../services/logger.service';
-// Hardware Wallet Integration - Ledger & Trezor support
+/**
+ * Hardware Wallet Integration - Ledger & Trezor support
+ * 
+ * PRODUCTION SETUP:
+ * To enable real hardware wallet support, install these packages:
+ * 
+ * For Ledger:
+ *   npm install @ledgerhq/hw-transport-webusb @ledgerhq/hw-app-eth
+ * 
+ * For Trezor:
+ *   npm install @trezor/connect-web
+ * 
+ * Then replace the stub implementations below with real library calls.
+ * The current implementation simulates device interaction for testing.
+ */
 
 export type HardwareWalletType = 'ledger' | 'trezor';
 
@@ -42,7 +56,7 @@ export const DERIVATION_PATHS: DerivationPath[] = [
   }
 ];
 
-// Ledger Transport (mock - in production use @ledgerhq/hw-transport-webusb)
+// Ledger Transport (stub - install @ledgerhq/hw-transport-webusb for production)
 class LedgerTransport {
   private connected: boolean = false;
   
@@ -69,11 +83,11 @@ class LedgerTransport {
       throw new Error('Ledger not connected');
     }
     
-    // In production:
-    // const result = await eth.getAddress(path);
+    // Production implementation with @ledgerhq/hw-app-eth:
+    // const result = await eth.getAddress(path, true, true);
     // return result.address;
     
-    // Mock address
+    // Placeholder - returns randomly generated address (not usable for real transactions)
     return '0x' + Array(40).fill(0).map(() => 
       Math.floor(Math.random() * 16).toString(16)
     ).join('');
@@ -84,7 +98,7 @@ class LedgerTransport {
       throw new Error('Ledger not connected');
     }
     
-    // In production:
+    // Production implementation with @ledgerhq/hw-app-eth:
     // const signature = await eth.signTransaction(path, txData);
     // return signature;
     
@@ -93,7 +107,7 @@ class LedgerTransport {
     // Simulate user confirmation delay
     await new Promise(resolve => setTimeout(resolve, 3000));
     
-    // Mock signature
+    // Placeholder - returns randomly generated signature (not valid)
     return '0x' + Array(130).fill(0).map(() => 
       Math.floor(Math.random() * 16).toString(16)
     ).join('');
@@ -107,14 +121,15 @@ class LedgerTransport {
     logger.info('Ledger: Please confirm message on device');
     
     await new Promise(resolve => setTimeout(resolve, 3000));
-    
+
+    // Placeholder - returns randomly generated signature (not valid)
     return '0x' + Array(130).fill(0).map(() => 
       Math.floor(Math.random() * 16).toString(16)
     ).join('');
   }
 }
 
-// Trezor Connect (mock - in production use @trezor/connect-web)
+// Trezor Connect (stub - install @trezor/connect-web for production)
 class TrezorConnect {
   private connected: boolean = false;
   

@@ -44,34 +44,52 @@ export function AirdropPage({ onBack, onClose, type }: AirdropPageProps) {
     const [loading, setLoading] = useState(false);
     const [statusFilter, setStatusFilter] = useState<string>('all');
 
-    // Mock data
-    const mockAirdrops: Airdrop[] = [
-        {
-            id: '1',
-            projectName: 'LayerZero',
-            tokenSymbol: 'ZRO',
-            status: 'active',
-            estimatedValue: '$500 - $2,000',
-            description: 'Cross-chain interoperability protocol airdrop',
-            verified: true,
-            categories: ['DeFi', 'Infrastructure'],
-            requirements: ['Bridge assets', 'Complete tasks'],
-        },
-        {
-            id: '2',
-            projectName: 'zkSync',
-            tokenSymbol: 'ZK',
-            status: 'upcoming',
-            estimatedValue: '$1,000 - $5,000',
-            description: 'Zero-knowledge rollup Layer 2 solution',
-            verified: true,
-            categories: ['L2', 'Scaling'],
-            requirements: ['Use zkSync Era', 'Hold NFTs'],
-        },
-    ];
-
+    // Fetch airdrops from backend API
     useEffect(() => {
-        setAirdrops(mockAirdrops);
+        const fetchAirdrops = async () => {
+            setLoading(true);
+            try {
+                const API_URL = import.meta.env.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+                const response = await fetch(`${API_URL}/api/airdrop/active`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setAirdrops(data.airdrops || []);
+                } else {
+                    // Fallback to default airdrops if API fails
+                    setAirdrops([
+                        {
+                            id: 'layerzero-2024',
+                            projectName: 'LayerZero',
+                            tokenSymbol: 'ZRO',
+                            status: 'active',
+                            estimatedValue: '$500 - $5,000',
+                            description: 'Cross-chain interoperability protocol airdrop',
+                            verified: true,
+                            categories: ['bridge', 'infrastructure'],
+                            requirements: ['Used LayerZero bridges', 'Cross-chain transactions'],
+                        },
+                        {
+                            id: 'eigenlayer-s2',
+                            projectName: 'EigenLayer Season 2',
+                            tokenSymbol: 'EIGEN',
+                            status: 'upcoming',
+                            estimatedValue: '$1,000 - $10,000',
+                            description: 'Restaking protocol season 2 rewards',
+                            verified: true,
+                            categories: ['restaking', 'defi'],
+                            requirements: ['Restaked ETH', 'Active participation'],
+                        },
+                    ]);
+                }
+            } catch (error) {
+                console.error('Failed to fetch airdrops:', error);
+                // Use fallback data on error
+                setAirdrops([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchAirdrops();
     }, []);
 
     const getStatusColor = (status: string) => {

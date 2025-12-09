@@ -1,5 +1,35 @@
 import { logger } from '../services/logger.service';
-// Guardian verification and multi-sig recovery system
+import { split, combine } from 'shamir-secret-sharing';
+
+/**
+ * Guardian verification and multi-sig recovery system
+ * 
+ * This module uses Shamir's Secret Sharing (shamir-secret-sharing npm package)
+ * for cryptographically secure key splitting:
+ * - K-of-N threshold scheme (e.g., 2-of-3 or 3-of-5)
+ * - Zero-dependency, independently audited implementation
+ * 
+ * Backend endpoints:
+ * - POST /api/guardian - Add guardian
+ * - GET /api/guardian/vault/:vaultId - Get guardians for vault
+ * - POST /api/guardian/verify - Verify guardian action
+ * - POST /api/guardian/notify - Send guardian notification
+ */
+
+const API_URL = import.meta.env?.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+
+// Utility functions for Uint8Array conversion
+const toUint8Array = (data: string): Uint8Array => new TextEncoder().encode(data);
+const fromUint8Array = (data: Uint8Array): string => new TextDecoder().decode(data);
+const toBase64 = (data: Uint8Array): string => btoa(String.fromCharCode(...data));
+const fromBase64 = (base64: string): Uint8Array => {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+};
 
 export interface Guardian {
   id: string;
@@ -62,17 +92,32 @@ export function addGuardian(
   return guardian;
 }
 
-// Send guardian invitation (mock - would integrate with email service)
+// Send guardian invitation via backend API
 async function sendGuardianInvitation(guardian: Guardian): Promise<void> {
   logger.info(`Sending invitation to ${guardian.email}`);
   
-  // In production:
-  // - Generate secure invitation link
-  // - Send email via SendGrid/AWS SES
-  // - Link contains guardian.id for verification
+  try {
+    // Send invitation via backend API
+    const response = await fetch(`${API_URL}/api/guardian/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        guardianEmail: guardian.email,
+        guardianName: guardian.name,
+        type: 'invitation',
+        vaultId: localStorage.getItem('paradex_vault_id') || 'default',
+      }),
+    });
+
+    if (!response.ok) {
+      logger.warn('Failed to send guardian invitation via API, using fallback');
+    }
+  } catch (error) {
+    logger.warn('Backend unavailable for guardian invitation:', error);
+  }
   
-  // Mock implementation
-  const inviteLink = `${window.location.origin}/guardian/accept/${guardian.id}`;
+  // Generate local invite link as backup
+  const inviteLink = `${globalThis.location?.origin || ''}/guardian/accept/${guardian.id}`;
   logger.info(`Invitation link: ${inviteLink}`);
 }
 
@@ -101,16 +146,114 @@ export function acceptGuardianInvitation(
   return guardian;
 }
 
-// Generate encrypted key shard for guardian
-function generateKeyShard(guardianId: string): string {
-  // In production, this would:
-  // 1. Split private key using Shamir's Secret Sharing
-  // 2. Encrypt shard with guardian's public key
-  // 3. Store encrypted shard
+/**
+ * Split a secret (e.g., private key) into multiple shares using Shamir's Secret Sharing
+ * @param secret - The secret to split (hex string or raw bytes)
+ * @param totalShares - Total number of shares to create (N)
+ * @param threshold - Minimum shares needed to reconstruct (K)
+ * @returns Array of base64-encoded shares
+ */
+export async function splitSecret(
+  secret: string,
+  totalShares: number,
+  threshold: number
+): Promise<string[]> {
+  if (threshold < 2) {
+    throw new Error('Threshold must be at least 2');
+  }
+  if (totalShares < threshold) {
+    throw new Error('Total shares must be >= threshold');
+  }
+  if (totalShares > 255) {
+    throw new Error('Maximum 255 shares supported');
+  }
+
+  // Convert secret to Uint8Array
+  const secretBytes = toUint8Array(secret);
   
-  // Mock implementation
-  const shard = `SHARD_${guardianId}_${Math.random().toString(36)}`;
-  return btoa(shard); // Base64 encode (in prod: proper encryption)
+  // Split using Shamir's Secret Sharing
+  const shares = await split(secretBytes, totalShares, threshold);
+  
+  // Convert each share to base64 for storage
+  return shares.map(share => toBase64(share));
+}
+
+/**
+ * Reconstruct a secret from shares using Shamir's Secret Sharing
+ * @param shares - Array of base64-encoded shares (minimum threshold required)
+ * @returns The reconstructed secret as a string
+ */
+export async function combineShares(shares: string[]): Promise<string> {
+  if (shares.length < 2) {
+    throw new Error('At least 2 shares required to reconstruct secret');
+  }
+
+  // Convert base64 shares back to Uint8Array
+  const shareBytes = shares.map(share => fromBase64(share));
+  
+  // Combine shares to reconstruct secret
+  const reconstructed = await combine(shareBytes);
+  
+  // Convert back to string
+  return fromUint8Array(reconstructed);
+}
+
+/**
+ * Generate a key shard for a specific guardian
+ * This is called when setting up guardians to distribute shares
+ */
+function generateKeyShard(guardianId: string): string {
+  // This function generates a placeholder shard ID
+  // The actual shard data is stored after calling splitSecret()
+  // and distributed to each guardian securely
+  
+  const shardId = `shard_${guardianId}_${Date.now().toString(36)}`;
+  return toBase64(toUint8Array(shardId));
+}
+
+/**
+ * Set up guardian recovery with real Shamir's Secret Sharing
+ * @param privateKey - The private key to protect
+ * @param guardians - List of guardians
+ * @param threshold - Minimum guardians needed for recovery
+ */
+export async function setupGuardianRecovery(
+  privateKey: string,
+  guardians: Guardian[],
+  threshold: number
+): Promise<{ success: boolean; shardsDistributed: number }> {
+  if (guardians.length < threshold) {
+    throw new Error(`Need at least ${threshold} guardians for ${threshold}-of-N recovery`);
+  }
+
+  try {
+    // Split the private key into shares
+    const shares = await splitSecret(privateKey, guardians.length, threshold);
+    
+    // Assign each share to a guardian
+    for (let i = 0; i < guardians.length; i++) {
+      guardians[i].keyShard = shares[i];
+      
+      // In production: encrypt shard with guardian's public key before storing
+      // and send encrypted shard to guardian via secure channel
+      logger.info(`Shard ${i + 1}/${guardians.length} assigned to guardian ${guardians[i].id}`);
+    }
+
+    // Store guardian setup (without revealing shards in logs)
+    logger.info('Guardian recovery setup complete', {
+      totalGuardians: guardians.length,
+      threshold,
+      shardsDistributed: shares.length
+    });
+
+    return {
+      success: true,
+      shardsDistributed: shares.length
+    };
+  } catch (error) {
+    logger.error('Failed to setup guardian recovery:', error);
+    throw error;
+  }
 }
 
 // Check-in (prove owner is alive)
@@ -220,13 +363,14 @@ export function approveRecovery(
 }
 
 // Verify guardian signature
+// STUB: Requires wallet signature verification library
 function verifyGuardianSignature(guardianId: string, signature: string): boolean {
-  // In production:
-  // - Verify wallet signature
-  // - Check 2FA code
-  // - Verify email confirmation
+  // Production implementation would:
+  // - Verify wallet signature using ethers.js verifyMessage
+  // - Check 2FA code (TOTP)
+  // - Verify email confirmation token
   
-  // Mock implementation
+  // Placeholder validation - always returns true for non-empty signature
   return signature.length > 0;
 }
 
@@ -249,21 +393,22 @@ export function disputeRecovery(
 }
 
 // Verify owner signature
+// STUB: Requires wallet signature verification
 function verifyOwnerSignature(signature: string): boolean {
-  // In production:
-  // - Verify wallet signature
-  // - Require biometric confirmation
-  // - Send email confirmation
+  // Production implementation would:
+  // - Verify wallet signature using ethers.js verifyMessage
+  // - Require biometric confirmation on device
+  // - Send/verify email confirmation
   
-  // Mock implementation
+  // Placeholder validation - always returns true for non-empty signature
   return signature.length > 0;
 }
 
 // Complete recovery (after threshold approvals + delay)
-export function completeRecovery(
+export async function completeRecovery(
   request: RecoveryRequest,
   guardians: Guardian[]
-): { success: boolean; recoveryData?: string; error?: string } {
+): Promise<{ success: boolean; recoveryData?: string; error?: string }> {
   // Check if enough approvals
   if (request.approvals.length < request.requiredApprovals) {
     return {
@@ -289,34 +434,51 @@ export function completeRecovery(
     };
   }
 
-  // Reconstruct key from shards
-  const recoveryData = reconstructKeyFromShards(request.approvals, guardians);
+  try {
+    // Reconstruct key from shards using real Shamir's Secret Sharing
+    const recoveryData = await reconstructKeyFromShards(request.approvals, guardians);
 
-  return {
-    success: true,
-    recoveryData
-  };
+    return {
+      success: true,
+      recoveryData
+    };
+  } catch (error) {
+    logger.error('Recovery failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to reconstruct key'
+    };
+  }
 }
 
-// Reconstruct private key from guardian shards
-function reconstructKeyFromShards(
+/**
+ * Reconstruct private key from guardian shards using Shamir's Secret Sharing
+ * Requires minimum threshold number of valid shards
+ */
+async function reconstructKeyFromShards(
   approvals: RecoveryRequest['approvals'],
   guardians: Guardian[]
-): string {
-  // In production, this would:
-  // 1. Collect key shards from approved guardians
-  // 2. Decrypt each shard with guardian's approval
-  // 3. Use Shamir's Secret Sharing to reconstruct key
-  // 4. Return decrypted private key
+): Promise<string> {
+  // Collect key shards from approved guardians
+  const shards: string[] = [];
   
-  // Mock implementation
-  const shards = approvals.map(approval => {
+  for (const approval of approvals) {
     const guardian = guardians.find(g => g.id === approval.guardianId);
-    return guardian?.keyShard || '';
-  });
+    if (guardian?.keyShard) {
+      shards.push(guardian.keyShard);
+    }
+  }
 
-  logger.info('Reconstructing key from shards:', shards.length);
-  return 'RECOVERED_KEY'; // Mock
+  if (shards.length < 2) {
+    throw new Error('Insufficient valid shards for reconstruction');
+  }
+
+  logger.info('Reconstructing key from shards:', { shardCount: shards.length });
+  
+  // Use Shamir's Secret Sharing to combine the shards
+  const reconstructedKey = await combineShares(shards);
+  
+  return reconstructedKey;
 }
 
 // Remove guardian

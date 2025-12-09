@@ -1,6 +1,23 @@
-// WalletConnect Integration - Connect to dApps
+/**
+ * WalletConnect v2 Integration for dApp Connections
+ * 
+ * NOTE: This module provides WalletConnect integration stubs.
+ * For production, install the WalletConnect v2 SDK:
+ *   pnpm add @walletconnect/web3wallet @walletconnect/utils
+ * 
+ * The connect() method currently simulates WalletConnect pairing.
+ * Replace with actual @walletconnect/web3wallet implementation when ready.
+ * 
+ * WalletConnect v2 requires:
+ * - A project ID from cloud.walletconnect.com
+ * - VITE_WALLETCONNECT_PROJECT_ID environment variable
+ */
+
 import { useState, useEffect } from 'react';
 import { logger } from '../services/logger.service';
+
+// WalletConnect Project ID - Required for production
+const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '';
 
 export interface WalletConnectSession {
   topic: string;
@@ -52,16 +69,22 @@ export class WalletConnectManager {
   }
 
   // Connect via URI (QR code)
+  // STUB: Simulates WalletConnect pairing - replace with real @walletconnect/web3wallet
   async connect(uri: string): Promise<WalletConnectSession> {
-    // In production: Use WalletConnect client
-    // await this.client.connect({ uri });
+    // Production implementation:
+    // const { topic } = await web3wallet.core.pairing.pair({ uri });
+    // const session = await web3wallet.approveSession({ ... });
     
-    logger.info('Connecting to:', uri);
+    if (!WALLETCONNECT_PROJECT_ID) {
+      logger.warn('WalletConnect: No project ID configured. Using simulated connection.');
+    }
     
-    // Mock connection
+    logger.info('Connecting to WalletConnect URI:', uri.substring(0, 50) + '...');
+    
+    // Simulate connection delay
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Parse URI to get dApp info
+    // Parse URI to get dApp info (stub returns placeholder)
     const dAppInfo = this.parseWalletConnectURI(uri);
     
     const session: WalletConnectSession = {
@@ -153,17 +176,20 @@ export class WalletConnectManager {
     this.onSessionUpdate = callback;
   }
 
-  // Parse WalletConnect URI
+  // Parse WalletConnect URI to extract peer metadata
+  // STUB: Real implementation would decode the full WalletConnect v2 URI
+  // WalletConnect v2 URI format: wc:topic@2?relay-protocol=irn&symKey=...
   private parseWalletConnectURI(uri: string): WalletConnectSession['peerMeta'] {
-    // In production: Parse actual WalletConnect URI
-    // Example: wc:topic@version?bridge=url&key=key
+    // Attempt to extract topic from URI
+    const topicMatch = uri.match(/^wc:([^@]+)@/);
+    const topic = topicMatch ? topicMatch[1] : 'unknown';
     
-    // Mock parser
+    // Placeholder metadata - real data comes from session proposal
     return {
-      name: 'Example dApp',
-      description: 'A decentralized application',
-      url: 'https://example.com',
-      icons: ['https://example.com/icon.png']
+      name: `dApp (${topic.substring(0, 8)}...)`,
+      description: 'Connected via WalletConnect',
+      url: 'https://walletconnect.com',
+      icons: ['https://walletconnect.com/walletconnect-logo.png']
     };
   }
 
@@ -192,20 +218,33 @@ export class WalletConnectManager {
 // Singleton instance
 export const walletConnect = new WalletConnectManager();
 
-// Generate WalletConnect QR code data
+/**
+ * Generate WalletConnect QR code data URL
+ * STUB: Returns a placeholder SVG. For production, install qrcode:
+ *   pnpm add qrcode @types/qrcode
+ * 
+ * Real implementation:
+ *   import QRCode from 'qrcode';
+ *   const dataUrl = await QRCode.toDataURL(uri, { width: 300, margin: 2 });
+ */
 export function generateWalletConnectQR(uri: string): string {
-  // In production: Use QR code library
-  // import QRCode from 'qrcode';
-  // const qrDataUrl = await QRCode.toDataURL(uri);
-  
-  // Mock QR code (base64 SVG)
-  const svg = `<svg width="200" height="200"><rect width="200" height="200" fill="white"/><text x="100" y="100" text-anchor="middle" fill="black" font-size="12">WalletConnect QR</text></svg>`;
+  // Placeholder QR code SVG with URI hash for visual differentiation
+  const hash = uri.length > 10 ? uri.substring(3, 11) : 'pending';
+  const svg = `<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+    <rect width="200" height="200" fill="white"/>
+    <rect x="20" y="20" width="160" height="160" fill="#f0f0f0" rx="8"/>
+    <text x="100" y="90" text-anchor="middle" fill="#333" font-size="14" font-family="monospace">WalletConnect</text>
+    <text x="100" y="115" text-anchor="middle" fill="#666" font-size="10" font-family="monospace">${hash}</text>
+    <text x="100" y="150" text-anchor="middle" fill="#999" font-size="9">Scan with wallet app</text>
+  </svg>`;
   return `data:image/svg+xml;base64,${btoa(svg)}`;
 }
 
-// Validate WalletConnect URI
+// Validate WalletConnect URI format (v1 or v2)
 export function isValidWalletConnectURI(uri: string): boolean {
-  return uri.startsWith('wc:') && uri.includes('@');
+  // WalletConnect v1: wc:topic@1?bridge=...&key=...
+  // WalletConnect v2: wc:topic@2?relay-protocol=irn&symKey=...
+  return uri.startsWith('wc:') && uri.includes('@') && (uri.includes('?'));
 }
 
 // Get supported chains

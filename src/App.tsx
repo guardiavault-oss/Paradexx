@@ -1729,8 +1729,8 @@ function AppContent() {
     setShowLoginModal(true);
   };
 
-  const handleLogin = (email: string, password: string) => {
-    console.log("Login:", email, password);
+  const handleLogin = async (email: string, password: string) => {
+    console.log("Login:", email);
 
     // Close login modal
     setShowLoginModal(false);
@@ -1738,31 +1738,45 @@ function AppContent() {
     // Fade out wallet entry
     setFadeWalletEntry(true);
 
-    // Demo credentials - different tribes based on email
-    let tribe: "degen" | "regen" = "degen";
-    let degenPercent = 75;
-    let regenPercent = 25;
-
-    if (email.toLowerCase().includes("regen") || password === "regen123") {
-      tribe = "regen";
-      degenPercent = 30;
-      regenPercent = 70;
-    } else if (email.toLowerCase().includes("degen") || password === "degen123") {
-      tribe = "degen";
-      degenPercent = 85;
-      regenPercent = 15;
-    }
-
-    // Simulate user has already chosen tribe - go straight to dashboard
-    // In production, fetch user's tribe preference from API
-    setTimeout(() => {
-      setSelectedSide(tribe);
-      setAssessmentResults({
-        tribe: tribe,
-        degenPercent: degenPercent,
-        regenPercent: regenPercent,
+    try {
+      // Authenticate with backend API
+      const API_URL = import.meta.env.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       });
-    }, 100);
+
+      const result = await response.json();
+
+      if (result.accessToken) {
+        // Save tokens to localStorage
+        localStorage.setItem('accessToken', result.accessToken);
+        localStorage.setItem('refreshToken', result.refreshToken);
+        setIsAuthenticated(true);
+
+        // Fetch user's tribe preference from API
+        const tribe = result.user?.tribe || localStorage.getItem('userTribe') || 'degen';
+        const degenPercent = tribe === 'degen' ? 75 : 30;
+        const regenPercent = tribe === 'degen' ? 25 : 70;
+
+        setTimeout(() => {
+          setSelectedSide(tribe as "degen" | "regen");
+          setAssessmentResults({
+            tribe: tribe,
+            degenPercent: degenPercent,
+            regenPercent: regenPercent,
+          });
+        }, 100);
+      } else {
+        console.error('Login failed:', result.message || 'Invalid credentials');
+        // Show error to user or handle failed login
+        setFadeWalletEntry(false);
+      }
+    } catch (error) {
+      console.error('Login request failed:', error);
+      setFadeWalletEntry(false);
+    }
   };
 
   const handleLoginBack = () => {
@@ -1808,7 +1822,7 @@ function AppContent() {
     console.log("Onboarding complete:", data);
     console.log("Seed phrase:", seedPhrase);
 
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const API_BASE = import.meta.env.VITE_API_URL || 'https://paradexx-production.up.railway.app';
 
     try {
       // Register user with backend
@@ -1830,12 +1844,13 @@ function AppContent() {
         localStorage.setItem('refreshToken', result.refreshToken);
         setIsAuthenticated(true);
         console.log('User registered and tokens saved');
+      } else {
+        throw new Error(result.message || 'Registration failed');
       }
     } catch (error) {
-      console.error('Registration failed, continuing with local session:', error);
-      // Create a local session anyway for demo purposes
-      localStorage.setItem('accessToken', 'local_' + Date.now());
-      setIsAuthenticated(true);
+      console.error('Registration failed:', error);
+      // Re-throw to allow calling code to handle the error appropriately
+      // User should retry registration or contact support
     }
 
     // After wallet creation, show the Degen/Regen split screen selection

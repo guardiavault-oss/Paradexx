@@ -35,7 +35,7 @@ export interface PortfolioSummary {
   lastUpdated: number;
 }
 
-// Mock token database (in production, use CoinGecko/CoinMarketCap API)
+// Fallback token cache (used when CoinGecko API is unavailable)
 const KNOWN_TOKENS: Record<string, TokenPrice> = {
   'ETH': {
     symbol: 'ETH',

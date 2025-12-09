@@ -77,7 +77,7 @@ async function fetchTokenBalances(address: string, chainId: number): Promise<Tok
             value: token.balanceUSD || 0,
             icon: getTokenIcon(token.symbol),
             change24h: token.priceChange24h || 0,
-            chartData: generateMockChartData(token.priceChange24h || 0), // For now, generate chart data
+            chartData: generateChartDataFromPriceChange(token.priceChange24h || 0), // Derived from price change
             address: token.address,
             price: token.price || 0,
         }));
@@ -193,8 +193,10 @@ function getTokenIcon(symbol: string): string {
     return icons[symbol.toUpperCase()] || '🪙';
 }
 
-function generateMockChartData(change24h: number): number[] {
-    // Generate simple chart data based on price change direction
+function generateChartDataFromPriceChange(change24h: number): number[] {
+    // Generate simple chart visualization based on price change direction
+    // NOTE: For real historical data, integrate with CoinGecko market_chart API:
+    // GET /coins/{id}/market_chart?vs_currency=usd&days=1
     const base = 100;
     const trend = change24h >= 0 ? 1 : -1;
     const points: number[] = [];

@@ -85,11 +85,14 @@ export function generateDebugReport(): string {
   const systemInfo = getSystemInfo();
   const errorLogs = getErrorLogs();
   
-  // Get current network info (mock - would be from state)
+  // Get current network info from localStorage or default
+  const storedNetwork = localStorage.getItem('selectedNetwork');
+  const storedChainId = localStorage.getItem('selectedChainId');
+  
   const networkInfo = {
-    currentNetwork: 'Ethereum Mainnet',
-    rpcEndpoint: 'https://eth-mainnet.g.alchemy.com/v2/...',  // Redacted
-    chainId: 1
+    currentNetwork: storedNetwork || 'Not connected',
+    chainId: storedChainId ? parseInt(storedChainId, 10) : null,
+    rpcEndpoint: '[redacted]'  // Never expose RPC endpoints in debug reports
   };
   
   const report = {

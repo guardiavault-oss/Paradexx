@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { getThemeStyles } from "../../design-system";
 import {
@@ -93,133 +93,119 @@ export function PortfolioAnalytics({
   const [chartType, setChartType] = useState<"line" | "area">(
     "area",
   );
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [tokens, setTokens] = useState<TokenHolding[]>([]);
+  const [performance, setPerformance] = useState<PerformanceMetrics>({
+    totalValue: 0,
+    totalPnl: 0,
+    totalPnlPercent: 0,
+    dayChange: 0,
+    dayChangePercent: 0,
+    weekChange: 0,
+    weekChangePercent: 0,
+    monthChange: 0,
+    monthChangePercent: 0,
+  });
+  const [risk, setRisk] = useState<RiskMetrics>({
+    diversificationScore: 0,
+    concentrationRisk: "low",
+    largestPosition: { symbol: "", percentage: 0 },
+    stablecoinRatio: 0,
+    riskLevel: "conservative",
+    suggestions: [],
+  });
+  const [historicalData, setHistoricalData] = useState<{ date: string; value: number; timestamp: number }[]>([]);
 
   const isDegen = type === "degen";
   const accentColor = isDegen ? "#DC143C" : "#0080FF";
   const secondaryColor = isDegen ? "#8B0000" : "#000080";
 
-  // Mock Data Generation
-  const generateHistoricalData = () => {
-    const data = [];
-    const now = Date.now();
-    const oneDay = 24 * 60 * 60 * 1000;
-    const days =
-      timeframe === "24h"
-        ? 1
-        : timeframe === "7d"
-          ? 7
-          : timeframe === "30d"
-            ? 30
-            : timeframe === "90d"
-              ? 90
-              : 365;
+  // Fetch portfolio data from backend API
+  useEffect(() => {
+    const fetchPortfolioData = async () => {
+      setLoading(true);
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+        // Get wallet address from localStorage
+        const storedWallet = localStorage.getItem('paradex_wallet');
+        const walletData = storedWallet ? JSON.parse(storedWallet) : null;
+        const walletAddress = walletData?.address || '0x0000000000000000000000000000000000000000';
 
-    let baseValue = 28000;
-    for (let i = days; i >= 0; i--) {
-      const dayVariation = (Math.random() - 0.45) * 0.03;
-      baseValue = baseValue * (1 + dayVariation);
+        // Fetch portfolio data
+        const [portfolioRes, performanceRes, riskRes, historyRes] = await Promise.all([
+          fetch(`${API_URL}/api/portfolio/${walletAddress}`).catch(() => null),
+          fetch(`${API_URL}/api/portfolio/${walletAddress}/performance?timeframe=${timeframe}`).catch(() => null),
+          fetch(`${API_URL}/api/portfolio/${walletAddress}/risk`).catch(() => null),
+          fetch(`${API_URL}/api/portfolio/${walletAddress}/history?timeframe=${timeframe}`).catch(() => null),
+        ]);
 
-      data.push({
-        date: new Date(now - i * oneDay).toLocaleDateString(
-          "en-US",
-          { month: "short", day: "numeric" },
-        ),
-        value: baseValue,
-        timestamp: now - i * oneDay,
-      });
-    }
-    return data;
-  };
+        // Process portfolio tokens
+        if (portfolioRes?.ok) {
+          const portfolioData = await portfolioRes.json();
+          if (portfolioData.tokens) {
+            setTokens(portfolioData.tokens.map((t: any) => ({
+              symbol: t.symbol,
+              name: t.name || t.symbol,
+              balance: t.balance,
+              value: t.value || 0,
+              price: t.price || 0,
+              change24h: t.change24h || 0,
+              allocation: t.allocation || 0,
+              pnl: t.pnl || 0,
+              pnlPercent: t.pnlPercent || 0,
+            })));
+          }
+        }
 
-  const tokens: TokenHolding[] = [
-    {
-      symbol: "ETH",
-      name: "Ethereum",
-      balance: "12.45",
-      value: 24890,
-      price: 2000,
-      change24h: 5.2,
-      allocation: 42.3,
-      pnl: 4200,
-      pnlPercent: 20.3,
-    },
-    {
-      symbol: "BTC",
-      name: "Bitcoin",
-      balance: "0.234",
-      value: 10450,
-      price: 44658,
-      change24h: -2.1,
-      allocation: 17.8,
-      pnl: 1850,
-      pnlPercent: 21.5,
-    },
-    {
-      symbol: "USDC",
-      name: "USD Coin",
-      balance: "5000",
-      value: 5000,
-      price: 1,
-      change24h: 0,
-      allocation: 8.5,
-      pnl: 0,
-      pnlPercent: 0,
-    },
-    {
-      symbol: "SOL",
-      name: "Solana",
-      balance: "180",
-      value: 12960,
-      price: 72,
-      change24h: 8.7,
-      allocation: 22.0,
-      pnl: 3200,
-      pnlPercent: 32.8,
-    },
-    {
-      symbol: "LINK",
-      name: "Chainlink",
-      balance: "425",
-      value: 5525,
-      price: 13,
-      change24h: 3.4,
-      allocation: 9.4,
-      pnl: 825,
-      pnlPercent: 17.6,
-    },
-  ];
+        // Process performance metrics
+        if (performanceRes?.ok) {
+          const perfData = await performanceRes.json();
+          setPerformance({
+            totalValue: perfData.totalValue || 0,
+            totalPnl: perfData.totalPnl || 0,
+            totalPnlPercent: perfData.totalPnlPercent || 0,
+            dayChange: perfData.dayChange || 0,
+            dayChangePercent: perfData.dayChangePercent || 0,
+            weekChange: perfData.weekChange || 0,
+            weekChangePercent: perfData.weekChangePercent || 0,
+            monthChange: perfData.monthChange || 0,
+            monthChangePercent: perfData.monthChangePercent || 0,
+          });
+        }
 
-  const performance: PerformanceMetrics = {
-    totalValue: 58825,
-    totalPnl: 10075,
-    totalPnlPercent: 20.7,
-    dayChange: 1850,
-    dayChangePercent: 3.24,
-    weekChange: 3200,
-    weekChangePercent: 5.76,
-    monthChange: 8400,
-    monthChangePercent: 16.64,
-  };
+        // Process risk metrics
+        if (riskRes?.ok) {
+          const riskData = await riskRes.json();
+          setRisk({
+            diversificationScore: riskData.diversificationScore || 0,
+            concentrationRisk: riskData.concentrationRisk || "low",
+            largestPosition: riskData.largestPosition || { symbol: "", percentage: 0 },
+            stablecoinRatio: riskData.stablecoinRatio || 0,
+            riskLevel: riskData.riskLevel || "conservative",
+            suggestions: riskData.suggestions || [],
+          });
+        }
 
-  const risk: RiskMetrics = {
-    diversificationScore: 78,
-    concentrationRisk: "moderate",
-    largestPosition: { symbol: "ETH", percentage: 42.3 },
-    stablecoinRatio: 0.085,
-    riskLevel: "moderate",
-    suggestions: [
-      "Consider increasing stablecoin allocation to 15-20% for stability",
-      "ETH concentration is high - diversify into other blue-chip assets",
-      "Add DeFi protocol tokens for yield generation opportunities",
-      "Set stop-loss orders for volatile positions",
-    ],
-  };
+        // Process historical data
+        if (historyRes?.ok) {
+          const histData = await historyRes.json();
+          if (Array.isArray(histData)) {
+            setHistoricalData(histData.map((d: any) => ({
+              date: new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+              value: d.value,
+              timestamp: new Date(d.date).getTime(),
+            })));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch portfolio data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const historicalData = useMemo(
-    () => generateHistoricalData(),
-    [timeframe],
-  );
+    fetchPortfolioData();
+  }, [timeframe]);
 
   const allocationData = tokens.map((token) => ({
     name: token.symbol,
