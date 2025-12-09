@@ -54,10 +54,11 @@ import { AirdropPage } from "./AirdropPage";
 import { BuyPage } from "./BuyPage";
 import { YieldOpportunities } from "./YieldOpportunities";
 import { WhaleTracker } from "./WhaleTracker";
-import { AddressBook, type Contact } from "./AddressBook";
+import { AddressBook } from "./AddressBook";
 import { HardwareWalletConnect } from "./HardwareWalletConnect";
 import { HelpCenter } from "./HelpCenter";
 import { ParadexLogo } from "./ParadexLogo";
+import { useDashboardStats } from "../hooks/useDashboardStats";
 
 interface DashboardProps {
   type: "degen" | "regen";
@@ -93,13 +94,14 @@ export default function Dashboard({ type, degenPercent, regenPercent, onLogout }
   const primaryColor = isDegen ? "#DC143C" : "#0080FF";
   const secondaryColor = isDegen ? "#8B0000" : "#000080";
 
-  // Mock data
-  const portfolioValue = 42750;
-  const degenScore = 847;
-  const dailyPnL = 1247;
-  const securityScore = 94;
-  const monthlyYield = 847;
-  const averageAPY = 8.4;
+  // Real API data from useDashboardStats hook
+  const { stats, loading: statsLoading } = useDashboardStats();
+  const portfolioValue = stats.portfolioValue || 0;
+  const degenScore = stats.degenScore || (isDegen ? 847 : 0);
+  const dailyPnL = stats.dailyPnL || 0;
+  const securityScore = stats.securityScore || 0;
+  const monthlyYield = stats.monthlyYield || 0;
+  const averageAPY = stats.averageAPY || 0;
 
   const handleTabChange = (tab: "home" | "trading" | "activity" | "more") => {
     setActiveTab(tab);
