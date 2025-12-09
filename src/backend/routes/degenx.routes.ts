@@ -365,8 +365,8 @@ router.get('/analytics/pnl', async (req: Request, res: Response) => {
         transactions = await prisma.transaction.findMany({
           where: { 
             userId,
-            chainId: Number(chainId),
-            createdAt: {
+            chain: String(chainId),
+            timestamp: {
               gte: timeframe === '7d' 
                 ? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
                 : timeframe === '30d'
@@ -376,7 +376,7 @@ router.get('/analytics/pnl', async (req: Request, res: Response) => {
                 : new Date(0),
             },
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { timestamp: 'desc' },
         });
       } catch (dbErr) {
         logger.debug('P&L DB query failed, using empty transactions:', dbErr);
