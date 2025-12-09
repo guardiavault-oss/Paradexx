@@ -1,34 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { getThemeStyles } from '../design-system';
 import {
   TrendingUp, TrendingDown, Clock, Target, Shield,
   Repeat, AlertTriangle, Plus, X, ChevronDown,
   Zap, DollarSign, Percent, Calendar, Play, Pause,
   Trash2, ArrowRightLeft, Settings
 } from 'lucide-react';
-
-interface LimitOrder {
-  id: string;
-  type: 'limit_buy' | 'limit_sell' | 'stop_loss' | 'take_profit' | 'trailing_stop';
-  tokenIn: string;
-  tokenOut: string;
-  amountIn: string;
-  triggerPrice: string;
-  status: 'active' | 'executed' | 'cancelled' | 'expired';
-  createdAt: string;
-}
-
-interface DCAPlan {
-  id: string;
-  tokenSymbol: string;
-  amountPerPurchase: string;
-  frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly';
-  status: 'active' | 'paused' | 'completed';
-  nextPurchaseAt: string;
-  purchases: number;
-  totalSpent: number;
-}
+import { useOrders, useDCAPlans, type Order, type DCAPlan } from '../hooks/useOrders';
 
 interface OrderFormData {
   type: 'limit_buy' | 'limit_sell' | 'stop_loss' | 'take_profit';
@@ -55,69 +33,16 @@ const TradingPage: React.FC<TradingPageProps> = ({ type = 'degen' }) => {
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [showDCAModal, setShowDCAModal] = useState(false);
 
+  // Use real data hooks
+  const { orders, cancelOrder, createOrder } = useOrders();
+  const { plans: dcaPlans, pausePlan, resumePlan, createPlan, cancelPlan } = useDCAPlans();
+
   // Mode colors
   const accentColor = type === 'degen' ? '#ff3366' : '#00d4ff';
   const accentSecondary = type === 'degen' ? '#ff9500' : '#00ff88';
   const accentGlow = type === 'degen'
     ? '0 0 40px rgba(255, 51, 102, 0.4)'
     : '0 0 40px rgba(0, 212, 255, 0.4)';
-
-  // Mock data
-  const orders: LimitOrder[] = [
-    {
-      id: '1',
-      type: 'limit_buy',
-      tokenIn: 'USDC',
-      tokenOut: 'ETH',
-      amountIn: '1000',
-      triggerPrice: '2000',
-      status: 'active',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: '2',
-      type: 'stop_loss',
-      tokenIn: 'ETH',
-      tokenOut: 'USDC',
-      amountIn: '0.5',
-      triggerPrice: '1800',
-      status: 'active',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: '3',
-      type: 'limit_sell',
-      tokenIn: 'BTC',
-      tokenOut: 'USDC',
-      amountIn: '0.02',
-      triggerPrice: '50000',
-      status: 'executed',
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-    },
-  ];
-
-  const dcaPlans: DCAPlan[] = [
-    {
-      id: '1',
-      tokenSymbol: 'ETH',
-      amountPerPurchase: '100',
-      frequency: 'weekly',
-      status: 'active',
-      nextPurchaseAt: new Date(Date.now() + 172800000).toISOString(),
-      purchases: 8,
-      totalSpent: 800,
-    },
-    {
-      id: '2',
-      tokenSymbol: 'BTC',
-      amountPerPurchase: '50',
-      frequency: 'biweekly',
-      status: 'paused',
-      nextPurchaseAt: new Date(Date.now() + 604800000).toISOString(),
-      purchases: 4,
-      totalSpent: 200,
-    },
-  ];
 
   const [orderForm, setOrderForm] = useState<OrderFormData>({
     type: 'limit_buy',
@@ -135,15 +60,16 @@ const TradingPage: React.FC<TradingPageProps> = ({ type = 'degen' }) => {
     totalBudget: '',
   });
 
-  // Stats
+  // Stats - calculate from live data
   const stats = useMemo(() => {
     const activeOrders = orders.filter(o => o.status === 'active').length;
-    const executedOrders = orders.filter(o => o.status === 'executed').length;
+    const executedOrders = orders.filter(o => o.status === 'filled').length;
     const totalOrders = orders.length;
     const successRate = totalOrders > 0 ? (executedOrders / totalOrders) * 100 : 0;
 
-    const activeDCA = dcaPlans.filter(p => p.status === 'active').length;
-    const totalDCASpent = dcaPlans.reduce((sum, p) => sum + p.totalSpent, 0);
+    const activeDCA = dcaPlans.filter((p: DCAPlan) => p.status === 'active').length;
+    const totalDCASpent = dcaPlans.reduce((sum: number, p: DCAPlan) => 
+      sum + Number.parseFloat(p.totalInvested || '0'), 0);
 
     return {
       activeOrders,
@@ -154,6 +80,57 @@ const TradingPage: React.FC<TradingPageProps> = ({ type = 'degen' }) => {
       totalDCASpent,
     };
   }, [orders, dcaPlans]);
+
+  // Handle order creation
+  const handleCreateOrder = async () => {
+    if (!orderForm.amount || !orderForm.triggerPrice) return;
+    
+    await createOrder({
+      type: orderForm.type,
+      tokenIn: orderForm.tokenIn,
+      tokenOut: orderForm.tokenOut,
+      amountIn: orderForm.amount,
+      triggerPrice: orderForm.triggerPrice,
+    });
+    
+    setShowOrderModal(false);
+    setOrderForm({
+      type: 'limit_buy',
+      tokenIn: 'USDC',
+      tokenOut: 'ETH',
+      amount: '',
+      triggerPrice: '',
+      slippage: 1,
+    });
+  };
+
+  // Handle DCA plan creation
+  const handleCreateDCA = async () => {
+    if (!dcaForm.amount || !dcaForm.tokenSymbol) return;
+    
+    // Calculate next purchase time based on frequency
+    const frequencyMs = {
+      daily: 24 * 60 * 60 * 1000,
+      weekly: 7 * 24 * 60 * 60 * 1000,
+      biweekly: 14 * 24 * 60 * 60 * 1000,
+      monthly: 30 * 24 * 60 * 60 * 1000,
+    };
+    
+    await createPlan({
+      tokenSymbol: dcaForm.tokenSymbol,
+      amountPerPurchase: dcaForm.amount,
+      frequency: dcaForm.frequency,
+      nextPurchaseAt: Date.now() + frequencyMs[dcaForm.frequency],
+    });
+    
+    setShowDCAModal(false);
+    setDcaForm({
+      tokenSymbol: 'ETH',
+      amount: '100',
+      frequency: 'weekly',
+      totalBudget: '',
+    });
+  };
 
   const getOrderTypeIcon = (orderType: string) => {
     switch (orderType) {
@@ -168,7 +145,8 @@ const TradingPage: React.FC<TradingPageProps> = ({ type = 'degen' }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return { bg: 'rgba(59, 130, 246, 0.1)', text: '#3b82f6', border: 'rgba(59, 130, 246, 0.3)' };
-      case 'executed': return { bg: 'rgba(34, 197, 94, 0.1)', text: '#22c55e', border: 'rgba(34, 197, 94, 0.3)' };
+      case 'executed': 
+      case 'filled': return { bg: 'rgba(34, 197, 94, 0.1)', text: '#22c55e', border: 'rgba(34, 197, 94, 0.3)' };
       case 'cancelled': return { bg: 'rgba(156, 163, 175, 0.1)', text: '#9ca3af', border: 'rgba(156, 163, 175, 0.3)' };
       case 'paused': return { bg: 'rgba(251, 146, 60, 0.1)', text: '#fb923c', border: 'rgba(251, 146, 60, 0.3)' };
       default: return { bg: 'rgba(156, 163, 175, 0.1)', text: '#9ca3af', border: 'rgba(156, 163, 175, 0.3)' };
@@ -497,7 +475,7 @@ const TradingPage: React.FC<TradingPageProps> = ({ type = 'degen' }) => {
 
 // Order Card Component
 interface OrderCardProps {
-  order: LimitOrder;
+  order: Order;
   index: number;
   accentColor: string;
   getOrderTypeIcon: (type: string) => React.ReactNode;
@@ -672,7 +650,7 @@ const DCACard: React.FC<DCACardProps> = ({
             <div className="flex items-center gap-4 text-xs text-[var(--text-primary)]/40">
               <span>{plan.purchases} purchases</span>
               <span>•</span>
-              <span>${plan.totalSpent.toLocaleString()} spent</span>
+              <span>${Number.parseFloat(plan.totalInvested || '0').toLocaleString()} spent</span>
             </div>
           </div>
         </div>
