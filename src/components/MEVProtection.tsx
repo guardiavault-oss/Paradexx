@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { getThemeStyles } from "../design-system";
 import {
@@ -27,6 +27,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import BottomNav from "./dashboard/BottomNav";
+import { useMEVProtection, type ThreatAlert, type NetworkStatus } from "../hooks/useMEVProtection";
 
 interface MEVProtectionProps {
   type: "degen" | "regen";
@@ -36,32 +37,11 @@ interface MEVProtectionProps {
   onTabChange?: (tab: "home" | "trading" | "activity" | "more") => void;
 }
 
-interface ThreatAlert {
-  id: string;
-  type: "sandwich" | "frontrun" | "backrun" | "flashloan" | "liquidation";
-  severity: "low" | "medium" | "high" | "critical";
-  timestamp: number;
-  blocked: boolean;
-  estimatedLoss: number;
-  network: string;
-  confidence: number;
-  transactionHash?: string;
-}
-
 interface ProtectionStat {
   label: string;
   value: string;
   change?: number;
   icon: any;
-}
-
-interface NetworkStatus {
-  name: string;
-  chainId: number;
-  active: boolean;
-  latency: number;
-  txCount: number;
-  threatsDetected: number;
 }
 
 export function MEVProtection({
@@ -72,10 +52,28 @@ export function MEVProtection({
   onTabChange: navOnTabChange
 }: MEVProtectionProps) {
   const [activeTab, setActiveTab] = useState<"overview" | "threats" | "networks" | "settings">("overview");
-  const [protectionEnabled, setProtectionEnabled] = useState(true);
-  const [protectionLevel, setProtectionLevel] = useState<"basic" | "standard" | "high" | "maximum">("high");
-  const [autoProtect, setAutoProtect] = useState(true);
-  const [privateMempool, setPrivateMempool] = useState(true);
+  
+  // Use real API data from hook
+  const {
+    stats,
+    threats,
+    networks,
+    config,
+    loading,
+    refreshing,
+    toggleProtection,
+    setProtectionLevel,
+    toggleAutoProtect,
+    togglePrivateMempool,
+    toggleNetwork,
+    refresh,
+  } = useMEVProtection();
+
+  // Extract config values for easier access
+  const protectionEnabled = config.enabled;
+  const protectionLevel = config.level;
+  const autoProtect = config.autoProtect;
+  const privateMempool = config.privateMempool;
 
   const isDegen = type === "degen";
 
@@ -90,74 +88,6 @@ export function MEVProtection({
       ? "0 0 20px rgba(255, 51, 102, 0.3), 0 0 40px rgba(255, 149, 0, 0.2)"
       : "0 0 20px rgba(0, 212, 255, 0.3), 0 0 40px rgba(0, 255, 136, 0.2)",
   };
-
-  // Mock stats
-  const stats = {
-    threatsBlocked: 127,
-    valueProtected: 45680,
-    mevSaved: 12.5,
-    successRate: 97.5,
-    avgResponseTime: 78,
-    activeProtections: 1,
-  };
-
-  // Mock threats
-  const threats: ThreatAlert[] = [
-    {
-      id: "1",
-      type: "sandwich",
-      severity: "critical",
-      timestamp: Date.now() - 1000 * 60 * 15,
-      blocked: true,
-      estimatedLoss: 850,
-      network: "Ethereum",
-      confidence: 0.95,
-      transactionHash: "0x1234...5678",
-    },
-    {
-      id: "2",
-      type: "frontrun",
-      severity: "high",
-      timestamp: Date.now() - 1000 * 60 * 45,
-      blocked: true,
-      estimatedLoss: 420,
-      network: "Arbitrum",
-      confidence: 0.88,
-      transactionHash: "0x2345...6789",
-    },
-    {
-      id: "3",
-      type: "backrun",
-      severity: "medium",
-      timestamp: Date.now() - 1000 * 60 * 120,
-      blocked: true,
-      estimatedLoss: 125,
-      network: "Polygon",
-      confidence: 0.76,
-      transactionHash: "0x3456...7890",
-    },
-    {
-      id: "4",
-      type: "flashloan",
-      severity: "critical",
-      timestamp: Date.now() - 1000 * 60 * 180,
-      blocked: true,
-      estimatedLoss: 2450,
-      network: "Ethereum",
-      confidence: 0.92,
-      transactionHash: "0x4567...8901",
-    },
-  ];
-
-  // Mock network status
-  const networks: NetworkStatus[] = [
-    { name: "Ethereum", chainId: 1, active: true, latency: 78, txCount: 1245, threatsDetected: 42 },
-    { name: "Polygon", chainId: 137, active: true, latency: 45, txCount: 3421, threatsDetected: 18 },
-    { name: "Arbitrum", chainId: 42161, active: true, latency: 52, txCount: 892, threatsDetected: 12 },
-    { name: "Optimism", chainId: 10, active: true, latency: 61, txCount: 654, threatsDetected: 8 },
-    { name: "Base", chainId: 8453, active: true, latency: 38, txCount: 1876, threatsDetected: 15 },
-    { name: "Avalanche", chainId: 43114, active: false, latency: 0, txCount: 0, threatsDetected: 0 },
-  ];
 
   const getThreatIcon = (threatType: ThreatAlert["type"]) => {
     switch (threatType) {
@@ -305,7 +235,7 @@ export function MEVProtection({
               </div>
               <motion.button
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setProtectionEnabled(!protectionEnabled)}
+                onClick={() => toggleProtection(!protectionEnabled)}
                 className="px-4 py-2 rounded-xl text-sm transition-all"
                 style={{
                   background: protectionEnabled ? "rgba(239, 68, 68, 0.2)" : colors.gradient,
@@ -914,7 +844,7 @@ export function MEVProtection({
                   </div>
                   <motion.button
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => setAutoProtect(!autoProtect)}
+                    onClick={() => toggleAutoProtect(!autoProtect)}
                     className="relative w-12 h-6 rounded-full transition-all"
                     style={{
                       background: autoProtect ? colors.gradient : "rgba(255, 255, 255, 0.1)",
@@ -946,7 +876,7 @@ export function MEVProtection({
                   </div>
                   <motion.button
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => setPrivateMempool(!privateMempool)}
+                    onClick={() => togglePrivateMempool(!privateMempool)}
                     className="relative w-12 h-6 rounded-full transition-all"
                     style={{
                       background: privateMempool ? colors.gradient : "rgba(255, 255, 255, 0.1)",
