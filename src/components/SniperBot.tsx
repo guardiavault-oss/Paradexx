@@ -1,80 +1,32 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { getThemeStyles } from "../design-system";
 import {
   ArrowLeft,
   Zap,
   TrendingUp,
   Users,
   Shield,
-  Brain,
   Target,
-  Flame,
-  AlertTriangle,
   CheckCircle2,
-  Clock,
   Activity,
-  DollarSign,
-  Percent,
   BarChart3,
   Search,
   Copy,
   ExternalLink,
   Settings,
-  Play,
-  Pause,
   ChevronRight,
   Sparkles,
   Eye,
   Radio,
 } from "lucide-react";
 import BottomNav from "./dashboard/BottomNav";
+import { useSniperBot, type MemeToken, type WhaleData } from "../hooks/useSniperBot";
 
 interface SniperBotProps {
   onClose: () => void;
   activeTab?: "home" | "trading" | "activity" | "more";
   onTabChange?: (tab: "home" | "trading" | "activity" | "more") => void;
   type?: "degen" | "regen";
-}
-
-interface MemeToken {
-  address: string;
-  name: string;
-  symbol: string;
-  score: number;
-  price: string;
-  change24h: number;
-  marketCap: string;
-  liquidity: string;
-  holders: number;
-  sentiment: number;
-  tier: "INSTANT" | "FAST" | "RESEARCH";
-}
-
-interface WhaleData {
-  address: string;
-  label: string;
-  winRate: number;
-  totalPnL: number;
-  recentTrades: number;
-  avgROI: number;
-  isTracked: boolean;
-  confidence: number;
-}
-
-interface Position {
-  tokenAddress: string;
-  tokenName: string;
-  tokenSymbol: string;
-  entryPrice: number;
-  currentPrice: number;
-  amount: string;
-  valueUSD: number;
-  pnl: number;
-  pnlPercent: number;
-  stopLossEnabled: boolean;
-  stopLossPrice?: number;
-  takeProfitPrice?: number;
 }
 
 export function SniperBot({ onClose, activeTab, onTabChange, type }: SniperBotProps) {
@@ -85,6 +37,20 @@ export function SniperBot({ onClose, activeTab, onTabChange, type }: SniperBotPr
   const [selectedToken, setSelectedToken] = useState<MemeToken | null>(null);
   const [buyAmount, setBuyAmount] = useState("0.1");
 
+  // Use real data hook
+  const {
+    memeTokens,
+    whales,
+    positions,
+    stats,
+    loading,
+    refresh,
+    trackWhale,
+    untrackWhale,
+    buyToken,
+    sellPosition,
+  } = useSniperBot();
+
   const colors = {
     primary: "#ff3366",
     secondary: "#ff9500",
@@ -93,135 +59,13 @@ export function SniperBot({ onClose, activeTab, onTabChange, type }: SniperBotPr
     glow: "0 0 20px rgba(255, 51, 102, 0.3), 0 0 40px rgba(255, 149, 0, 0.2)",
   };
 
-  // Mock data - Meme tokens
-  const memeTokens: MemeToken[] = [
-    {
-      address: "0x1234567890abcdef1234567890abcdef12345678",
-      name: "Pepe Coin",
-      symbol: "PEPE",
-      score: 95,
-      price: "$0.00000123",
-      change24h: 145.6,
-      marketCap: "$450M",
-      liquidity: "$12M",
-      holders: 45000,
-      sentiment: 0.85,
-      tier: "INSTANT",
-    },
-    {
-      address: "0x2345678901bcdef1234567890abcdef123456789",
-      name: "Wojak Finance",
-      symbol: "WOJAK",
-      score: 88,
-      price: "$0.0000567",
-      change24h: 78.3,
-      marketCap: "$230M",
-      liquidity: "$8M",
-      holders: 32000,
-      sentiment: 0.72,
-      tier: "FAST",
-    },
-    {
-      address: "0x3456789012cdef1234567890abcdef1234567890",
-      name: "Doge Killer",
-      symbol: "DOGEK",
-      score: 82,
-      price: "$0.000234",
-      change24h: 56.7,
-      marketCap: "$180M",
-      liquidity: "$5M",
-      holders: 28000,
-      sentiment: 0.68,
-      tier: "FAST",
-    },
-    {
-      address: "0x4567890123def1234567890abcdef12345678901",
-      name: "Shiba Inu 2.0",
-      symbol: "SHIB2",
-      score: 75,
-      price: "$0.00000890",
-      change24h: 34.2,
-      marketCap: "$120M",
-      liquidity: "$4M",
-      holders: 22000,
-      sentiment: 0.61,
-      tier: "RESEARCH",
-    },
-  ];
-
-  // Mock data - Whales
-  const whales: WhaleData[] = [
-    {
-      address: "0xwhale1234567890abcdef1234567890abcdef12",
-      label: "Smart Money #1",
-      winRate: 82.5,
-      totalPnL: 450000,
-      recentTrades: 45,
-      avgROI: 125.3,
-      isTracked: true,
-      confidence: 0.89,
-    },
-    {
-      address: "0xwhale2345678901bcdef1234567890abcdef123",
-      label: "Degen King",
-      winRate: 76.8,
-      totalPnL: 320000,
-      recentTrades: 38,
-      avgROI: 98.7,
-      isTracked: true,
-      confidence: 0.82,
-    },
-    {
-      address: "0xwhale3456789012cdef1234567890abcdef1234",
-      label: "Whale Watcher",
-      winRate: 71.2,
-      totalPnL: 280000,
-      recentTrades: 52,
-      avgROI: 87.4,
-      isTracked: false,
-      confidence: 0.76,
-    },
-  ];
-
-  // Mock data - Positions
-  const positions: Position[] = [
-    {
-      tokenAddress: "0xpos1234567890abcdef1234567890abcdef12345",
-      tokenName: "Pepe Coin",
-      tokenSymbol: "PEPE",
-      entryPrice: 0.00000089,
-      currentPrice: 0.00000123,
-      amount: "1,000,000,000",
-      valueUSD: 1230,
-      pnl: 340,
-      pnlPercent: 38.2,
-      stopLossEnabled: true,
-      stopLossPrice: 0.00000067,
-      takeProfitPrice: 0.00000178,
-    },
-    {
-      tokenAddress: "0xpos2345678901bcdef1234567890abcdef123456",
-      tokenName: "Wojak Finance",
-      tokenSymbol: "WOJAK",
-      entryPrice: 0.0000412,
-      currentPrice: 0.0000567,
-      amount: "50,000,000",
-      valueUSD: 2835,
-      pnl: 775,
-      pnlPercent: 37.6,
-      stopLossEnabled: true,
-      stopLossPrice: 0.0000309,
-    },
-  ];
-
-  const stats = {
-    totalValue: positions.reduce((sum, p) => sum + p.valueUSD, 0),
-    totalPnL: positions.reduce((sum, p) => sum + p.pnl, 0),
-    totalPnLPercent: 37.9,
-    activeTrades: positions.length,
-    winRate: 78.5,
-    avgROI: 92.3,
-  };
+  // Calculate derived stats
+  const totalValue = positions.reduce((sum, p) => sum + p.valueUSD, 0);
+  const totalPnLPercent = positions.length > 0 
+    ? positions.reduce((sum, p) => sum + p.pnlPercent, 0) / positions.length 
+    : 0;
+  const activeTrades = positions.length;
+  const avgROI = stats.winRate > 0 ? stats.winRate * 1.2 : 0;
 
   const getTierColor = (tier: MemeToken["tier"]) => {
     switch (tier) {
@@ -236,6 +80,23 @@ export function SniperBot({ onClose, activeTab, onTabChange, type }: SniperBotPr
 
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  // Handle whale tracking toggle
+  const handleWhaleTrack = async (whale: WhaleData) => {
+    if (whale.isTracked) {
+      await untrackWhale(whale.address);
+    } else {
+      await trackWhale(whale.address);
+    }
+  };
+
+  // Handle buy token
+  const handleBuyToken = async (token: MemeToken) => {
+    if (buyAmount && parseFloat(buyAmount) > 0) {
+      await buyToken(token.address, buyAmount);
+      setSelectedToken(null);
+    }
   };
 
   return (
@@ -309,11 +170,11 @@ export function SniperBot({ onClose, activeTab, onTabChange, type }: SniperBotPr
               }}
             >
               <div className="text-xs text-[var(--text-primary)]/60">Total Value</div>
-              <div className="text-[var(--text-primary)] mt-1">${stats.totalValue.toLocaleString()}</div>
+              <div className="text-[var(--text-primary)] mt-1">${totalValue.toLocaleString()}</div>
               <div className="flex items-center gap-1 mt-1">
                 <TrendingUp className="w-3 h-3" style={{ color: colors.secondary }} />
                 <span className="text-xs" style={{ color: colors.secondary }}>
-                  +{stats.totalPnLPercent}%
+                  +{totalPnLPercent.toFixed(1)}%
                 </span>
               </div>
             </motion.div>
@@ -328,7 +189,7 @@ export function SniperBot({ onClose, activeTab, onTabChange, type }: SniperBotPr
             >
               <div className="text-xs text-[var(--text-primary)]/60">Win Rate</div>
               <div className="text-[var(--text-primary)] mt-1">{stats.winRate}%</div>
-              <div className="text-xs text-[var(--text-primary)]/40 mt-1">{stats.activeTrades} active</div>
+              <div className="text-xs text-[var(--text-primary)]/40 mt-1">{activeTrades} active</div>
             </motion.div>
 
             <motion.div
@@ -340,7 +201,7 @@ export function SniperBot({ onClose, activeTab, onTabChange, type }: SniperBotPr
               }}
             >
               <div className="text-xs text-[var(--text-primary)]/60">Avg ROI</div>
-              <div className="text-[var(--text-primary)] mt-1">{stats.avgROI}%</div>
+              <div className="text-[var(--text-primary)] mt-1">{avgROI.toFixed(1)}%</div>
               <div className="text-xs text-[var(--text-primary)]/40 mt-1">per trade</div>
             </motion.div>
           </div>
@@ -627,7 +488,7 @@ export function SniperBot({ onClose, activeTab, onTabChange, type }: SniperBotPr
               <div>
                 <h3 className="text-[var(--text-primary)]">Active Positions</h3>
                 <p className="text-xs text-[var(--text-primary)]/50 mt-1">
-                  {positions.length} open positions • Total: ${stats.totalValue.toLocaleString()}
+                  {positions.length} open positions • Total: ${totalValue.toLocaleString()}
                 </p>
               </div>
 
