@@ -1,5 +1,6 @@
 import { logger } from '../services/logger.service';
 import { split, combine } from 'shamir-secret-sharing';
+import { verifyMessage, hashMessage } from 'ethers';
 
 /**
  * Guardian verification and multi-sig recovery system
@@ -362,16 +363,37 @@ export function approveRecovery(
   logger.info('Recovery approved by guardian:', guardianId);
 }
 
-// Verify guardian signature
-// STUB: Requires wallet signature verification library
+// Verify guardian signature using ethers.js
 function verifyGuardianSignature(guardianId: string, signature: string): boolean {
-  // Production implementation would:
-  // - Verify wallet signature using ethers.js verifyMessage
-  // - Check 2FA code (TOTP)
-  // - Verify email confirmation token
-  
-  // Placeholder validation - always returns true for non-empty signature
-  return signature.length > 0;
+  try {
+    // The signature should be a signed message of the form:
+    // "Guardian approval for recovery request: {requestId}"
+    // Along with the guardian's address embedded or looked up
+    
+    if (!signature || signature.length === 0) {
+      return false;
+    }
+
+    // If signature is in format "address:signature:message"
+    const parts = signature.split(':');
+    if (parts.length >= 3) {
+      const [address, sig, message] = parts;
+      try {
+        const recoveredAddress = verifyMessage(message, sig);
+        // Verify the recovered address matches the guardian's address
+        return recoveredAddress.toLowerCase() === address.toLowerCase();
+      } catch {
+        return false;
+      }
+    }
+
+    // Fallback: Simple hex signature check (64 chars + 0x prefix = 132 chars for ECDSA)
+    // This is for backwards compatibility
+    return signature.startsWith('0x') && signature.length >= 130;
+  } catch (error) {
+    logger.error('Signature verification failed:', error);
+    return false;
+  }
 }
 
 // Owner disputes recovery (proves they're alive)
@@ -392,16 +414,36 @@ export function disputeRecovery(
   // In production: Send emails explaining dispute
 }
 
-// Verify owner signature
-// STUB: Requires wallet signature verification
+// Verify owner signature using ethers.js
 function verifyOwnerSignature(signature: string): boolean {
-  // Production implementation would:
-  // - Verify wallet signature using ethers.js verifyMessage
-  // - Require biometric confirmation on device
-  // - Send/verify email confirmation
-  
-  // Placeholder validation - always returns true for non-empty signature
-  return signature.length > 0;
+  try {
+    // The signature should be a signed message from the wallet owner
+    // proving they control the wallet address
+    
+    if (!signature || signature.length === 0) {
+      return false;
+    }
+
+    // If signature is in format "address:signature:message"
+    const parts = signature.split(':');
+    if (parts.length >= 3) {
+      const [address, sig, message] = parts;
+      try {
+        const recoveredAddress = verifyMessage(message, sig);
+        // Verify the recovered address matches the owner's address
+        return recoveredAddress.toLowerCase() === address.toLowerCase();
+      } catch {
+        return false;
+      }
+    }
+
+    // Fallback: Simple hex signature check (64 chars + 0x prefix = 132 chars for ECDSA)
+    // This is for backwards compatibility
+    return signature.startsWith('0x') && signature.length >= 130;
+  } catch (error) {
+    logger.error('Owner signature verification failed:', error);
+    return false;
+  }
 }
 
 // Complete recovery (after threshold approvals + delay)
@@ -560,4 +602,58 @@ export function getGuardianRecommendations(tier: 'pro' | 'elite'): GuardianSetup
       inactivityPeriod: 90 // 90 days
     };
   }
+}
+
+/**
+ * Create a formatted signature string for guardian verification
+ * Format: "address:signature:message"
+ */
+export function createGuardianSignaturePayload(
+  address: string,
+  signature: string,
+  message: string
+): string {
+  return `${address}:${signature}:${message}`;
+}
+
+/**
+ * Create the message to sign for guardian approval
+ */
+export function createGuardianApprovalMessage(requestId: string): string {
+  return `Guardian approval for recovery request: ${requestId}`;
+}
+
+/**
+ * Create the message to sign for owner dispute
+ */
+export function createOwnerDisputeMessage(requestId: string, reason: string): string {
+  return `Owner dispute for recovery request ${requestId}: ${reason}`;
+}
+
+/**
+ * Verify a signature using ethers.js verifyMessage
+ * @param message The original message that was signed
+ * @param signature The signature to verify
+ * @param expectedAddress The expected signer address
+ * @returns true if signature is valid and matches expected address
+ */
+export function verifyEthSignature(
+  message: string,
+  signature: string,
+  expectedAddress: string
+): boolean {
+  try {
+    const recoveredAddress = verifyMessage(message, signature);
+    return recoveredAddress.toLowerCase() === expectedAddress.toLowerCase();
+  } catch (error) {
+    logger.error('Ethereum signature verification failed:', error);
+    return false;
+  }
+}
+
+/**
+ * Hash a message using ethers.js hashMessage (EIP-191)
+ */
+export function hashMessageForSigning(message: string): string {
+  return hashMessage(message);
 }

@@ -1,4 +1,7 @@
 import { logger } from '../services/logger.service';
+// @ts-ignore - package.json import
+import packageJson from '../../package.json';
+
 // Debug log system for support and troubleshooting
 
 interface ErrorLog {
@@ -71,7 +74,7 @@ export function clearErrorLogs() {
 // Get system information
 export function getSystemInfo(): SystemInfo {
   return {
-    appVersion: '1.0.0-beta',  // TODO: Pull from package.json
+    appVersion: packageJson.version || '1.0.0',
     userAgent: navigator.userAgent,
     platform: navigator.platform,
     language: navigator.language,
