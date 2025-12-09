@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import BottomNav from "./dashboard/BottomNav";
 import { useSwap, type SwapToken, type SwapQuote } from "../hooks/useSwap";
+import { useOrders, useDCAPlans, type Order, type DCAPlan } from "../hooks/useOrders";
 
 interface SwapPageProps {
   type: "degen" | "regen";
@@ -50,26 +51,7 @@ interface Token {
   icon?: string;
 }
 
-interface LimitOrder {
-  id: string;
-  type: "limit_buy" | "limit_sell" | "stop_loss" | "take_profit";
-  tokenIn: string;
-  tokenOut: string;
-  amountIn: string;
-  triggerPrice: string;
-  status: "active" | "executed" | "cancelled" | "expired";
-  createdAt: number;
-}
-
-interface DCAPlan {
-  id: string;
-  tokenSymbol: string;
-  amountPerPurchase: string;
-  frequency: "daily" | "weekly" | "biweekly" | "monthly";
-  status: "active" | "paused" | "completed";
-  nextPurchaseAt: number;
-  purchases: number;
-}
+// Use types from hooks instead of local interfaces
 
 export function SwapPage({ type, onClose, walletAddress, chainId = 1, activeTab, onTabChange }: SwapPageProps) {
   const [currentTab, setCurrentTab] = useState<"swap" | "limit" | "dca">("swap");
@@ -88,6 +70,23 @@ export function SwapPage({ type, onClose, walletAddress, chainId = 1, activeTab,
     isSwapping,
     swapError
   } = useSwap(address, chainId);
+
+  // Use real order and DCA hooks
+  const { 
+    orders, 
+    loading: ordersLoading, 
+    createOrder: createOrderApi, 
+    cancelOrder: cancelOrderApi 
+  } = useOrders();
+  
+  const { 
+    plans: dcaPlans, 
+    loading: dcaLoading, 
+    createPlan: createPlanApi, 
+    pausePlan, 
+    resumePlan, 
+    cancelPlan: cancelPlanApi 
+  } = useDCAPlans();
 
   // Local token state with defaults
   const [fromToken, setFromToken] = useState<Token>({
@@ -111,8 +110,6 @@ export function SwapPage({ type, onClose, walletAddress, chainId = 1, activeTab,
   const [slippage, setSlippage] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
   const [swapping, setSwapping] = useState(false);
-  const [orders, setOrders] = useState<LimitOrder[]>([]);
-  const [dcaPlans, setDcaPlans] = useState<DCAPlan[]>([]);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [showDCAModal, setShowDCAModal] = useState(false);
 
@@ -128,7 +125,7 @@ export function SwapPage({ type, onClose, walletAddress, chainId = 1, activeTab,
 
   // Order form state
   const [orderForm, setOrderForm] = useState({
-    type: "limit_buy" as LimitOrder["type"],
+    type: "limit_buy" as Order["type"],
     tokenIn: "USDC",
     tokenOut: "ETH",
     amount: "",
@@ -156,55 +153,6 @@ export function SwapPage({ type, onClose, walletAddress, chainId = 1, activeTab,
       ? "0 0 20px rgba(220, 20, 60, 0.3), 0 0 40px rgba(139, 0, 0, 0.2)"
       : "0 0 20px rgba(0, 128, 255, 0.3), 0 0 40px rgba(0, 0, 128, 0.2)",
   };
-
-  // Mock data
-  useEffect(() => {
-    // Load mock orders
-    setOrders([
-      {
-        id: "1",
-        type: "limit_buy",
-        tokenIn: "USDC",
-        tokenOut: "ETH",
-        amountIn: "5000",
-        triggerPrice: "2200",
-        status: "active",
-        createdAt: Date.now() - 1000 * 60 * 60 * 2,
-      },
-      {
-        id: "2",
-        type: "stop_loss",
-        tokenIn: "ETH",
-        tokenOut: "USDC",
-        amountIn: "2.5",
-        triggerPrice: "2100",
-        status: "active",
-        createdAt: Date.now() - 1000 * 60 * 60 * 5,
-      },
-    ]);
-
-    // Load mock DCA plans
-    setDcaPlans([
-      {
-        id: "1",
-        tokenSymbol: "ETH",
-        amountPerPurchase: "100",
-        frequency: "weekly",
-        status: "active",
-        nextPurchaseAt: Date.now() + 1000 * 60 * 60 * 24 * 3,
-        purchases: 12,
-      },
-      {
-        id: "2",
-        tokenSymbol: "BTC",
-        amountPerPurchase: "50",
-        frequency: "daily",
-        status: "paused",
-        nextPurchaseAt: Date.now() + 1000 * 60 * 60 * 24,
-        purchases: 45,
-      },
-    ]);
-  }, []);
 
   // Calculate swap using real API quote
   useEffect(() => {
@@ -266,18 +214,14 @@ export function SwapPage({ type, onClose, walletAddress, chainId = 1, activeTab,
     setFromAmount(toAmount);
   };
 
-  const createOrder = () => {
-    const newOrder: LimitOrder = {
-      id: Date.now().toString(),
+  const handleCreateOrder = async () => {
+    await createOrderApi({
       type: orderForm.type,
       tokenIn: orderForm.tokenIn,
       tokenOut: orderForm.tokenOut,
       amountIn: orderForm.amount,
       triggerPrice: orderForm.triggerPrice,
-      status: "active",
-      createdAt: Date.now(),
-    };
-    setOrders([...orders, newOrder]);
+    });
     setShowOrderModal(false);
     setOrderForm({
       type: "limit_buy",
@@ -288,17 +232,13 @@ export function SwapPage({ type, onClose, walletAddress, chainId = 1, activeTab,
     });
   };
 
-  const createDCA = () => {
-    const newPlan: DCAPlan = {
-      id: Date.now().toString(),
+  const handleCreateDCA = async () => {
+    await createPlanApi({
       tokenSymbol: dcaForm.tokenSymbol,
       amountPerPurchase: dcaForm.amount,
       frequency: dcaForm.frequency,
-      status: "active",
       nextPurchaseAt: Date.now() + 1000 * 60 * 60 * 24,
-      purchases: 0,
-    };
-    setDcaPlans([...dcaPlans, newPlan]);
+    });
     setShowDCAModal(false);
     setDcaForm({
       tokenSymbol: "ETH",
@@ -308,25 +248,23 @@ export function SwapPage({ type, onClose, walletAddress, chainId = 1, activeTab,
     });
   };
 
-  const cancelOrder = (orderId: string) => {
-    setOrders(orders.filter((o) => o.id !== orderId));
+  const handleCancelOrder = async (orderId: string) => {
+    await cancelOrderApi(orderId);
   };
 
-  const toggleDCA = (planId: string) => {
-    setDcaPlans(
-      dcaPlans.map((p) =>
-        p.id === planId
-          ? { ...p, status: p.status === "active" ? "paused" : "active" }
-          : p
-      )
-    );
+  const handleToggleDCA = async (planId: string, currentStatus: string) => {
+    if (currentStatus === 'active') {
+      await pausePlan(planId);
+    } else {
+      await resumePlan(planId);
+    }
   };
 
-  const deleteDCA = (planId: string) => {
-    setDcaPlans(dcaPlans.filter((p) => p.id !== planId));
+  const handleDeleteDCA = async (planId: string) => {
+    await cancelPlanApi(planId);
   };
 
-  const getOrderTypeIcon = (orderType: LimitOrder["type"]) => {
+  const getOrderTypeIcon = (orderType: Order["type"]) => {
     switch (orderType) {
       case "limit_buy":
         return <TrendingUp className="w-4 h-4 text-emerald-400" />;
@@ -339,16 +277,18 @@ export function SwapPage({ type, onClose, walletAddress, chainId = 1, activeTab,
     }
   };
 
-  const getStatusColor = (status: LimitOrder["status"]) => {
+  const getStatusColor = (status: Order["status"]) => {
     switch (status) {
       case "active":
         return { bg: `${colors.primary}20`, color: colors.primary };
-      case "executed":
+      case "filled":
         return { bg: "rgba(34, 197, 94, 0.2)", color: "#22c55e" };
       case "cancelled":
         return { bg: "rgba(156, 163, 175, 0.2)", color: "#9ca3af" };
       case "expired":
         return { bg: "rgba(249, 115, 22, 0.2)", color: "#f97316" };
+      default:
+        return { bg: "rgba(156, 163, 175, 0.2)", color: "#9ca3af" };
     }
   };
 
@@ -375,7 +315,7 @@ export function SwapPage({ type, onClose, walletAddress, chainId = 1, activeTab,
   // Stats
   const stats = {
     activeOrders: orders.filter((o) => o.status === "active").length,
-    executedOrders: orders.filter((o) => o.status === "executed").length,
+    executedOrders: orders.filter((o) => o.status === "filled").length,
     activeDCA: dcaPlans.filter((p) => p.status === "active").length,
     totalVolume: "$45.2K",
   };
@@ -800,7 +740,7 @@ export function SwapPage({ type, onClose, walletAddress, chainId = 1, activeTab,
                           {order.status === "active" && (
                             <motion.button
                               whileTap={{ scale: 0.95 }}
-                              onClick={() => cancelOrder(order.id)}
+                              onClick={() => handleCancelOrder(order.id)}
                               className="px-3 py-1 rounded-lg text-red-400"
                               style={{
                                 background: "rgba(239, 68, 68, 0.1)",
@@ -925,7 +865,7 @@ export function SwapPage({ type, onClose, walletAddress, chainId = 1, activeTab,
                           {plan.status === "active" ? (
                             <motion.button
                               whileTap={{ scale: 0.95 }}
-                              onClick={() => toggleDCA(plan.id)}
+                              onClick={() => handleToggleDCA(plan.id, plan.status)}
                               className="p-2 rounded-lg text-orange-400"
                               style={{
                                 background: "rgba(249, 115, 22, 0.1)",
@@ -937,7 +877,7 @@ export function SwapPage({ type, onClose, walletAddress, chainId = 1, activeTab,
                           ) : (
                             <motion.button
                               whileTap={{ scale: 0.95 }}
-                              onClick={() => toggleDCA(plan.id)}
+                              onClick={() => handleToggleDCA(plan.id, plan.status)}
                               className="p-2 rounded-lg text-emerald-400"
                               style={{
                                 background: "rgba(34, 197, 94, 0.1)",
@@ -949,7 +889,7 @@ export function SwapPage({ type, onClose, walletAddress, chainId = 1, activeTab,
                           )}
                           <motion.button
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => deleteDCA(plan.id)}
+                            onClick={() => handleDeleteDCA(plan.id)}
                             className="p-2 rounded-lg text-red-400"
                             style={{
                               background: "rgba(239, 68, 68, 0.1)",
@@ -1089,7 +1029,7 @@ export function SwapPage({ type, onClose, walletAddress, chainId = 1, activeTab,
                   </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.98 }}
-                    onClick={createOrder}
+                    onClick={handleCreateOrder}
                     className="flex-1 py-3 rounded-xl text-[var(--text-primary)]"
                     style={{
                       background: colors.gradient,
@@ -1241,7 +1181,7 @@ export function SwapPage({ type, onClose, walletAddress, chainId = 1, activeTab,
                   </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.98 }}
-                    onClick={createDCA}
+                    onClick={handleCreateDCA}
                     className="flex-1 py-3 rounded-xl text-[var(--text-primary)]"
                     style={{
                       background: colors.gradient,
