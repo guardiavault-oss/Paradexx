@@ -69,6 +69,26 @@
     build: {
       target: 'esnext',
       outDir: 'build',
+      sourcemap: false,
+      minify: 'esbuild',
+      chunkSizeWarningLimit: 600,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-radix': [
+              '@radix-ui/react-dialog',
+              '@radix-ui/react-dropdown-menu',
+              '@radix-ui/react-tabs',
+              '@radix-ui/react-tooltip',
+              '@radix-ui/react-select',
+            ],
+            'vendor-charts': ['recharts'],
+            'vendor-three': ['three'],
+            'vendor-query': ['@tanstack/react-query'],
+          },
+        },
+      },
     },
     server: {
       port: 3000,
