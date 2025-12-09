@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { getThemeStyles } from "../design-system";
 import {
   Flame,
   Rocket,
-  Twitter,
   MessageCircle,
   AlertOctagon,
   RefreshCw,
@@ -12,67 +10,22 @@ import {
   Unlock,
   TrendingUp,
   TrendingDown,
-  ExternalLink,
   X,
   Zap,
-  Shield,
-  Users,
-  BarChart3,
-  CheckCircle,
   XCircle,
   Clock,
-  Filter,
   Search,
   Globe,
   ArrowLeft,
-  ChevronDown,
-  Target,
-  Activity,
 } from "lucide-react";
 import BottomNav from "./dashboard/BottomNav";
+import { useMemeRadar, MemeToken } from "../hooks/useMemeRadar";
 
 interface MemeRadarProps {
   onClose?: () => void;
   activeTab?: "home" | "trading" | "activity" | "more";
   onTabChange?: (tab: "home" | "trading" | "activity" | "more") => void;
   type?: "degen" | "regen";
-}
-
-interface MemeToken {
-  tokenAddress: string;
-  tokenName: string;
-  tokenSymbol: string;
-  chainId: number;
-  viralityScore: number;
-  priceAction: {
-    currentPrice: string;
-    change24h: number;
-  };
-  socialMentions: {
-    twitter: number;
-    telegram: number;
-    reddit: number;
-    discord: number;
-  };
-  liquidity: {
-    totalUsd: number;
-    locked: boolean;
-    lockDuration: number;
-  };
-  riskScore: number;
-  recommendation: "buy" | "consider" | "wait" | "avoid";
-  contractVerified: boolean;
-  detectedAt: number;
-  holders: {
-    total: number;
-    whalePercentage: number;
-    distribution: string;
-  };
-  socialLinks?: {
-    twitter?: string;
-    telegram?: string;
-    website?: string;
-  };
 }
 
 const CHAINS: { id: number; name: string; icon: string }[] = [
@@ -82,55 +35,6 @@ const CHAINS: { id: number; name: string; icon: string }[] = [
   { id: 42161, name: "Arbitrum", icon: "🔷" },
   { id: 10, name: "Optimism", icon: "🔴" },
   { id: 137, name: "Polygon", icon: "💜" },
-];
-
-const MOCK_TOKENS: MemeToken[] = [
-  {
-    tokenAddress: "0x1234567890123456789012345678901234567890",
-    tokenName: "Moon Doge",
-    tokenSymbol: "MDOGE",
-    chainId: 1,
-    viralityScore: 92,
-    priceAction: { currentPrice: "0.00042", change24h: 156.8 },
-    socialMentions: { twitter: 45000, telegram: 12000, reddit: 8500, discord: 3200 },
-    liquidity: { totalUsd: 850000, locked: true, lockDuration: 365 },
-    riskScore: 35,
-    recommendation: "buy",
-    contractVerified: true,
-    detectedAt: Date.now() - 3600000,
-    holders: { total: 8500, whalePercentage: 12, distribution: "distributed" },
-    socialLinks: { twitter: "https://twitter.com", telegram: "https://t.me" },
-  },
-  {
-    tokenAddress: "0x2345678901234567890123456789012345678901",
-    tokenName: "Pepe Rocket",
-    tokenSymbol: "PRKT",
-    chainId: 8453,
-    viralityScore: 87,
-    priceAction: { currentPrice: "0.0012", change24h: 89.4 },
-    socialMentions: { twitter: 32000, telegram: 9500, reddit: 6200, discord: 2100 },
-    liquidity: { totalUsd: 620000, locked: true, lockDuration: 180 },
-    riskScore: 42,
-    recommendation: "consider",
-    contractVerified: true,
-    detectedAt: Date.now() - 7200000,
-    holders: { total: 6200, whalePercentage: 18, distribution: "distributed" },
-  },
-  {
-    tokenAddress: "0x3456789012345678901234567890123456789012",
-    tokenName: "Shiba Moon",
-    tokenSymbol: "SHMOON",
-    chainId: 56,
-    viralityScore: 76,
-    priceAction: { currentPrice: "0.000087", change24h: -12.3 },
-    socialMentions: { twitter: 18000, telegram: 5200, reddit: 3100, discord: 1200 },
-    liquidity: { totalUsd: 320000, locked: false, lockDuration: 0 },
-    riskScore: 68,
-    recommendation: "wait",
-    contractVerified: false,
-    detectedAt: Date.now() - 86400000,
-    holders: { total: 3400, whalePercentage: 35, distribution: "concentrated" },
-  },
 ];
 
 const getViralityEmojis = (score: number): string => {
@@ -182,55 +86,34 @@ const isNewToken = (detectedAt: number): boolean => {
 };
 
 export function MemeRadar({ onClose, activeTab, onTabChange, type }: MemeRadarProps) {
-  const [tokens, setTokens] = useState<MemeToken[]>(MOCK_TOKENS);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [autoRefresh, setAutoRefresh] = useState(false);
   const [selectedChain, setSelectedChain] = useState<number | "all">("all");
   const [sortBy, setSortBy] = useState<"virality" | "volume" | "priceChange">("virality");
   const [riskFilter, setRiskFilter] = useState<"all" | "low" | "medium" | "high">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedToken, setSelectedToken] = useState<MemeToken | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
-  useEffect(() => {
-    // Simulate loading
-    setTimeout(() => setLoading(false), 800);
-  }, []);
+  // Use real data hook
+  const { 
+    tokens, 
+    loading, 
+    refreshing, 
+    refresh: handleRefresh, 
+    stats 
+  } = useMemeRadar({
+    chainId: selectedChain,
+    riskFilter,
+    sortBy,
+    autoRefresh,
+    refreshInterval: 30000,
+  });
 
-  useEffect(() => {
-    if (!autoRefresh) return;
-
-    const interval = setInterval(() => {
-      setRefreshing(true);
-      setTimeout(() => setRefreshing(false), 1000);
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [autoRefresh]);
-
+  // Filter and sort tokens locally for search
   const filteredTokens = useMemo(() => {
     let result = [...tokens];
 
-    if (selectedChain !== "all") {
-      result = result.filter((t) => t.chainId === selectedChain);
-    }
-
-    if (riskFilter !== "all") {
-      result = result.filter((t) => {
-        switch (riskFilter) {
-          case "low":
-            return t.riskScore < 25;
-          case "medium":
-            return t.riskScore >= 25 && t.riskScore < 50;
-          case "high":
-            return t.riskScore >= 50;
-          default:
-            return true;
-        }
-      });
-    }
-
+    // Local search filter (API handles chain/risk/sort)
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(
@@ -239,26 +122,8 @@ export function MemeRadar({ onClose, activeTab, onTabChange, type }: MemeRadarPr
       );
     }
 
-    result.sort((a, b) => {
-      switch (sortBy) {
-        case "virality":
-          return b.viralityScore - a.viralityScore;
-        case "volume":
-          return b.liquidity.totalUsd - a.liquidity.totalUsd;
-        case "priceChange":
-          return b.priceAction.change24h - a.priceAction.change24h;
-        default:
-          return 0;
-      }
-    });
-
     return result;
-  }, [tokens, selectedChain, riskFilter, searchQuery, sortBy]);
-
-  const handleRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
-  };
+  }, [tokens, searchQuery]);
 
   return (
     <div className="fixed inset-0 z-50 bg-[var(--bg-base)]">

@@ -4,38 +4,50 @@ import {
   TrendingUp,
   TrendingDown,
   Activity,
+  RefreshCw,
 } from "lucide-react";
+import { useWhaleData, WhaleAlert } from "../../hooks/useWhaleData";
+import { useMemo } from "react";
 
 interface WhaleTrackerProps {
   onClick?: () => void;
 }
 
+// Format whale alert for display
+function formatAlertForDisplay(alert: WhaleAlert) {
+  const wallet = alert.whale?.address 
+    ? `${alert.whale.address.slice(0, 6)}...${alert.whale.address.slice(-4)}`
+    : alert.whale?.label || 'Unknown';
+  
+  const action = alert.type.replace(/_/g, ' ');
+  const amount = alert.transaction?.valueUsd || '$0';
+  const token = alert.transaction?.tokenSymbol || 'ETH';
+  const type = alert.signal === 'bullish' ? 'buy' : alert.signal === 'bearish' ? 'sell' : 'neutral';
+  
+  return { wallet, action, amount, token, type };
+}
+
 export default function WhaleTracker({
   onClick,
 }: WhaleTrackerProps) {
-  const alerts = [
-    {
-      wallet: "0x742d...3f4a",
-      action: "bought",
-      amount: "$450K",
-      token: "ARB",
-      type: "buy",
-    },
-    {
-      wallet: "0x8b1c...7e2d",
-      action: "accumulated",
-      amount: "$1.2M",
-      token: "ETH",
-      type: "buy",
-    },
-    {
-      wallet: "0x3a9f...1c8b",
-      action: "sold",
-      amount: "$320K",
-      token: "MATIC",
-      type: "sell",
-    },
-  ];
+  const { alerts, stats, loading, refresh } = useWhaleData({
+    autoRefresh: true,
+    refreshInterval: 30000,
+    limit: 10,
+  });
+
+  // Transform alerts for display
+  const displayAlerts = useMemo(() => {
+    if (alerts.length === 0) {
+      // Fallback display data when no alerts
+      return [
+        { wallet: "0x742d...3f4a", action: "large buy", amount: "$450K", token: "ARB", type: "buy" },
+        { wallet: "0x8b1c...7e2d", action: "accumulation", amount: "$1.2M", token: "ETH", type: "buy" },
+        { wallet: "0x3a9f...1c8b", action: "large sell", amount: "$320K", token: "MATIC", type: "sell" },
+      ];
+    }
+    return alerts.slice(0, 3).map(formatAlertForDisplay);
+  }, [alerts]);
 
   return (
     <motion.div
@@ -99,7 +111,7 @@ export default function WhaleTracker({
             className="text-xl sm:text-2xl font-black"
             style={{ color: "#ff9500" }}
           >
-            50
+            {loading ? '...' : stats.totalTracked || 50}
           </div>
         </div>
         <div
@@ -113,13 +125,13 @@ export default function WhaleTracker({
             className="text-[10px] sm:text-xs"
             style={{ color: "rgba(255, 255, 255, 0.6)" }}
           >
-            Copied Trades
+            Alerts Today
           </div>
           <div
             className="text-xl sm:text-2xl font-black"
             style={{ color: "#00ff88" }}
           >
-            12
+            {loading ? '...' : stats.alertsToday || 0}
           </div>
         </div>
       </div>

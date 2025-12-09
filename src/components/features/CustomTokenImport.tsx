@@ -61,51 +61,80 @@ export function CustomTokenImport({
   const fetchTokenMetadata = async (
     contractAddress: string,
   ): Promise<TokenMetadata> => {
-    // Mock implementation
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    // Simulate different token types
-    const mockTokens: Record<string, TokenMetadata> = {
-      "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
-        address: contractAddress,
-        name: "USD Coin",
-        symbol: "USDC",
-        decimals: 6,
-        totalSupply: "25000000000",
-        isVerified: true,
-        isScam: false,
-        holders: 1500000,
-        website: "https://www.circle.com/usdc",
-        social: {
-          twitter: "https://twitter.com/circle",
-        },
-      },
-      "0x0000000000000000000000000000000000000001": {
-        address: contractAddress,
-        name: "Scam Token - Free ETH",
-        symbol: "SCAM",
-        decimals: 18,
-        isVerified: false,
-        isScam: true,
-        holders: 10,
-      },
-    };
-
+    // Try to fetch from real APIs
     const lowerAddress = contractAddress.toLowerCase();
-    if (mockTokens[lowerAddress]) {
-      return mockTokens[lowerAddress];
+    
+    // First try Etherscan API
+    try {
+      // DexScreener API for token info (no API key required)
+      const dexResponse = await fetch(
+        `https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`
+      );
+      
+      if (dexResponse.ok) {
+        const dexData = await dexResponse.json();
+        const pair = dexData.pairs?.[0];
+        
+        if (pair?.baseToken) {
+          return {
+            address: contractAddress,
+            name: pair.baseToken.name || 'Unknown Token',
+            symbol: pair.baseToken.symbol || 'TOKEN',
+            decimals: 18, // Default, DexScreener doesn't always provide this
+            totalSupply: pair.fdv ? String(pair.fdv) : undefined,
+            isVerified: false, // DexScreener doesn't provide verification status
+            isScam: false,
+            holders: undefined,
+            website: pair.url,
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('DexScreener fetch failed:', err);
+    }
+    
+    // Try CoinGecko as fallback
+    try {
+      const cgResponse = await fetch(
+        `https://api.coingecko.com/api/v3/coins/ethereum/contract/${lowerAddress}`
+      );
+      
+      if (cgResponse.ok) {
+        const cgData = await cgResponse.json();
+        
+        return {
+          address: contractAddress,
+          name: cgData.name || 'Unknown Token',
+          symbol: cgData.symbol?.toUpperCase() || 'TOKEN',
+          decimals: cgData.detail_platforms?.ethereum?.decimal_place || 18,
+          totalSupply: cgData.market_data?.total_supply?.toString(),
+          logo: cgData.image?.small,
+          isVerified: true, // Listed on CoinGecko indicates some legitimacy
+          isScam: false,
+          holders: cgData.market_data?.total_volume?.usd ? undefined : undefined,
+          website: cgData.links?.homepage?.[0],
+          social: {
+            twitter: cgData.links?.twitter_screen_name 
+              ? `https://twitter.com/${cgData.links.twitter_screen_name}` 
+              : undefined,
+            telegram: cgData.links?.telegram_channel_identifier
+              ? `https://t.me/${cgData.links.telegram_channel_identifier}`
+              : undefined,
+          },
+        };
+      }
+    } catch (err) {
+      console.warn('CoinGecko fetch failed:', err);
     }
 
-    // Generate random token for demo
+    // Return generic token if APIs fail
     return {
       address: contractAddress,
-      name: "Custom Token",
-      symbol: "CUSTOM",
+      name: "Unknown Token",
+      symbol: "TOKEN",
       decimals: 18,
-      totalSupply: "1000000000",
       isVerified: false,
       isScam: false,
-      holders: Math.floor(Math.random() * 10000),
     };
   };
 
