@@ -71,10 +71,7 @@ async function getSepoliaProvider() {
 
 async function getTokenInfo(provider: ethers.Provider, tokenAddress: string) {
   const token = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-  const [symbol, decimals] = await Promise.all([
-    token.symbol(),
-    token.decimals(),
-  ]);
+  const [symbol, decimals] = await Promise.all([token.symbol(), token.decimals()]);
   return { symbol, decimals: Number(decimals), address: tokenAddress };
 }
 
@@ -86,25 +83,27 @@ async function getBalance(provider: ethers.Provider, tokenAddress: string, walle
 // Simulate a swap quote with platform fee
 async function getSwapQuote(params: SwapParams): Promise<SwapResult> {
   const provider = await getSepoliaProvider();
-  
+
   logger.info('\n📊 Getting Swap Quote on Sepolia...');
   logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  
+
   // Get token info
   const [tokenInInfo, tokenOutInfo] = await Promise.all([
     getTokenInfo(provider, params.tokenIn),
     getTokenInfo(provider, params.tokenOut),
   ]);
-  
+
   logger.info(`From: ${tokenInInfo.symbol} (${params.tokenIn})`);
   logger.info(`To: ${tokenOutInfo.symbol} (${params.tokenOut})`);
-  logger.info(`Amount In: ${ethers.formatUnits(params.amountIn, tokenInInfo.decimals)} ${tokenInInfo.symbol}`);
-  
+  logger.info(
+    `Amount In: ${ethers.formatUnits(params.amountIn, tokenInInfo.decimals)} ${tokenInInfo.symbol}`
+  );
+
   // Simulate quote (in production, this would use Uniswap Quoter)
   // For demo, we use a mock exchange rate
   const mockExchangeRate = params.tokenIn === TOKENS.WETH ? 2000 : 0.0005; // ETH->USDC or USDC->ETH
   const amountInBN = BigInt(params.amountIn);
-  
+
   // Calculate output amount (simplified mock)
   let amountOutRaw: bigint;
   if (params.tokenIn === TOKENS.WETH && params.tokenOut === TOKENS.USDC) {
@@ -116,22 +115,29 @@ async function getSwapQuote(params: SwapParams): Promise<SwapResult> {
   } else {
     amountOutRaw = amountInBN; // 1:1 for other pairs (mock)
   }
-  
+
   // Calculate platform fee (0.5% of output)
-  const platformFee = (amountOutRaw * BigInt(Math.floor(PLATFORM_FEE_PERCENTAGE * 10000))) / BigInt(10000);
+  const platformFee =
+    (amountOutRaw * BigInt(Math.floor(PLATFORM_FEE_PERCENTAGE * 10000))) / BigInt(10000);
   const netAmountOut = amountOutRaw - platformFee;
-  
+
   logger.info(`\n💰 Quote Results:`);
-  logger.info(`   Gross Output: ${ethers.formatUnits(amountOutRaw, tokenOutInfo.decimals)} ${tokenOutInfo.symbol}`);
-  logger.info(`   Platform Fee: ${ethers.formatUnits(platformFee, tokenOutInfo.decimals)} ${tokenOutInfo.symbol} (${PLATFORM_FEE_PERCENTAGE * 100}%)`);
-  logger.info(`   Net Output:   ${ethers.formatUnits(netAmountOut, tokenOutInfo.decimals)} ${tokenOutInfo.symbol}`);
-  
+  logger.info(
+    `   Gross Output: ${ethers.formatUnits(amountOutRaw, tokenOutInfo.decimals)} ${tokenOutInfo.symbol}`
+  );
+  logger.info(
+    `   Platform Fee: ${ethers.formatUnits(platformFee, tokenOutInfo.decimals)} ${tokenOutInfo.symbol} (${PLATFORM_FEE_PERCENTAGE * 100}%)`
+  );
+  logger.info(
+    `   Net Output:   ${ethers.formatUnits(netAmountOut, tokenOutInfo.decimals)} ${tokenOutInfo.symbol}`
+  );
+
   // Build swap transaction
   const swapRouter = new ethers.Contract(UNISWAP_V3_ROUTER, SWAP_ROUTER_ABI);
   const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes
   const slippage = params.slippage || 0.5;
   const minAmountOut = (netAmountOut * BigInt(Math.floor((100 - slippage) * 100))) / BigInt(10000);
-  
+
   const swapParams = {
     tokenIn: params.tokenIn,
     tokenOut: params.tokenOut,
@@ -142,9 +148,9 @@ async function getSwapQuote(params: SwapParams): Promise<SwapResult> {
     amountOutMinimum: minAmountOut.toString(),
     sqrtPriceLimitX96: 0,
   };
-  
+
   const calldata = swapRouter.interface.encodeFunctionData('exactInputSingle', [swapParams]);
-  
+
   return {
     quote: {
       amountIn: params.amountIn,
@@ -165,16 +171,16 @@ async function getSwapQuote(params: SwapParams): Promise<SwapResult> {
 async function testSwapAPI() {
   logger.info('\n🧪 Testing Swap API Endpoint...');
   logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  
+
   const testWallet = '0x742d35Cc6634C0532925a3b844Bc9e7595f8b2e0'; // Example address
-  
+
   try {
     // Test via HTTP request to our backend
     const response = await fetch('http://localhost:3001/api/defi/swap', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer test_token', // Would need real auth
+        Authorization: 'Bearer test_token', // Would need real auth
       },
       body: JSON.stringify({
         fromToken: TOKENS.WETH,
@@ -185,10 +191,10 @@ async function testSwapAPI() {
         slippage: 1,
       }),
     });
-    
+
     const data = await response.json();
     logger.info('\nAPI Response:', JSON.stringify(data, null, 2));
-    
+
     if (data.quote) {
       logger.info('\n✅ Swap API Working!');
       logger.info(`   Fee Applied: ${data.quote.feePercentage}%`);
@@ -205,10 +211,10 @@ async function main() {
   logger.info('║        DualGen Sepolia Swap Test                           ║');
   logger.info('║        Testing Platform Fee Implementation                ║');
   logger.info('╚═══════════════════════════════════════════════════════════╝');
-  
+
   // Generate a random test wallet
   const testWallet = ethers.Wallet.createRandom().address;
-  
+
   // Test 1: ETH to USDC swap quote
   logger.info('\n\n📌 TEST 1: ETH → USDC Swap');
   const ethToUsdc = await getSwapQuote({
@@ -217,7 +223,7 @@ async function main() {
     amountIn: ethers.parseEther('0.1').toString(), // 0.1 ETH
     walletAddress: testWallet,
   });
-  
+
   // Test 2: USDC to ETH swap quote
   logger.info('\n\n📌 TEST 2: USDC → ETH Swap');
   const usdcToEth = await getSwapQuote({
@@ -226,10 +232,10 @@ async function main() {
     amountIn: ethers.parseUnits('100', 6).toString(), // 100 USDC
     walletAddress: testWallet,
   });
-  
+
   // Test 3: Test the API endpoint
   await testSwapAPI();
-  
+
   // Summary
   logger.info('\n\n╔═══════════════════════════════════════════════════════════╗');
   logger.info('║                    TEST SUMMARY                           ║');
@@ -238,20 +244,22 @@ async function main() {
   logger.info(`   Fee Percentage: ${PLATFORM_FEE_PERCENTAGE * 100}%`);
   logger.info(`   Fee Collection: Deducted from output amount`);
   logger.info(`   Applied To: All token swaps`);
-  
+
   logger.info('\n✅ Sepolia Test Tokens:');
   logger.info(`   WETH: ${TOKENS.WETH}`);
   logger.info(`   USDC: ${TOKENS.USDC}`);
   logger.info(`   LINK: ${TOKENS.LINK}`);
-  
+
   logger.info('\n✅ Inheritance Pricing (One-Time):');
   logger.info(`   Essential: $149`);
   logger.info(`   Premium: $299`);
-  
-  logger.info('\n✅ Pro Subscription (Monthly):');
-  logger.info(`   Price: $9.99/month`);
-  logger.info(`   Features: MEV Protection, Wallet Guard, Honeypot Detection`);
-  
+
+  logger.info('\n✅ Subscription Pricing (Updated Dec 2025):');
+  logger.info(`   Free: $0/month - 0.5% swap fee`);
+  logger.info(`   Pro: $19.99/month - 0.35% swap fee (30% discount)`);
+  logger.info(`   Elite: $49.99/month - 0.2% swap fee (60% discount)`);
+  logger.info(`   Lifetime: $499 one-time - 0.15% swap fee (70% discount)`);
+
   logger.info('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   logger.info('All tests completed successfully!');
 }

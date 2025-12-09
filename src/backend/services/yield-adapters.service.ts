@@ -5,10 +5,14 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const LIDO_ADAPTER_ADDRESS = process.env.LIDO_ADAPTER_ADDRESS || '0xC30F4DE8666c79757116517361dFE6764A6Dc128';
-const AAVE_ADAPTER_ADDRESS = process.env.AAVE_ADAPTER_ADDRESS || '0xcc27a22d92a8B03D822974CDeD6BB74c63Ac0ae1';
-const YIELD_VAULT_ADDRESS = process.env.YIELD_VAULT_ADDRESS || '0x86bE7Bf7Ef3Af62BB7e56a324a11fdBA7f3AfbBb';
-const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || 'https://eth-sepolia.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY_HERE';
+const LIDO_ADAPTER_ADDRESS =
+  process.env.LIDO_ADAPTER_ADDRESS || '0xC30F4DE8666c79757116517361dFE6764A6Dc128';
+const AAVE_ADAPTER_ADDRESS =
+  process.env.AAVE_ADAPTER_ADDRESS || '0xcc27a22d92a8B03D822974CDeD6BB74c63Ac0ae1';
+const YIELD_VAULT_ADDRESS =
+  process.env.YIELD_VAULT_ADDRESS || '0x86bE7Bf7Ef3Af62BB7e56a324a11fdBA7f3AfbBb';
+const SEPOLIA_RPC_URL =
+  process.env.SEPOLIA_RPC_URL || 'https://eth-sepolia.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY_HERE';
 
 // Simplified ABI for adapters (common functions)
 const ADAPTER_ABI = [
@@ -41,16 +45,36 @@ export interface YieldDepositResult {
   netAmount: string;
 }
 
+/**
+ * YIELD FEE STRUCTURE (Updated Dec 2025):
+ * - Reduced from 1% to 0.75% yield fee on all earnings
+ * - Competitive with industry standard (Yearn: 2%, Beefy: 0.5-4.5%)
+ */
 export class YieldAdaptersService {
   private provider: ethers.JsonRpcProvider;
   private lidoAdapter: ethers.Contract;
   private aaveAdapter: ethers.Contract;
-  private yieldFeePercentage = 0.01; // 1% yield fee
+  private yieldFeePercentage = 0.0075; // 0.75% yield fee (reduced from 1%)
+  private yieldFeeBps = 75; // 75 basis points
 
   constructor() {
     this.provider = new ethers.JsonRpcProvider(SEPOLIA_RPC_URL);
     this.lidoAdapter = new ethers.Contract(LIDO_ADAPTER_ADDRESS, ADAPTER_ABI, this.provider);
     this.aaveAdapter = new ethers.Contract(AAVE_ADAPTER_ADDRESS, ADAPTER_ABI, this.provider);
+  }
+
+  /**
+   * Get current yield fee percentage
+   */
+  getYieldFeePercentage(): number {
+    return this.yieldFeePercentage;
+  }
+
+  /**
+   * Get yield fee in basis points
+   */
+  getYieldFeeBps(): number {
+    return this.yieldFeeBps;
   }
 
   // Get adapter info
@@ -113,7 +137,8 @@ export class YieldAdaptersService {
   // Calculate yield fee (1% of yield)
   calculateYieldFee(yieldAmount: string): string {
     const yieldBigInt = BigInt(yieldAmount);
-    const feeBigInt = (yieldBigInt * BigInt(Math.floor(this.yieldFeePercentage * 10000))) / BigInt(10000);
+    const feeBigInt =
+      (yieldBigInt * BigInt(Math.floor(this.yieldFeePercentage * 10000))) / BigInt(10000);
     return feeBigInt.toString();
   }
 
@@ -139,17 +164,19 @@ export class YieldAdaptersService {
     try {
       // Estimate shares before deposit
       const totalAssets = await adapter.getTotalAssets();
-      const totalSupply = await adapter.getBalance(await signer.getAddress()).catch(() => BigInt(0));
+      const totalSupply = await adapter
+        .getBalance(await signer.getAddress())
+        .catch(() => BigInt(0));
 
       // Calculate expected shares (simplified)
       const amountBigInt = BigInt(amount);
-      const expectedShares = totalSupply > 0
-        ? (amountBigInt * totalSupply) / totalAssets
-        : amountBigInt;
+      const expectedShares =
+        totalSupply > 0 ? (amountBigInt * totalSupply) / totalAssets : amountBigInt;
 
       // Calculate fee on expected yield
       const adapterInfo = await this.getAdapterInfo(strategy);
-      const annualYield = (amountBigInt * BigInt(Math.floor(adapterInfo.apy * 10000))) / BigInt(10000);
+      const annualYield =
+        (amountBigInt * BigInt(Math.floor(adapterInfo.apy * 10000))) / BigInt(10000);
       const dailyYield = annualYield / BigInt(365);
       const feeAmount = this.calculateYieldFee(dailyYield.toString());
 
@@ -196,7 +223,8 @@ export class YieldAdaptersService {
       // Calculate yield earned (simplified - in production, track deposits)
       const adapterInfo = await this.getAdapterInfo(strategy);
       const amountBigInt = BigInt(amount);
-      const annualYield = (amountBigInt * BigInt(Math.floor(adapterInfo.apy * 10000))) / BigInt(10000);
+      const annualYield =
+        (amountBigInt * BigInt(Math.floor(adapterInfo.apy * 10000))) / BigInt(10000);
       const dailyYield = annualYield / BigInt(365);
       const feeAmount = this.calculateYieldFee(dailyYield.toString());
 
@@ -243,4 +271,3 @@ export class YieldAdaptersService {
 }
 
 export const yieldAdaptersService = new YieldAdaptersService();
-

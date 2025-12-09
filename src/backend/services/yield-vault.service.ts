@@ -5,9 +5,17 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const YIELD_FEE_PERCENTAGE = 0.01; // 1% yield fee
-const YIELD_VAULT_ADDRESS = process.env.YIELD_VAULT_ADDRESS || '0x86bE7Bf7Ef3Af62BB7e56a324a11fdBA7f3AfbBb';
-const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || 'https://eth-sepolia.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY_HERE';
+/**
+ * YIELD FEE STRUCTURE (Updated Dec 2025):
+ * - Reduced from 1% to 0.75% yield fee on all earnings
+ * - Competitive with industry standard (Yearn: 2%, Beefy: 0.5-4.5%)
+ */
+const YIELD_FEE_PERCENTAGE = 0.0075; // 0.75% yield fee (reduced from 1%)
+const YIELD_FEE_BPS = 75; // 75 basis points
+const YIELD_VAULT_ADDRESS =
+  process.env.YIELD_VAULT_ADDRESS || '0x86bE7Bf7Ef3Af62BB7e56a324a11fdBA7f3AfbBb';
+const SEPOLIA_RPC_URL =
+  process.env.SEPOLIA_RPC_URL || 'https://eth-sepolia.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY_HERE';
 
 export interface YieldVault {
   id: string;
@@ -30,6 +38,13 @@ export interface YieldVaultDeposit {
   feeAmount: string;
 }
 
+// Export yield fee constants for use elsewhere
+export const YIELD_FEE = {
+  percentage: YIELD_FEE_PERCENTAGE,
+  bps: YIELD_FEE_BPS,
+  formatted: '0.75%',
+};
+
 export class YieldVaultService {
   private provider: ethers.JsonRpcProvider;
 
@@ -37,8 +52,26 @@ export class YieldVaultService {
     this.provider = new ethers.JsonRpcProvider(SEPOLIA_RPC_URL);
   }
 
+  /**
+   * Get yield fee percentage
+   */
+  getYieldFeePercentage(): number {
+    return YIELD_FEE_PERCENTAGE;
+  }
+
+  /**
+   * Get yield fee in basis points
+   */
+  getYieldFeeBps(): number {
+    return YIELD_FEE_BPS;
+  }
+
   // Create a new yield vault
-  async createVault(userId: string, name: string, strategy: string = 'default'): Promise<YieldVault> {
+  async createVault(
+    userId: string,
+    name: string,
+    strategy: string = 'default'
+  ): Promise<YieldVault> {
     // In production, this would deploy a new vault contract
     // For now, we'll create a database record
     const vault = await prisma.yieldVault.create({
@@ -117,12 +150,18 @@ export class YieldVaultService {
   // Calculate yield fee (1% of yield)
   calculateYieldFee(yieldAmount: string): string {
     const yieldBigInt = BigInt(yieldAmount);
-    const feeBigInt = (yieldBigInt * BigInt(Math.floor(YIELD_FEE_PERCENTAGE * 10000))) / BigInt(10000);
+    const feeBigInt =
+      (yieldBigInt * BigInt(Math.floor(YIELD_FEE_PERCENTAGE * 10000))) / BigInt(10000);
     return feeBigInt.toString();
   }
 
   // Deposit into yield vault
-  async deposit(vaultId: string, userId: string, amount: string, tokenAddress: string): Promise<YieldVaultDeposit> {
+  async deposit(
+    vaultId: string,
+    userId: string,
+    amount: string,
+    tokenAddress: string
+  ): Promise<YieldVaultDeposit> {
     const vault = await prisma.yieldVault.findFirst({
       where: {
         id: vaultId,
@@ -253,4 +292,3 @@ export class YieldVaultService {
 }
 
 export const yieldVaultService = new YieldVaultService();
-

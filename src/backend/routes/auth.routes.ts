@@ -19,38 +19,112 @@ if (ADMIN_EMAIL && ADMIN_PASSWORD) {
   logger.info('✅ Admin account configured');
 }
 
-// Subscription tiers configuration
+// Subscription tiers configuration (Updated Dec 2025)
+/**
+ * PRICING STRATEGY:
+ * - Free: $0/mo - Basic features, 0.5% swap fee
+ * - Pro: $19.99/mo - Advanced features, 0.35% swap fee (30% discount)
+ * - Elite: $49.99/mo - All features, 0.2% swap fee (60% discount)
+ * - Lifetime: $499 one-time - All Elite features forever, 0.15% swap fee (70% discount)
+ */
 const SUBSCRIPTION_TIERS = {
   free: {
     name: 'Free',
     price: 0,
+    priceMonthly: 0,
+    priceYearly: 0,
+    swapFeeDiscount: 0, // 0.5% base fee
     features: ['basic_wallet', 'basic_transactions', 'email_support'],
+    description: 'Perfect for getting started with crypto',
   },
   pro: {
     name: 'Pro',
-    price: 9.99,
-    features: ['basic_wallet', 'basic_transactions', 'email_support', 'priority_support', 'advanced_analytics', 'gas_optimization', 'whale_tracking', 'multi_wallet'],
+    price: 19.99,
+    priceMonthly: 19.99,
+    priceYearly: 199.99, // Save $40/year
+    swapFeeDiscount: 30, // 0.35% fee (30% off)
+    features: [
+      'basic_wallet',
+      'basic_transactions',
+      'email_support',
+      'priority_support',
+      'advanced_analytics',
+      'gas_optimization',
+      'whale_tracking',
+      'multi_wallet',
+      'portfolio_insights',
+      'price_alerts',
+    ],
+    description: 'For active traders who want powerful tools',
   },
   elite: {
     name: 'Elite',
-    price: 29.99,
-    features: ['basic_wallet', 'basic_transactions', 'email_support', 'priority_support', 'advanced_analytics', 'gas_optimization', 'whale_tracking', 'multi_wallet', 'mev_protection', 'honeypot_detection', 'rug_detection', 'defi_aggregation', 'api_access', 'white_glove_support'],
+    price: 49.99,
+    priceMonthly: 49.99,
+    priceYearly: 499.99, // Save $100/year
+    swapFeeDiscount: 60, // 0.2% fee (60% off)
+    features: [
+      'basic_wallet',
+      'basic_transactions',
+      'email_support',
+      'priority_support',
+      'advanced_analytics',
+      'gas_optimization',
+      'whale_tracking',
+      'multi_wallet',
+      'mev_protection',
+      'honeypot_detection',
+      'rug_detection',
+      'defi_aggregation',
+      'api_access',
+      'white_glove_support',
+      'smart_will_advanced',
+      'tax_reporting',
+      'custom_strategies',
+    ],
+    description: 'Maximum protection and features for serious traders',
+  },
+  lifetime: {
+    name: 'Lifetime',
+    price: 499,
+    priceMonthly: 499, // One-time
+    priceYearly: 499, // One-time
+    isOneTime: true,
+    swapFeeDiscount: 70, // 0.15% fee (70% off - best rate)
+    features: [
+      'basic_wallet',
+      'basic_transactions',
+      'email_support',
+      'priority_support',
+      'advanced_analytics',
+      'gas_optimization',
+      'whale_tracking',
+      'multi_wallet',
+      'mev_protection',
+      'honeypot_detection',
+      'rug_detection',
+      'defi_aggregation',
+      'api_access',
+      'white_glove_support',
+      'smart_will_advanced',
+      'tax_reporting',
+      'custom_strategies',
+      'lifetime_updates',
+      'early_access',
+      'founding_member_badge',
+    ],
+    description: 'One-time payment, lifetime access to all features forever',
   },
 };
 
+// Export subscription tiers for use in other services
+export { SUBSCRIPTION_TIERS };
+
 // Helper: Generate JWT tokens
 function generateTokens(userId: string) {
-  const accessToken = jwt.sign(
-    { userId },
-    process.env.JWT_SECRET!,
-    { expiresIn: '1h' }
-  );
+  const accessToken = jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: '1h' });
 
-  const refreshToken = jwt.sign(
-    { userId },
-    process.env.JWT_REFRESH_SECRET!,
-    { expiresIn: '7d' }
-  );
+  const refreshToken = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '7d' });
 
   return { accessToken, refreshToken };
 }
@@ -119,7 +193,9 @@ router.post('/verify-code', async (req: Request, res: Response) => {
   try {
     const { verificationToken, code } = req.body;
 
-    logger.info(`[AUTH] Verify code request - Token: ${verificationToken?.substring(0, 8)}..., Code: ${code}`);
+    logger.info(
+      `[AUTH] Verify code request - Token: ${verificationToken?.substring(0, 8)}..., Code: ${code}`
+    );
 
     // Validate inputs
     if (!verificationToken || !code) {
@@ -140,7 +216,9 @@ router.post('/verify-code', async (req: Request, res: Response) => {
     const result = verificationService.verifyCode(String(verificationToken).trim(), normalizedCode);
 
     if (!result.success) {
-      logger.warn(`[AUTH] Verification failed: ${result.error} (Token: ${verificationToken.substring(0, 8)}..., Code: ${normalizedCode})`);
+      logger.warn(
+        `[AUTH] Verification failed: ${result.error} (Token: ${verificationToken.substring(0, 8)}..., Code: ${normalizedCode})`
+      );
       return res.status(400).json({ error: result.error || 'Verification failed' });
     }
 
@@ -171,7 +249,9 @@ router.post('/resend-verification', async (req: Request, res: Response) => {
     const result = await verificationService.sendVerificationCode(normalizedEmail, name);
 
     if (!result.success) {
-      return res.status(429).json({ error: result.error || 'Please wait before requesting another code' });
+      return res
+        .status(429)
+        .json({ error: result.error || 'Please wait before requesting another code' });
     }
 
     res.json({
@@ -472,7 +552,9 @@ router.post('/notify-guardian', authenticateToken, async (req: Request, res: Res
     });
 
     if (!result.success) {
-      return res.status(500).json({ error: result.error || 'Failed to send guardian notification' });
+      return res
+        .status(500)
+        .json({ error: result.error || 'Failed to send guardian notification' });
     }
 
     res.json({
@@ -529,7 +611,8 @@ router.put('/me', authenticateToken, async (req: Request, res: Response) => {
 // Query params: mode=signup|login (default: login)
 router.get('/oauth/google', (req: Request, res: Response) => {
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.BACKEND_URL}/api/auth/oauth/google/callback`;
+  const redirectUri =
+    process.env.GOOGLE_REDIRECT_URI || `${process.env.BACKEND_URL}/api/auth/oauth/google/callback`;
   const mode = req.query.mode || 'login'; // 'signup' allows new accounts, 'login' requires existing
 
   if (!clientId) {
@@ -537,13 +620,16 @@ router.get('/oauth/google', (req: Request, res: Response) => {
   }
 
   const scope = encodeURIComponent('openid email profile');
-  const state = Buffer.from(JSON.stringify({
-    timestamp: Date.now(),
-    redirect: req.query.redirect || '/',
-    mode: mode // Pass mode through OAuth flow
-  })).toString('base64');
+  const state = Buffer.from(
+    JSON.stringify({
+      timestamp: Date.now(),
+      redirect: req.query.redirect || '/',
+      mode: mode, // Pass mode through OAuth flow
+    })
+  ).toString('base64');
 
-  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+  const authUrl =
+    `https://accounts.google.com/o/oauth2/v2/auth?` +
     `client_id=${clientId}&` +
     `redirect_uri=${encodeURIComponent(redirectUri)}&` +
     `response_type=code&` +
@@ -572,7 +658,9 @@ router.get('/oauth/google/callback', async (req: Request, res: Response) => {
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.BACKEND_URL}/api/auth/oauth/google/callback`;
+    const redirectUri =
+      process.env.GOOGLE_REDIRECT_URI ||
+      `${process.env.BACKEND_URL}/api/auth/oauth/google/callback`;
 
     // Exchange code for tokens
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -593,7 +681,11 @@ router.get('/oauth/google/callback', async (req: Request, res: Response) => {
       return res.redirect(`${frontendUrl}/login?error=token_exchange_failed`);
     }
 
-    const tokenData = await tokenResponse.json() as { access_token: string; token_type: string; expires_in: number };
+    const tokenData = (await tokenResponse.json()) as {
+      access_token: string;
+      token_type: string;
+      expires_in: number;
+    };
 
     // Get user info from Google
     const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
@@ -604,7 +696,12 @@ router.get('/oauth/google/callback', async (req: Request, res: Response) => {
       return res.redirect(`${frontendUrl}/login?error=userinfo_failed`);
     }
 
-    const googleUser = await userInfoResponse.json() as { id: string; email: string; name?: string; picture?: string };
+    const googleUser = (await userInfoResponse.json()) as {
+      id: string;
+      email: string;
+      name?: string;
+      picture?: string;
+    };
     const { id: googleId, email, name, picture } = googleUser;
 
     if (!email) {
@@ -629,7 +726,9 @@ router.get('/oauth/google/callback', async (req: Request, res: Response) => {
       if (mode === 'login') {
         // Login mode - require existing account
         logger.warn(`Google OAuth login attempted for non-existent user: ${email}`);
-        return res.redirect(`${frontendUrl}/?error=no_account&message=Please create an account first before linking Google`);
+        return res.redirect(
+          `${frontendUrl}/?error=no_account&message=Please create an account first before linking Google`
+        );
       }
 
       // Signup mode - create new account
@@ -662,7 +761,8 @@ router.get('/oauth/google/callback', async (req: Request, res: Response) => {
     const tokens = generateTokens(user!.id);
 
     // Redirect to frontend with tokens (use root path, frontend handles tokens)
-    const redirectUrl = `${frontendUrl}/?` +
+    const redirectUrl =
+      `${frontendUrl}/?` +
       `access_token=${tokens.accessToken}&` +
       `refresh_token=${tokens.refreshToken}`;
 
