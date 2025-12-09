@@ -182,12 +182,8 @@ router.put('/:id', async (req: Request, res: Response) => {
         const { id } = req.params;
         const updates = req.body;
 
-        if (DEV_MODE) {
-            return res.json({
-                id,
-                ...updates,
-                updatedAt: new Date().toISOString(),
-            });
+        if (!prisma) {
+            return res.status(503).json({ error: 'Database not available' });
         }
 
         // Verify will belongs to user
@@ -226,8 +222,8 @@ router.delete('/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
 
-        if (DEV_MODE) {
-            return res.json({ message: 'Will deleted successfully' });
+        if (!prisma) {
+            return res.status(503).json({ error: 'Database not available' });
         }
 
         const will = await prisma.smartWill.findFirst({
@@ -257,16 +253,9 @@ router.delete('/:id', async (req: Request, res: Response) => {
 router.post('/:id/publish', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { signature, chainId } = req.body;
 
-        if (DEV_MODE) {
-            return res.json({
-                id,
-                status: 'published',
-                onChainId: `0x${crypto.randomBytes(32).toString('hex')}`,
-                transactionHash: `0x${crypto.randomBytes(32).toString('hex')}`,
-                publishedAt: new Date().toISOString(),
-            });
+        if (!prisma) {
+            return res.status(503).json({ error: 'Database not available' });
         }
 
         const will = await prisma.smartWill.findFirst({
@@ -312,12 +301,8 @@ router.post('/:id/revoke', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
 
-        if (DEV_MODE) {
-            return res.json({
-                id,
-                status: 'revoked',
-                revokedAt: new Date().toISOString(),
-            });
+        if (!prisma) {
+            return res.status(503).json({ error: 'Database not available' });
         }
 
         const will = await prisma.smartWill.findFirst({
@@ -365,16 +350,8 @@ router.post('/:id/beneficiaries', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Name and wallet address required' });
         }
 
-        if (DEV_MODE) {
-            return res.json({
-                id: `ben-${Date.now()}`,
-                willId: id,
-                name,
-                wallet,
-                allocation: allocation || 0,
-                relationship: relationship || 'Other',
-                conditions: conditions || [],
-            });
+        if (!prisma) {
+            return res.status(503).json({ error: 'Database not available' });
         }
 
         const will = await prisma.smartWill.findFirst({
@@ -412,8 +389,8 @@ router.delete('/:id/beneficiaries/:beneficiaryId', async (req: Request, res: Res
     try {
         const { id, beneficiaryId } = req.params;
 
-        if (DEV_MODE) {
-            return res.json({ message: 'Beneficiary removed' });
+        if (!prisma) {
+            return res.status(503).json({ error: 'Database not available' });
         }
 
         const will = await prisma.smartWill.findFirst({
@@ -451,14 +428,8 @@ router.post('/:id/guardians', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Name and wallet address required' });
         }
 
-        if (DEV_MODE) {
-            return res.json({
-                id: `guard-${Date.now()}`,
-                willId: id,
-                name,
-                wallet,
-                role: role || 'trustee',
-            });
+        if (!prisma) {
+            return res.status(503).json({ error: 'Database not available' });
         }
 
         const will = await prisma.smartWill.findFirst({
@@ -497,15 +468,8 @@ router.post('/:id/conditions', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Condition type and value required' });
         }
 
-        if (DEV_MODE) {
-            return res.json({
-                id: `cond-${Date.now()}`,
-                willId: id,
-                type,
-                value,
-                description: description || '',
-                beneficiaryId,
-            });
+        if (!prisma) {
+            return res.status(503).json({ error: 'Database not available' });
         }
 
         const will = await prisma.smartWill.findFirst({
@@ -591,14 +555,8 @@ router.post('/:id/export', async (req: Request, res: Response) => {
         const { id } = req.params;
         const { format } = req.body; // 'json', 'pdf', 'ipfs'
 
-        if (DEV_MODE) {
-            return res.json({
-                id,
-                format: format || 'json',
-                exportedAt: new Date().toISOString(),
-                downloadUrl: `/api/will/${id}/download`,
-                ipfsHash: format === 'ipfs' ? `Qm${crypto.randomBytes(22).toString('hex')}` : null,
-            });
+        if (!prisma) {
+            return res.status(503).json({ error: 'Database not available' });
         }
 
         const will = await prisma.smartWill.findFirst({
