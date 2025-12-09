@@ -44,7 +44,7 @@
     "helmet": "^7.1.0",
     "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.2",
-    "nodemailer": "^7.0.10",
+    "nodemailer": "^7.0.11",
     "pg": "^8.11.3",
     "redis": "^4.6.10",
     "resend": "^6.5.2",
