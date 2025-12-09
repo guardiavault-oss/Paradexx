@@ -26,10 +26,14 @@ const PREMIUM_PRICING: Record<PremiumFeatureId, { price: number; name: string; d
 // Complete bundle pricing (40% discount)
 const COMPLETE_BUNDLE_PRICE = 34900; // $349
 
-// Initialize Stripe (use env variable in production)
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
+// Initialize Stripe - requires STRIPE_SECRET_KEY env variable
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+if (!stripeSecretKey) {
+    logger.warn('STRIPE_SECRET_KEY not configured - premium features will not work');
+}
+const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, {
     apiVersion: '2023-10-16',
-});
+}) : null;
 
 // GET /api/premium/features - List all premium features and prices
 router.get('/features', async (req: Request, res: Response) => {
@@ -85,6 +89,10 @@ router.get('/unlocked', authenticateToken, async (req: Request, res: Response) =
 // POST /api/premium/checkout - Create Stripe checkout session for feature unlock
 router.post('/checkout', authenticateToken, async (req: Request, res: Response) => {
     try {
+        if (!stripe) {
+            return res.status(503).json({ error: 'Payment service not configured' });
+        }
+
         const userId = (req as any).userId;
         const { featureId, isBundle } = req.body;
 
@@ -161,7 +169,7 @@ router.post('/webhook', async (req: Request, res: Response) => {
     try {
         let event: Stripe.Event;
 
-        if (webhookSecret) {
+        if (webhookSecret && stripe) {
             event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
         } else {
             // Dev mode - parse body directly
