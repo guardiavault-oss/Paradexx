@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { getThemeStyles } from '../design-system';
 import { X, Bell, CheckCircle, AlertTriangle, Info, Zap, TrendingUp, Shield } from 'lucide-react';
@@ -17,36 +17,39 @@ interface NotificationCenterProps {
   onClose: () => void;
 }
 
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'success',
-    title: 'Transaction Confirmed',
-    message: 'Your swap of 1.0 ETH → 3,600 USDC was successful',
-    timestamp: new Date(Date.now() - 1000 * 60 * 5),
-    read: false,
-  },
-  {
-    id: '2',
-    type: 'warning',
-    title: 'High Gas Alert',
-    message: 'Network gas prices are elevated (45 Gwei)',
-    timestamp: new Date(Date.now() - 1000 * 60 * 30),
-    read: false,
-  },
-  {
-    id: '3',
-    type: 'info',
-    title: 'New Feature Available',
-    message: 'Transaction simulator is now live in Wallet Guard',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    read: true,
-  },
-];
+const API_URL = import.meta.env.VITE_API_URL || 'https://paradexx-production.up.railway.app';
 
 export function NotificationCenter({ type, onClose }: NotificationCenterProps) {
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
   const isDegen = type === 'degen';
   const accentColor = isDegen ? '#DC143C' : '#0080FF';
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const token = localStorage.getItem('accessToken');
+        const response = await fetch(`${API_URL}/api/notifications`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setNotifications(data.notifications?.map((n: any) => ({
+            ...n,
+            timestamp: new Date(n.timestamp),
+          })) || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch notifications:', error);
+        // Show empty state on error
+        setNotifications([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNotifications();
+  }, []);
 
   const getIcon = (notifType: Notification['type']) => {
     switch (notifType) {
@@ -97,7 +100,11 @@ export function NotificationCenter({ type, onClose }: NotificationCenterProps) {
 
       {/* Notifications List */}
       <div className="max-h-[500px] overflow-y-auto">
-        {mockNotifications.length === 0 ? (
+        {loading ? (
+          <div className="p-12 text-center">
+            <div className="w-8 h-8 mx-auto border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: accentColor }} />
+          </div>
+        ) : notifications.length === 0 ? (
           <div className="p-12 text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
               <Bell className="w-8 h-8 text-[var(--text-primary)]/20" />
@@ -106,7 +113,7 @@ export function NotificationCenter({ type, onClose }: NotificationCenterProps) {
           </div>
         ) : (
           <div className="divide-y divide-white/5">
-            {mockNotifications.map((notification) => (
+            {notifications.map((notification) => (
               <motion.div
                 key={notification.id}
                 initial={{ opacity: 0, x: -10 }}
@@ -137,7 +144,7 @@ export function NotificationCenter({ type, onClose }: NotificationCenterProps) {
       </div>
 
       {/* Footer */}
-      {mockNotifications.length > 0 && (
+      {notifications.length > 0 && (
         <div className="p-3 border-t border-[var(--border-neutral)]/10">
           <button
             className="w-full text-center text-xs font-bold uppercase tracking-wider hover:text-[var(--text-primary)] transition-colors"

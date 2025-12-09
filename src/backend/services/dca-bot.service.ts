@@ -11,6 +11,24 @@
 
 import { EventEmitter } from 'events';
 import { logger } from '../services/logger.service';
+import axios from 'axios';
+
+// Token symbol to CoinGecko ID mapping
+const COINGECKO_IDS: Record<string, string> = {
+    'ETH': 'ethereum',
+    'WETH': 'weth',
+    'BTC': 'bitcoin',
+    'WBTC': 'wrapped-bitcoin',
+    'USDC': 'usd-coin',
+    'USDT': 'tether',
+    'DAI': 'dai',
+    'LINK': 'chainlink',
+    'UNI': 'uniswap',
+    'AAVE': 'aave',
+    'MATIC': 'matic-network',
+    'ARB': 'arbitrum',
+    'OP': 'optimism',
+};
 
 type DCAFrequency = 'hourly' | 'every_4h' | 'daily' | 'weekly' | 'biweekly' | 'monthly';
 type DCAStatus = 'active' | 'paused' | 'completed' | 'cancelled';
@@ -399,11 +417,26 @@ class DCABotService extends EventEmitter {
         );
         const averageCost = totalInvested / totalTokens;
 
-        // Mock current price
-        const currentPrice = 1150; // Would fetch actual
+        // Fetch current price from CoinGecko
+        let currentPrice = averageCost; // Default to average cost if fetch fails
+        const tokenId = COINGECKO_IDS[plan.tokenSymbol.toUpperCase()];
+        if (tokenId) {
+            try {
+                const response = await axios.get(
+                    `https://api.coingecko.com/api/v3/simple/price?ids=${tokenId}&vs_currencies=usd`,
+                    { timeout: 5000 }
+                );
+                if (response.data[tokenId]?.usd) {
+                    currentPrice = response.data[tokenId].usd;
+                }
+            } catch (error) {
+                logger.debug('Failed to fetch current price for DCA stats, using average cost:', error);
+            }
+        }
+
         const currentValue = totalTokens * currentPrice;
         const pnl = currentValue - totalInvested;
-        const pnlPercent = (pnl / totalInvested) * 100;
+        const pnlPercent = totalInvested > 0 ? (pnl / totalInvested) * 100 : 0;
 
         return {
             totalInvested: `$${totalInvested.toFixed(2)}`,

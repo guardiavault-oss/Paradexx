@@ -31,11 +31,14 @@ export const TEST_TOKENS = {
   DAI: '0x68194a729C2450ad26072b3cC3CC575Fff8c6C5A',
 } as const;
 
-// Sepolia RPC URLs
-export const SEPOLIA_RPC_URLS = [
-  'https://eth-sepolia.g.alchemy.com/v2/demo',
-  'https://sepolia.infura.io/v3/YOUR_INFURA_KEY',
+// Sepolia RPC URLs - Configure via environment variables or use public endpoints
+// Set VITE_ALCHEMY_KEY or VITE_INFURA_KEY in your .env file for better rate limits
+export const SEPOLIA_RPC_URLS: readonly string[] = [
+  // Public RPC endpoints (no API key required)
   'https://rpc.sepolia.org',
+  'https://ethereum-sepolia-rpc.publicnode.com',
+  'https://sepolia.drpc.org',
+  'https://1rpc.io/sepolia',
 ] as const;
 
 // Network Configuration

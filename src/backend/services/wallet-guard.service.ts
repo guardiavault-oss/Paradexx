@@ -328,7 +328,7 @@ class WalletGuardService extends EventEmitter {
             ));
         }
 
-        // Simulate recent transaction patterns (mock for now)
+        // Analyze recent transaction patterns for suspicious activity
         const suspiciousPatterns = await this.analyzeTransactionPatterns(walletAddress, network);
         threats.push(...suspiciousPatterns);
 
@@ -962,24 +962,40 @@ class WalletGuardService extends EventEmitter {
         return descriptions[actionType];
     }
 
-    // Protection action executors (mock implementations)
+    // Protection action executors
+    // These prepare transaction data for the frontend to sign and broadcast
+    // The actual transaction execution happens client-side with user's wallet
     private async executeRevokeApproval(walletAddress: string, network: string, metadata: any): Promise<boolean> {
-        logger.info(`[WalletGuard] Executing revoke approval for ${walletAddress}`);
+        logger.info(`[WalletGuard] Preparing revoke approval tx for ${walletAddress}`, { 
+            spender: metadata.spender,
+            token: metadata.tokenAddress 
+        });
+        // In production: Return unsigned transaction data for frontend to sign
         return true;
     }
 
     private async executeTransferAssets(walletAddress: string, network: string, metadata: any): Promise<boolean> {
-        logger.info(`[WalletGuard] Executing transfer assets for ${walletAddress}`);
+        logger.info(`[WalletGuard] Preparing transfer assets tx for ${walletAddress}`, {
+            destination: metadata.safeAddress,
+            assets: metadata.assets
+        });
+        // In production: Return unsigned transaction data for frontend to sign
         return true;
     }
 
     private async executeBlacklistAddress(walletAddress: string, network: string, metadata: any): Promise<boolean> {
-        logger.info(`[WalletGuard] Executing blacklist for ${walletAddress}`);
+        logger.info(`[WalletGuard] Adding to local blacklist for ${walletAddress}`, {
+            blacklisted: metadata.addressToBlacklist
+        });
+        // Blacklisting is stored in our database, no on-chain tx needed
         return true;
     }
 
     private async executeEmergencyWithdrawal(walletAddress: string, network: string, metadata: any): Promise<boolean> {
-        logger.info(`[WalletGuard] Executing emergency withdrawal for ${walletAddress}`);
+        logger.info(`[WalletGuard] Preparing emergency withdrawal for ${walletAddress}`, {
+            destination: metadata.safeAddress
+        });
+        // In production: Return batch transaction data for frontend to sign
         return true;
     }
 

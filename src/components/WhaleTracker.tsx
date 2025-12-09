@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Wallet,
@@ -56,70 +56,7 @@ const WHALE_LABELS: Record<string, { label: string; color: string; icon: React.R
   whale: { label: "Whale", color: "#f59e0b", icon: <DollarSign className="w-3 h-3" /> },
 };
 
-const mockWhaleAlerts: WhaleAlert[] = [
-  {
-    id: "1",
-    whaleAddress: "0x742d35Cc6634C0532925a3b844Bc9e7595f8f3a",
-    whaleName: "Smart Money #1",
-    action: "buy",
-    tokenSymbol: "PEPE",
-    amount: "1000000000",
-    valueUsd: "450000",
-    significance: "massive",
-    timestamp: Date.now() - 300000,
-  },
-  {
-    id: "2",
-    whaleAddress: "0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE",
-    whaleName: "Institutional Whale",
-    action: "buy",
-    tokenSymbol: "ETH",
-    amount: "250",
-    valueUsd: "850000",
-    significance: "major",
-    timestamp: Date.now() - 600000,
-  },
-  {
-    id: "3",
-    whaleAddress: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-    action: "sell",
-    tokenSymbol: "UNI",
-    amount: "50000",
-    valueUsd: "125000",
-    significance: "notable",
-    timestamp: Date.now() - 900000,
-  },
-];
-
-const mockKnownWhales: KnownWhale[] = [
-  {
-    address: "0x742d35Cc6634C0532925a3b844Bc9e7595f8f3a",
-    name: "Smart Money #1",
-    label: "smart_money",
-    winRate: 85,
-    totalPnL: "2450000",
-    totalTrades: 142,
-    followers: 3429,
-  },
-  {
-    address: "0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE",
-    name: "Top Degen Trader",
-    label: "top_trader",
-    winRate: 78,
-    totalPnL: "1850000",
-    totalTrades: 289,
-    followers: 2156,
-  },
-  {
-    address: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-    name: "Institutional Fund",
-    label: "institutional",
-    winRate: 72,
-    totalPnL: "5200000",
-    totalTrades: 95,
-    followers: 4892,
-  },
-];
+const API_URL = import.meta.env.VITE_API_URL || 'https://paradexx-production.up.railway.app';
 
 const formatAddress = (address: string): string => {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -148,14 +85,55 @@ export function WhaleTracker({ isOpen, onClose, type }: WhaleTrackerProps) {
   const isDegen = type === "degen";
   const primaryColor = isDegen ? "#DC143C" : "#0080FF";
   
-  const [whaleAlerts] = useState<WhaleAlert[]>(mockWhaleAlerts);
-  const [knownWhales] = useState<KnownWhale[]>(mockKnownWhales);
+  const [whaleAlerts, setWhaleAlerts] = useState<WhaleAlert[]>([]);
+  const [knownWhales, setKnownWhales] = useState<KnownWhale[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<"activity" | "whales">("activity");
+  const [loading, setLoading] = useState(true);
 
-  const handleRefresh = () => {
+  // Fetch whale data from API
+  useEffect(() => {
+    const fetchWhaleData = async () => {
+      try {
+        const [alertsRes, whalesRes] = await Promise.all([
+          fetch(`${API_URL}/api/whale-tracker/alerts`),
+          fetch(`${API_URL}/api/whale-tracker/known-whales`)
+        ]);
+        
+        if (alertsRes.ok) {
+          const alertsData = await alertsRes.json();
+          setWhaleAlerts(alertsData.alerts || []);
+        }
+        
+        if (whalesRes.ok) {
+          const whalesData = await whalesRes.json();
+          setKnownWhales(whalesData.whales || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch whale data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchWhaleData();
+    }
+  }, [isOpen]);
+
+  const handleRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
+    try {
+      const response = await fetch(`${API_URL}/api/whale-tracker/alerts`);
+      if (response.ok) {
+        const data = await response.json();
+        setWhaleAlerts(data.alerts || []);
+      }
+    } catch (error) {
+      console.error('Failed to refresh whale alerts:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const getSignificanceColor = (significance: string): string => {
