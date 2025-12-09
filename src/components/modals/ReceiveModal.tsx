@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { X, Download, Copy, QrCode, CheckCircle2 } from 'lucide-react';
 import { copyToClipboard } from '../../utils/clipboard';
+import { useWalletData } from '../../contexts/WalletDataContext';
 
 interface ReceiveModalProps {
   type: 'degen' | 'regen';
@@ -15,8 +16,9 @@ export function ReceiveModal({ type, onClose }: ReceiveModalProps) {
   const isDegen = type === 'degen';
   const accentColor = isDegen ? '#DC143C' : '#0080FF';
 
-  // Mock wallet address
-  const walletAddress = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb';
+  // Get real wallet address from context
+  const { walletData } = useWalletData();
+  const walletAddress = walletData?.address || '0x...Connect Wallet';
 
   const handleCopy = async () => {
     const success = await copyToClipboard(walletAddress);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getThemeStyles } from '../../design-system';
 import {
@@ -14,6 +14,7 @@ import {
   Star,
   User,
 } from 'lucide-react';
+import { useTokenPrices } from '../../hooks/useMarketData';
 
 interface SendModalProps {
   type: 'degen' | 'regen';
@@ -40,6 +41,10 @@ export function SendModal({ type, onClose }: SendModalProps) {
   });
   const [showTokenSelect, setShowTokenSelect] = useState(false);
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+
+  // Fetch real ETH price from API
+  const { prices } = useTokenPrices(['ETH']);
+  const ethPrice = useMemo(() => prices?.ETH?.price || 2500, [prices]);
 
   // Address book state
   const [contacts, setContacts] = useState<Contact[]>([
@@ -110,7 +115,8 @@ export function SendModal({ type, onClose }: SendModalProps) {
     ));
   };
 
-  const usdValue = parseFloat(amount || '0') * 2500; // Mock ETH price
+  // Calculate USD value using real price (falls back to 2500 if price unavailable)
+  const usdValue = parseFloat(amount || '0') * (selectedToken.symbol === 'ETH' ? ethPrice : 1);
 
   const favoriteContacts = contacts.filter((c: Contact) => c.isFavorite);
   const regularContacts = contacts.filter((c: Contact) => !c.isFavorite);
