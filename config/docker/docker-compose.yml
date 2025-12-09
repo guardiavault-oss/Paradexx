@@ -1,0 +1,197 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: degenx-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: degenx
+      POSTGRES_USER: degenx_user
+      POSTGRES_PASSWORD: degenx_secure_password_2024
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - degenx-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U degenx_user -d degenx"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and sessions
+  redis:
+    image: redis:7-alpine
+    container_name: degenx-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - degenx-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API Server
+  backend:
+    build:
+      context: ./src/backend
+      dockerfile: Dockerfile
+    container_name: degenx-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://degenx_user:degenx_secure_password_2024@postgres:5432/degenx
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: degenx_jwt_secret_key_production_2024_secure
+      JWT_REFRESH_SECRET: degenx_refresh_secret_key_production_2024_secure
+      FRONTEND_URL: http://localhost:3000
+      BACKEND_URL: http://localhost:3001
+      # Web3 Provider Keys
+      ALCHEMY_API_KEY: ${ALCHEMY_API_KEY}
+      INFURA_API_KEY: ${INFURA_API_KEY}
+      ETHERSCAN_API_KEY: ${ETHERSCAN_API_KEY}
+      MORALIS_API_KEY: ${MORALIS_API_KEY}
+      # Email Service
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL}
+      # AI Services
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./src/backend:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - degenx-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Cross-Chain Bridge Security Service
+  bridge-security-service:
+    build:
+      context: ./crosschain service
+      dockerfile: Dockerfile
+    container_name: degenx-bridge-security
+    restart: unless-stopped
+    environment:
+      PORT: 8000
+      LOG_LEVEL: INFO
+      DATABASE_URL: postgresql://degenx_user:degenx_secure_password_2024@postgres:5432/bridge_service
+      REDIS_URL: redis://redis:6379/1
+      API_GATEWAY_URL: http://localhost:8000
+      # Web3 Provider Keys
+      ALCHEMY_API_KEY: ${ALCHEMY_API_KEY}
+      INFURA_API_KEY: ${INFURA_API_KEY}
+      ETHERSCAN_API_KEY: ${ETHERSCAN_API_KEY}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./crosschain service:/app
+      - bridge_security_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - degenx-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend Application
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: degenx-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:3001
+      VITE_WS_URL: ws://localhost:3001
+      VITE_BRIDGE_SECURITY_SERVICE_URL: http://localhost:8000/api/v1
+      VITE_ALCHEMY_API_KEY: ${ALCHEMY_API_KEY}
+      VITE_INFURA_API_KEY: ${INFURA_API_KEY}
+      VITE_STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY}
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+      - bridge-security-service
+    networks:
+      - degenx-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Database Admin (pgAdmin)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: degenx-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@degenx.com
+      PGADMIN_DEFAULT_PASSWORD: degenx_admin_2024
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - degenx-network
+
+  # Redis Admin (Redis Commander)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: degenx-redis-commander
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - degenx-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+  bridge_security_data:
+    driver: local
+
+networks:
+  degenx-network:
+    driver: bridge
