@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { getThemeStyles } from "../design-system";
 import {
@@ -30,19 +30,11 @@ import {
   Eye,
 } from "lucide-react";
 import { SmartWillBuilder } from "./SmartWillBuilder";
+import { useBeneficiaries, useCheckIn, useInheritanceConfig, useGuardians } from "../hooks/useInheritance";
 
 interface GuardianXProps {
   type: "degen" | "regen";
   onClose: () => void;
-}
-
-interface Beneficiary {
-  id: string;
-  name: string;
-  address: string;
-  allocation: number;
-  relationship: string;
-  status: "active" | "pending";
 }
 
 interface LegacyMessage {
@@ -76,68 +68,39 @@ export function GuardianX({ type, onClose }: GuardianXProps) {
       : "0 0 20px rgba(0, 128, 255, 0.3)",
   };
 
-  // Mock data
-  const beneficiaries: Beneficiary[] = [
-    {
-      id: "1",
-      name: "Emma Wilson",
-      address: "0x3c4d...7e8f",
-      allocation: 40,
-      relationship: "Daughter",
-      status: "active",
-    },
-    {
-      id: "2",
-      name: "James Taylor",
-      address: "0x8f2a...3c5d",
-      allocation: 35,
-      relationship: "Son",
-      status: "active",
-    },
-    {
-      id: "3",
-      name: "Charity Foundation",
-      address: "0x1a9b...6f4e",
-      allocation: 25,
-      relationship: "Organization",
-      status: "active",
-    },
-  ];
+  // Real API data from inheritance hooks
+  const { beneficiaries: apiBeneficiaries, loading: beneficiariesLoading } = useBeneficiaries();
+  const { config, loading: configLoading } = useInheritanceConfig();
+  const { guardians, loading: guardiansLoading } = useGuardians();
+  const { checkIn, loading: checkInLoading, lastCheckIn: apiLastCheckIn } = useCheckIn();
 
-  const messages: LegacyMessage[] = [
-    {
-      id: "1",
-      recipient: "Emma Wilson",
-      type: "video",
-      status: "encrypted",
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 14),
-      preview: "Personal message about family values...",
-    },
-    {
-      id: "2",
-      recipient: "James Taylor",
-      type: "text",
-      status: "encrypted",
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7),
-      preview: "Guidance for the future...",
-    },
-    {
-      id: "3",
-      recipient: "All Beneficiaries",
-      type: "text",
-      status: "encrypted",
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3),
-      preview: "Final wishes and instructions...",
-    },
-  ];
+  // Map API beneficiaries to component format
+  const beneficiaries = useMemo(() => {
+    if (!apiBeneficiaries || apiBeneficiaries.length === 0) return [];
+    return apiBeneficiaries.map((b, index) => ({
+      id: b.id || `beneficiary-${index}`,
+      name: b.name,
+      address: b.walletAddress ? `${b.walletAddress.slice(0, 6)}...${b.walletAddress.slice(-4)}` : '',
+      allocation: b.allocation || 0,
+      relationship: b.relationship || 'Other',
+      status: b.status as 'active' | 'pending',
+    }));
+  }, [apiBeneficiaries]);
 
+  // Legacy messages - would come from API in production
+  const messages: LegacyMessage[] = [];
+
+  // Vault stats from config
   const vaultStats = {
-    timelockDays: 30,
-    lastCheckIn: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3),
-    checkInStreak: 7,
-    vaultBalance: "12.4567",
-    vaultHealth: 85,
+    timelockDays: config?.timelockDays || 30,
+    lastCheckIn: apiLastCheckIn ? new Date(apiLastCheckIn) : new Date(),
+    checkInStreak: 0,
+    vaultBalance: "0",
+    vaultHealth: config ? 85 : 0,
   };
+
+  // Loading state
+  const isLoading = beneficiariesLoading || configLoading || guardiansLoading;
 
   const formatTimeAgo = (date: Date) => {
     const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -150,9 +113,13 @@ export function GuardianX({ type, onClose }: GuardianXProps) {
     return `${days}d ago`;
   };
 
-  const handleCheckIn = () => {
+  const handleCheckIn = async () => {
     setShowCheckInModal(true);
-    // Simulate check-in
+    try {
+      await checkIn();
+    } catch (err) {
+      console.error('Check-in failed:', err);
+    }
     setTimeout(() => setShowCheckInModal(false), 2000);
   };
 
