@@ -6,25 +6,14 @@ import {
   Search, Filter, ChevronDown, ArrowUpRight, Package,
   Wallet, RefreshCw
 } from 'lucide-react';
-
-interface TokenHolding {
-  id: string;
-  symbol: string;
-  name: string;
-  icon: string;
-  balance: string;
-  value: number;
-  price: number;
-  change24h: number;
-  allocation: number;
-  favorite?: boolean;
-}
+import { usePortfolioHoldings } from '../hooks/usePortfolioHoldings';
 
 interface PortfolioProps {
   type?: 'degen' | 'regen';
+  walletAddress?: string;
 }
 
-const Portfolio: React.FC<PortfolioProps> = ({ type = 'degen' }) => {
+const Portfolio: React.FC<PortfolioProps> = ({ type = 'degen', walletAddress }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'value' | 'change' | 'name'>('value');
   const [filterFavorites, setFilterFavorites] = useState(false);
@@ -37,76 +26,8 @@ const Portfolio: React.FC<PortfolioProps> = ({ type = 'degen' }) => {
     ? '0 0 40px rgba(255, 51, 102, 0.4)'
     : '0 0 40px rgba(0, 212, 255, 0.4)';
 
-  const holdings: TokenHolding[] = [
-    {
-      id: '1',
-      symbol: 'ETH',
-      name: 'Ethereum',
-      icon: '🔷',
-      balance: '2.5',
-      value: 4125.00,
-      price: 1650.00,
-      change24h: 5.2,
-      allocation: 33.4,
-      favorite: true
-    },
-    {
-      id: '2',
-      symbol: 'BTC',
-      name: 'Bitcoin',
-      icon: '₿',
-      balance: '0.05',
-      value: 2150.00,
-      price: 43000.00,
-      change24h: -2.1,
-      allocation: 17.4
-    },
-    {
-      id: '3',
-      symbol: 'USDC',
-      name: 'USD Coin',
-      icon: '💵',
-      balance: '3,000',
-      value: 3000.00,
-      price: 1.00,
-      change24h: 0,
-      allocation: 24.3
-    },
-    {
-      id: '4',
-      symbol: 'SOL',
-      name: 'Solana',
-      icon: '☀️',
-      balance: '45',
-      value: 1350.00,
-      price: 30.00,
-      change24h: 8.7,
-      allocation: 10.9,
-      favorite: true
-    },
-    {
-      id: '5',
-      symbol: 'MATIC',
-      name: 'Polygon',
-      icon: '🔮',
-      balance: '1,250',
-      value: 875.00,
-      price: 0.70,
-      change24h: 3.4,
-      allocation: 7.1
-    },
-    {
-      id: '6',
-      symbol: 'LINK',
-      name: 'Chainlink',
-      icon: '🔗',
-      balance: '42',
-      value: 630.00,
-      price: 15.00,
-      change24h: -1.2,
-      allocation: 5.1
-    },
-  ];
+  // Use real API hook for portfolio holdings
+  const { holdings, summary, loading, refresh, toggleFavorite } = usePortfolioHoldings(walletAddress);
 
   const filteredHoldings = holdings
     .filter(token => !filterFavorites || token.favorite)
@@ -120,8 +41,8 @@ const Portfolio: React.FC<PortfolioProps> = ({ type = 'degen' }) => {
       return a.name.localeCompare(b.name);
     });
 
-  const totalValue = holdings.reduce((acc, token) => acc + token.value, 0);
-  const totalChange = 3.2;
+  const totalValue = summary.totalValue;
+  const totalChange = summary.totalChangePercent;
 
   const chartColors = [
     accentColor,

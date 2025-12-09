@@ -12,31 +12,25 @@ import {
   TrendingDown,
   Sparkles,
   Filter,
+  RefreshCw,
 } from "lucide-react";
-
-interface NFT {
-  id: string;
-  name: string;
-  collection: string;
-  image: string;
-  price: string;
-  priceUSD: string;
-  rarity: "Common" | "Rare" | "Epic" | "Legendary";
-  change24h: number;
-  floorPrice: string;
-}
+import { useNFTGallery, type NFT } from "../hooks/useNFTGallery";
 
 interface NFTGalleryProps {
   type: "degen" | "regen";
   onClose: () => void;
+  walletAddress?: string;
 }
 
-export function NFTGallery({ type, onClose }: NFTGalleryProps) {
+export function NFTGallery({ type, onClose, walletAddress }: NFTGalleryProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedNFT, setSelectedNFT] = useState<NFT | null>(null);
   const [filter, setFilter] = useState<"all" | "rare" | "legendary">("all");
 
   const isDegen = type === "degen";
+
+  // Use real API hook for NFT gallery
+  const { nfts, loading, refresh, totalValue: calculatedTotal, totalCount } = useNFTGallery(walletAddress);
 
   // Color system based on tribe
   const colors = {
@@ -51,75 +45,6 @@ export function NFTGallery({ type, onClose }: NFTGalleryProps) {
       : `0 0 20px ${getThemeStyles().colors.regenGlow}, 0 0 40px ${getThemeStyles().colors.regenGlowSecondary}`,
   };
 
-  const nfts: NFT[] = [
-    {
-      id: "1",
-      name: "Cyber Genesis #1234",
-      collection: "Cyber Genesis",
-      image: "https://images.unsplash.com/photo-1654183818269-22495f928eb1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-      price: "45.2 ETH",
-      priceUSD: "$142,500",
-      rarity: "Legendary",
-      change24h: 15.4,
-      floorPrice: "42.0 ETH",
-    },
-    {
-      id: "2",
-      name: "Abstract Dreams #5678",
-      collection: "Digital Dreams",
-      image: "https://images.unsplash.com/photo-1633098096956-afdc8bcc8552?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-      price: "12.8 ETH",
-      priceUSD: "$40,320",
-      rarity: "Epic",
-      change24h: -3.2,
-      floorPrice: "11.5 ETH",
-    },
-    {
-      id: "3",
-      name: "Neon City #9012",
-      collection: "Cyberpunk Collection",
-      image: "https://images.unsplash.com/photo-1625768539077-3a2bcb75f8e0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-      price: "8.5 ETH",
-      priceUSD: "$26,775",
-      rarity: "Rare",
-      change24h: 8.7,
-      floorPrice: "7.8 ETH",
-    },
-    {
-      id: "4",
-      name: "Geometric Chaos #3456",
-      collection: "Geometry Art",
-      image: "https://images.unsplash.com/photo-1572756317709-fe9c15ced298?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-      price: "3.2 ETH",
-      priceUSD: "$10,080",
-      rarity: "Common",
-      change24h: 2.1,
-      floorPrice: "3.0 ETH",
-    },
-    {
-      id: "5",
-      name: "Neon Waves #7890",
-      collection: "Abstract Neon",
-      image: "https://images.unsplash.com/photo-1626908013351-800ddd734b8a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-      price: "22.0 ETH",
-      priceUSD: "$69,300",
-      rarity: "Epic",
-      change24h: 12.3,
-      floorPrice: "20.5 ETH",
-    },
-    {
-      id: "6",
-      name: "Future Vision #2468",
-      collection: "Futuristic Art",
-      image: "https://images.unsplash.com/photo-1684355277143-69c991fa052a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-      price: "67.5 ETH",
-      priceUSD: "$212,625",
-      rarity: "Legendary",
-      change24h: 24.6,
-      floorPrice: "65.0 ETH",
-    },
-  ];
-
   const filteredNFTs = nfts.filter((nft) => {
     if (filter === "all") return true;
     if (filter === "rare") return nft.rarity === "Rare" || nft.rarity === "Epic";
@@ -128,11 +53,16 @@ export function NFTGallery({ type, onClose }: NFTGalleryProps) {
   });
 
   const totalValue = nfts.reduce((sum, nft) => {
-    const ethValue = parseFloat(nft.price.replace(" ETH", ""));
-    return sum + ethValue;
+    if (nft.price) {
+      const ethValue = Number.parseFloat(nft.price.replaceAll(" ETH", "").replaceAll(",", ""));
+      return sum + (Number.isNaN(ethValue) ? 0 : ethValue);
+    }
+    return sum;
   }, 0);
 
-  const avgChange = nfts.reduce((sum, nft) => sum + nft.change24h, 0) / nfts.length;
+  const avgChange = nfts.length > 0 
+    ? nfts.reduce((sum, nft) => sum + (nft.change24h || 0), 0) / nfts.length
+    : 0;
 
   const getRarityColor = (rarity: string) => {
     switch (rarity) {

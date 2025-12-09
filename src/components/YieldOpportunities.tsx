@@ -13,87 +13,15 @@ import {
   Sparkles,
   Lock,
   Zap,
+  RefreshCw,
 } from "lucide-react";
-
-interface YieldOpportunity {
-  id: string;
-  protocol: string;
-  chain: string;
-  asset: string;
-  apy: string;
-  tvl: string;
-  riskLevel: "low" | "medium" | "high";
-  strategy: string;
-}
+import { useYieldOpportunities } from "../hooks/useYieldOpportunities";
 
 interface YieldOpportunitiesProps {
   isOpen: boolean;
   onClose: () => void;
   type: "degen" | "regen";
 }
-
-const opportunities: YieldOpportunity[] = [
-  {
-    id: "1",
-    protocol: "Aave V3",
-    chain: "Arbitrum",
-    asset: "USDC",
-    apy: "4.8%",
-    tvl: "$450M",
-    riskLevel: "low",
-    strategy: "Lending",
-  },
-  {
-    id: "2",
-    protocol: "Curve",
-    chain: "Ethereum",
-    asset: "ETH",
-    apy: "6.2%",
-    tvl: "$1.2B",
-    riskLevel: "low",
-    strategy: "Liquidity Provision",
-  },
-  {
-    id: "3",
-    protocol: "Lido",
-    chain: "Ethereum",
-    asset: "stETH",
-    apy: "3.5%",
-    tvl: "$14.2B",
-    riskLevel: "low",
-    strategy: "ETH Staking",
-  },
-  {
-    id: "4",
-    protocol: "GMX",
-    chain: "Arbitrum",
-    asset: "USDC",
-    apy: "14.5%",
-    tvl: "$280M",
-    riskLevel: "medium",
-    strategy: "GLP Staking",
-  },
-  {
-    id: "5",
-    protocol: "Yearn Finance",
-    chain: "Optimism",
-    asset: "USDT",
-    apy: "8.9%",
-    tvl: "$125M",
-    riskLevel: "medium",
-    strategy: "Auto-Compounding",
-  },
-  {
-    id: "6",
-    protocol: "Beefy",
-    chain: "Polygon",
-    asset: "USDT-USDC",
-    apy: "22.1%",
-    tvl: "$45M",
-    riskLevel: "high",
-    strategy: "LP Farming",
-  },
-];
 
 export function YieldOpportunities({
   isOpen,
@@ -105,12 +33,15 @@ export function YieldOpportunities({
   const isDegen = type === "degen";
 
   const [filter, setFilter] = useState<"all" | "low_risk" | "high_yield">("all");
-  const [isLoading, setIsLoading] = useState(false);
   const [selectedOpportunity, setSelectedOpportunity] = useState<string | null>(null);
+  const [isDepositing, setIsDepositing] = useState(false);
+
+  // Use real API hook for yield opportunities
+  const { opportunities, loading: isLoading, refresh } = useYieldOpportunities();
 
   const filteredOpportunities = opportunities.filter((op) => {
     if (filter === "low_risk") return op.riskLevel === "low";
-    if (filter === "high_yield") return parseFloat(op.apy) > 10;
+    if (filter === "high_yield") return op.apyValue > 10;
     return true;
   });
 
@@ -142,10 +73,10 @@ export function YieldOpportunities({
 
   const handleDeposit = async (opportunityId: string) => {
     setSelectedOpportunity(opportunityId);
-    setIsLoading(true);
+    setIsDepositing(true);
     await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsLoading(false);
-    // Handle deposit logic
+    setIsDepositing(false);
+    // Handle deposit logic - integrate with DeFi protocols
   };
 
   if (!isOpen) return null;
