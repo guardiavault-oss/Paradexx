@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "motion/react";
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   X,
   Zap,
@@ -21,6 +21,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useWalletData } from "../../contexts/WalletDataContext";
+import { useTokenPrices } from "../../hooks/useMarketData";
 
 interface GasManagerProps {
   isOpen: boolean;
@@ -44,8 +46,8 @@ interface GasEstimate {
   recommended?: boolean;
 }
 
-// Mock gas price history for the chart
-const generateGasHistory = () => {
+// Generate gas history from API data - used for chart visualization
+const generateGasHistory = (basePrice: number = 15) => {
   const data = [];
   const now = Date.now();
   const oneHour = 60 * 60 * 1000;
@@ -59,7 +61,8 @@ const generateGasHistory = () => {
           hour12: true,
         },
       ),
-      price: 15 + Math.random() * 30 + Math.sin(i / 3) * 10,
+      // Simulate price variations around the base price from API
+      price: basePrice + Math.random() * 10 + Math.sin(i / 3) * 5,
     });
   }
 
@@ -72,18 +75,31 @@ export function GasManager({
   onSelectGasPrice,
   walletType = "degen",
 }: GasManagerProps) {
-  const [currentGas, setCurrentGas] = useState<GasPrice>({
-    slow: 12,
-    standard: 18,
-    fast: 25,
-    instant: 35,
-  });
+  // Get real gas price from WalletDataContext
+  const { gasPrice: apiGasPrice } = useWalletData();
+  
+  // Get real ETH price for USD calculations
+  const { prices } = useTokenPrices(['ETH']);
+  const ethPrice = useMemo(() => prices?.ETH?.price || 2500, [prices]);
+
+  // Use API gas prices with fallback
+  const currentGas = useMemo(() => ({
+    slow: apiGasPrice?.slow?.gwei ?? 12,
+    standard: apiGasPrice?.standard?.gwei ?? 18,
+    fast: apiGasPrice?.fast?.gwei ?? 25,
+    instant: (apiGasPrice?.fast?.gwei ?? 25) * 1.4, // Estimate instant as 1.4x fast
+  }), [apiGasPrice]);
+
   const [selectedSpeed, setSelectedSpeed] = useState<
     "slow" | "standard" | "fast" | "instant"
   >("standard");
-  const [gasHistory, setGasHistory] = useState(
-    generateGasHistory(),
+  
+  // Generate gas history based on current standard price
+  const gasHistory = useMemo(
+    () => generateGasHistory(currentGas.standard),
+    [currentGas.standard]
   );
+  
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [customGas, setCustomGas] = useState("");
   const [loading, setLoading] = useState(false);
@@ -92,53 +108,38 @@ export function GasManager({
   const accentColor = isDegen ? "#DC143C" : "#0080FF";
   const secondaryColor = isDegen ? "#8B0000" : "#000080";
 
-  // Simulate real-time gas updates
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const interval = setInterval(() => {
-      setCurrentGas({
-        slow: 10 + Math.random() * 8,
-        standard: 15 + Math.random() * 10,
-        fast: 22 + Math.random() * 12,
-        instant: 30 + Math.random() * 15,
-      });
-    }, 10000); // Update every 10 seconds
-
-    return () => clearInterval(interval);
-  }, [isOpen]);
-
-  const gasEstimates: GasEstimate[] = [
+  // Gas estimates using real API data and ETH price
+  const gasEstimates: GasEstimate[] = useMemo(() => [
     {
       speed: "slow",
       price: currentGas.slow,
-      time: "~5-10 min",
-      usd: currentGas.slow * 0.000000001 * 21000 * 2000, // Rough ETH price estimate
+      time: apiGasPrice?.slow?.estimatedTime || "~5-10 min",
+      usd: currentGas.slow * 0.000000001 * 21000 * ethPrice,
     },
     {
       speed: "standard",
       price: currentGas.standard,
-      time: "~2-5 min",
-      usd: currentGas.standard * 0.000000001 * 21000 * 2000,
+      time: apiGasPrice?.standard?.estimatedTime || "~2-5 min",
+      usd: currentGas.standard * 0.000000001 * 21000 * ethPrice,
       recommended: true,
     },
     {
       speed: "fast",
       price: currentGas.fast,
-      time: "~30 sec",
-      usd: currentGas.fast * 0.000000001 * 21000 * 2000,
+      time: apiGasPrice?.fast?.estimatedTime || "~30 sec",
+      usd: currentGas.fast * 0.000000001 * 21000 * ethPrice,
     },
     {
       speed: "instant",
       price: currentGas.instant,
       time: "~15 sec",
-      usd: currentGas.instant * 0.000000001 * 21000 * 2000,
+      usd: currentGas.instant * 0.000000001 * 21000 * ethPrice,
     },
-  ];
+  ], [currentGas, ethPrice, apiGasPrice]);
 
   const handleSelectGas = () => {
     const price = customGas
-      ? parseFloat(customGas)
+      ? Number.parseFloat(customGas)
       : currentGas[selectedSpeed];
 
     onSelectGasPrice?.(price);
