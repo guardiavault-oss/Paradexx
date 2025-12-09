@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { getThemeStyles } from "../design-system";
 import {
   ArrowLeft,
   Shield,
@@ -25,57 +24,59 @@ import {
   Globe,
   Info,
   Loader2,
-  Radio,
-  Eye,
   Settings,
-  Zap,
-  TrendingUp,
-  Award,
   Smartphone,
 } from "lucide-react";
+import { useSecurityCenter, type SecurityCheck } from "../hooks/useSecurityCenter";
 
 interface SecurityCenterProps {
   type: "degen" | "regen";
   onClose: () => void;
 }
 
-interface SecurityCheckItem {
-  id: string;
-  title: string;
-  description: string;
-  status: "pass" | "warn" | "fail";
-  icon: any;
-  impact: "critical" | "high" | "medium" | "low";
-  actionLabel?: string;
-}
+// Map check IDs to icons
+const checkIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  backup: Key,
+  '2fa': Fingerprint,
+  cloud_backup: Cloud,
+  guardians: Users,
+  check_in: Clock,
+  hardware: Wallet,
+  mev: Shield,
+  auto_lock: Lock,
+};
 
-interface TokenApproval {
-  id: string;
-  token: string;
-  tokenSymbol: string;
-  spender: string;
-  spenderName?: string;
-  amount: string;
-  isUnlimited: boolean;
-  approvedAt: string;
-  riskLevel: "low" | "medium" | "high";
-}
-
-interface ConnectedDapp {
-  id: string;
-  name: string;
-  url: string;
-  permissions: string[];
-  connectedAt: string;
-  lastActive?: string;
+interface SecurityCheckItem extends SecurityCheck {
+  icon: React.ComponentType<{ className?: string }>;
 }
 
 export function SecurityCenter({ type, onClose }: SecurityCenterProps) {
   const [activeTab, setActiveTab] = useState<"overview" | "approvals" | "dapps" | "settings">("overview");
-  const [loading, setLoading] = useState(true);
-  const [securityScore, setSecurityScore] = useState(0);
   const [revoking, setRevoking] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
+
+  // Use real data hook
+  const {
+    securityChecks,
+    approvals,
+    connectedDapps,
+    securityStatus,
+    loading,
+    revokeApproval,
+    disconnectDapp,
+    runSecurityCheck,
+  } = useSecurityCenter();
+
+  // Map checks to include icons
+  const securityCheckItems: SecurityCheckItem[] = useMemo(() => {
+    return securityChecks.map(check => ({
+      ...check,
+      icon: checkIcons[check.id] || Shield,
+    }));
+  }, [securityChecks]);
+
+  // Derive score from hook
+  const securityScore = securityStatus.score;
 
   const isDegen = type === "degen";
 
@@ -91,153 +92,6 @@ export function SecurityCenter({ type, onClose }: SecurityCenterProps) {
       : "0 0 20px rgba(0, 212, 255, 0.3), 0 0 40px rgba(0, 255, 136, 0.2)",
   };
 
-  // Mock security checks
-  const securityChecks: SecurityCheckItem[] = [
-    {
-      id: "backup",
-      title: "Recovery Phrase Backed Up",
-      description: "Your seed phrase is securely stored",
-      status: "pass",
-      icon: Key,
-      impact: "critical",
-    },
-    {
-      id: "2fa",
-      title: "Biometric Authentication",
-      description: "Face ID / Touch ID enabled",
-      status: "pass",
-      icon: Fingerprint,
-      impact: "high",
-      actionLabel: "Configure",
-    },
-    {
-      id: "cloud_backup",
-      title: "Cloud Backup",
-      description: "Encrypted backup to iCloud/Google",
-      status: "pass",
-      icon: Cloud,
-      impact: "medium",
-    },
-    {
-      id: "guardians",
-      title: "Recovery Guardians",
-      description: "No guardians configured yet",
-      status: "warn",
-      icon: Users,
-      impact: "high",
-      actionLabel: "Set Up",
-    },
-    {
-      id: "check_in",
-      title: "Recent Activity Check-In",
-      description: "Last check-in 3 days ago",
-      status: "pass",
-      icon: Clock,
-      impact: "low",
-    },
-    {
-      id: "hardware",
-      title: "Hardware Wallet",
-      description: "No hardware wallet connected",
-      status: "fail",
-      icon: Wallet,
-      impact: "high",
-      actionLabel: "Connect",
-    },
-    {
-      id: "mev",
-      title: "MEV Protection",
-      description: "All transactions protected",
-      status: "pass",
-      icon: Shield,
-      impact: "high",
-    },
-    {
-      id: "auto_lock",
-      title: "Auto-Lock Timer",
-      description: "Locks after 5 minutes",
-      status: "pass",
-      icon: Lock,
-      impact: "medium",
-    },
-  ];
-
-  // Mock token approvals
-  const [approvals, setApprovals] = useState<TokenApproval[]>([
-    {
-      id: "1",
-      token: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-      tokenSymbol: "USDC",
-      spender: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
-      spenderName: "Uniswap V2 Router",
-      amount: "Unlimited",
-      isUnlimited: true,
-      approvedAt: "2024-01-15",
-      riskLevel: "medium",
-    },
-    {
-      id: "2",
-      token: "0x6B175474E89094C44Da98b954EesdfFeC956aB7",
-      tokenSymbol: "DAI",
-      spender: "0xDef1C0ded9bec7F1a1670819833240f027b25EfF",
-      spenderName: "0x Exchange",
-      amount: "1,000 DAI",
-      isUnlimited: false,
-      approvedAt: "2024-02-20",
-      riskLevel: "low",
-    },
-    {
-      id: "3",
-      token: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-      tokenSymbol: "USDT",
-      spender: "0x1234567890abcdef1234567890abcdef12345678",
-      spenderName: "Unknown Contract",
-      amount: "Unlimited",
-      isUnlimited: true,
-      approvedAt: "2024-03-10",
-      riskLevel: "high",
-    },
-  ]);
-
-  // Mock connected dApps
-  const [connectedDapps, setConnectedDapps] = useState<ConnectedDapp[]>([
-    {
-      id: "1",
-      name: "Uniswap",
-      url: "https://app.uniswap.org",
-      permissions: ["View wallet address", "Request transactions"],
-      connectedAt: "2024-01-10",
-      lastActive: "2024-03-15",
-    },
-    {
-      id: "2",
-      name: "OpenSea",
-      url: "https://opensea.io",
-      permissions: ["View wallet address", "View NFTs", "Request transactions"],
-      connectedAt: "2024-02-05",
-      lastActive: "2024-03-12",
-    },
-    {
-      id: "3",
-      name: "Aave",
-      url: "https://app.aave.com",
-      permissions: ["View wallet address", "Request transactions"],
-      connectedAt: "2024-03-01",
-      lastActive: "2024-03-14",
-    },
-  ]);
-
-  useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => {
-      const passed = securityChecks.filter((c) => c.status === "pass").length;
-      const score = Math.round((passed / securityChecks.length) * 100);
-      setSecurityScore(score);
-      setLoading(false);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, []);
-
   // Score configuration
   const scoreConfig = useMemo(() => {
     if (securityScore >= 80)
@@ -249,31 +103,36 @@ export function SecurityCenter({ type, onClose }: SecurityCenterProps) {
     return { color: "#ef4444", label: "Needs Attention", icon: ShieldOff };
   }, [securityScore, colors.secondary]);
 
-  const issuesCount = securityChecks.filter((c) => c.status !== "pass").length;
-  const criticalIssues = securityChecks.filter((c) => c.status === "fail" && c.impact === "critical").length;
+  const issuesCount = securityCheckItems.filter((c) => c.status !== "pass").length;
+  const criticalIssues = securityCheckItems.filter((c) => c.status === "fail" && c.impact === "critical").length;
   const unlimitedApprovals = approvals.filter((a) => a.isUnlimited).length;
   const highRiskApprovals = approvals.filter((a) => a.riskLevel === "high").length;
 
   const handleRevokeApproval = async (approvalId: string) => {
     setRevoking(approvalId);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setApprovals((prev) => prev.filter((a) => a.id !== approvalId));
-    setRevoking(null);
+    try {
+      await revokeApproval(approvalId);
+    } finally {
+      setRevoking(null);
+    }
   };
 
   const handleDisconnectDapp = async (dappId: string) => {
     setDisconnecting(dappId);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    setConnectedDapps((prev) => prev.filter((d) => d.id !== dappId));
-    setDisconnecting(null);
+    try {
+      await disconnectDapp(dappId);
+    } finally {
+      setDisconnecting(null);
+    }
   };
 
-  const tabs = [
+  type TabId = "overview" | "approvals" | "dapps" | "settings";
+  const tabs: Array<{ id: TabId; label: string; icon: React.ComponentType<{ className?: string }>; badge?: number }> = [
     { id: "overview", label: "Overview", icon: Shield, badge: issuesCount },
     { id: "approvals", label: "Approvals", icon: FileWarning, badge: unlimitedApprovals },
     { id: "dapps", label: "Connected", icon: Link2, badge: connectedDapps.length },
     { id: "settings", label: "Settings", icon: Settings },
-  ] as const;
+  ];
 
   return (
     <motion.div
@@ -479,7 +338,7 @@ export function SecurityCenter({ type, onClose }: SecurityCenterProps) {
                   Security Checklist
                 </h3>
                 <div className="space-y-2">
-                  {securityChecks.map((check, index) => (
+                  {securityCheckItems.map((check, index) => (
                     <motion.div
                       key={check.id}
                       initial={{ opacity: 0, x: -20 }}
