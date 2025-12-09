@@ -1,157 +1,71 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { getThemeStyles } from "../design-system";
 import {
   Shield,
   ShieldCheck,
   ShieldAlert,
   AlertTriangle,
-  CheckCircle2,
-  XCircle,
-  Eye,
-  EyeOff,
   Plus,
   Trash2,
   RefreshCw,
   Activity,
   TrendingUp,
-  Zap,
   Lock,
   Unlock,
   Bell,
   Settings,
   ArrowLeft,
-  Info,
-  Clock,
-  Network,
   Ban,
   AlertCircle,
-  ChevronRight,
 } from "lucide-react";
+import { useWalletGuard } from "../hooks/useWalletGuard";
 
 interface WalletGuardDashboardProps {
   onClose?: () => void;
 }
 
-interface MonitoredWallet {
-  wallet_address: string;
-  network: string;
-  threat_level: string;
-  protection_enabled: boolean;
-  threats_detected: number;
-}
-
-interface WalletStatus {
-  protection_enabled: boolean;
-  threat_level: string;
-  threats_detected: number;
-  last_scan: string;
-}
-
-interface Threat {
-  threat_id: string;
-  threat_type: string;
-  severity: string;
-  description: string;
-  timestamp: string;
-  confidence: number;
-}
-
-interface Analytics {
-  total_monitored: number;
-  threats_detected_24h: number;
-  protection_actions_taken: number;
-  average_threat_level: string;
-}
-
 export function WalletGuardDashboard({ onClose }: WalletGuardDashboardProps) {
-  const [loading, setLoading] = useState(true);
-  const [monitoredWallets, setMonitoredWallets] = useState<MonitoredWallet[]>([
-    {
-      wallet_address: "0x742d35Cc6634C0532925a3b844Bc9e7595f3f4a",
-      network: "ethereum",
-      threat_level: "low",
-      protection_enabled: true,
-      threats_detected: 2,
-    },
-    {
-      wallet_address: "0x8ba1f109551bD432803012645Ac136ddd64DBA72",
-      network: "polygon",
-      threat_level: "medium",
-      protection_enabled: true,
-      threats_detected: 5,
-    },
-  ]);
-  const [selectedWallet, setSelectedWallet] = useState<string | null>(
-    "0x742d35Cc6634C0532925a3b844Bc9e7595f3f4a"
-  );
-  const [walletStatus, setWalletStatus] = useState<WalletStatus>({
-    protection_enabled: true,
-    threat_level: "low",
-    threats_detected: 2,
-    last_scan: new Date().toISOString(),
-  });
-  const [threats, setThreats] = useState<Threat[]>([
-    {
-      threat_id: "1",
-      threat_type: "Suspicious Transaction",
-      severity: "medium",
-      description: "Unusual transaction pattern detected from unknown contract",
-      timestamp: new Date(Date.now() - 3600000).toISOString(),
-      confidence: 0.85,
-    },
-    {
-      threat_id: "2",
-      threat_type: "Phishing Attempt",
-      severity: "high",
-      description: "Malicious approval request detected and blocked",
-      timestamp: new Date(Date.now() - 7200000).toISOString(),
-      confidence: 0.92,
-    },
-  ]);
-  const [analytics, setAnalytics] = useState<Analytics>({
-    total_monitored: 2,
-    threats_detected_24h: 7,
-    protection_actions_taken: 3,
-    average_threat_level: "low",
-  });
+  // Use real API data from hook
+  const {
+    monitoredWallets,
+    selectedWallet,
+    walletStatus,
+    threats,
+    analytics,
+    loading,
+    refreshing,
+    error,
+    setSelectedWallet,
+    addWallet,
+    removeWallet,
+    toggleProtection,
+    refresh,
+  } = useWalletGuard();
+
+  // Local UI state
   const [showAddWallet, setShowAddWallet] = useState(false);
   const [newWalletAddress, setNewWalletAddress] = useState("");
   const [selectedNetwork, setSelectedNetwork] = useState("ethereum");
-  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    // Simulate loading
-    setTimeout(() => setLoading(false), 800);
-  }, []);
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    // Simulate refresh
-    setTimeout(() => setRefreshing(false), 1000);
-  };
-
-  const handleAddWallet = () => {
+  // Handle adding new wallet using hook
+  const handleAddWallet = async () => {
     if (!newWalletAddress) return;
-
-    const newWallet: MonitoredWallet = {
-      wallet_address: newWalletAddress,
-      network: selectedNetwork,
-      threat_level: "low",
-      protection_enabled: true,
-      threats_detected: 0,
-    };
-
-    setMonitoredWallets([...monitoredWallets, newWallet]);
-    setNewWalletAddress("");
-    setShowAddWallet(false);
+    
+    const result = await addWallet(newWalletAddress, selectedNetwork);
+    if (result.success) {
+      setNewWalletAddress("");
+      setShowAddWallet(false);
+    }
   };
 
+  // Handle removing wallet using hook
   const handleRemoveWallet = (walletAddress: string) => {
-    setMonitoredWallets(monitoredWallets.filter((w) => w.wallet_address !== walletAddress));
-    if (selectedWallet === walletAddress) {
-      setSelectedWallet(monitoredWallets[0]?.wallet_address || null);
-    }
+    removeWallet(walletAddress);
+  };
+
+  // Handle refresh using hook
+  const handleRefresh = () => {
+    refresh();
   };
 
   const getThreatLevelColor = (level: string) => {
@@ -284,7 +198,7 @@ export function WalletGuardDashboard({ onClose }: WalletGuardDashboardProps) {
                   <span className="text-xs text-[var(--text-primary)]/60">Monitored</span>
                 </div>
                 <div className="text-2xl sm:text-3xl font-black text-[var(--text-primary)]">
-                  {analytics.total_monitored}
+                  {analytics?.total_monitored ?? 0}
                 </div>
               </div>
 
@@ -301,7 +215,7 @@ export function WalletGuardDashboard({ onClose }: WalletGuardDashboardProps) {
                   <span className="text-xs text-[var(--text-primary)]/60">Threats (24h)</span>
                 </div>
                 <div className="text-2xl sm:text-3xl font-black text-[var(--text-primary)]">
-                  {analytics.threats_detected_24h}
+                  {analytics?.threats_detected_24h ?? 0}
                 </div>
               </div>
 
@@ -318,7 +232,7 @@ export function WalletGuardDashboard({ onClose }: WalletGuardDashboardProps) {
                   <span className="text-xs text-[var(--text-primary)]/60">Protected</span>
                 </div>
                 <div className="text-2xl sm:text-3xl font-black text-[var(--text-primary)]">
-                  {analytics.protection_actions_taken}
+                  {analytics?.protection_actions_taken ?? 0}
                 </div>
               </div>
 
@@ -335,7 +249,7 @@ export function WalletGuardDashboard({ onClose }: WalletGuardDashboardProps) {
                   <span className="text-xs text-[var(--text-primary)]/60">Risk Level</span>
                 </div>
                 <div className="text-xl sm:text-2xl font-black text-[var(--text-primary)] uppercase">
-                  {analytics.average_threat_level}
+                  {analytics?.average_threat_level ?? 'low'}
                 </div>
               </div>
             </motion.div>

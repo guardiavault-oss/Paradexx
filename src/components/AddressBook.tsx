@@ -1,19 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getThemeStyles } from '../design-system';
-import { X, Search, Star, Copy, Check, UserPlus, Trash2, Clock, Plus } from 'lucide-react';
+import { X, Search, Star, Copy, Check, UserPlus, Trash2, Clock, Plus, Loader2 } from 'lucide-react';
 import { copyToClipboard } from '../utils/clipboard';
-
-export interface Contact {
-  id: string;
-  name: string;
-  address: string;
-  ensName?: string;
-  category?: "personal" | "exchange" | "contract" | "favorite";
-  notes?: string;
-  addedAt: number;
-  lastUsed?: number;
-}
+import { useAddressBook, type Contact } from '../hooks/useAddressBook';
 
 interface AddressBookProps {
   isOpen: boolean;
@@ -31,33 +21,16 @@ export function AddressBook({
   const isDegen = type === "degen";
   const primaryColor = isDegen ? "#DC143C" : "#0080FF";
 
-  const [contacts, setContacts] = useState<Contact[]>([
-    {
-      id: "1",
-      name: "Mom's Wallet",
-      address: "0x742d35Cc6634C0532925a3b844Bc9e7595f8f3a",
-      category: "personal",
-      addedAt: Date.now() - 30 * 24 * 60 * 60 * 1000,
-      lastUsed: Date.now() - 2 * 24 * 60 * 60 * 1000,
-    },
-    {
-      id: "2",
-      name: "Binance Deposit",
-      address: "0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE",
-      category: "exchange",
-      notes: "Don't forget memo!",
-      addedAt: Date.now() - 60 * 24 * 60 * 60 * 1000,
-      lastUsed: Date.now() - 7 * 24 * 60 * 60 * 1000,
-    },
-    {
-      id: "3",
-      name: "vitalik.eth",
-      address: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-      ensName: "vitalik.eth",
-      category: "favorite",
-      addedAt: Date.now() - 90 * 24 * 60 * 60 * 1000,
-    },
-  ]);
+  // Use real API hook for contacts
+  const { 
+    contacts, 
+    loading, 
+    addContact, 
+    updateContact, 
+    deleteContact: removeContact, 
+    markAsUsed,
+    resolveENS,
+  } = useAddressBook();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [isAdding, setIsAdding] = useState(false);
@@ -87,10 +60,15 @@ export function AddressBook({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const deleteContact = (id: string) => {
+  const handleDeleteContact = async (id: string) => {
     if (confirm("Delete this contact?")) {
-      setContacts(contacts.filter((c) => c.id !== id));
+      await removeContact(id);
     }
+  };
+
+  const handleSelectContact = (contact: Contact) => {
+    markAsUsed(contact.id);
+    onSelectContact?.(contact);
   };
 
   const getCategoryIcon = (category?: Contact["category"]) => {
@@ -112,6 +90,34 @@ export function AddressBook({
   };
 
   if (!isOpen) return null;
+
+  // Show loading state
+  if (loading) {
+    return (
+      <AnimatePresence>
+        <motion.div
+          key="address-book-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 bg-[var(--bg-base)]/80 backdrop-blur-sm z-50"
+        />
+        <motion.div
+          key="address-book-loading"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 max-w-lg mx-auto"
+        >
+          <div className="bg-[var(--bg-card)] rounded-2xl p-8 flex flex-col items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin mb-4" style={{ color: primaryColor }} />
+            <p className="text-[var(--text-secondary)]">Loading contacts...</p>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
 
   return (
     <AnimatePresence>
@@ -164,8 +170,7 @@ export function AddressBook({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search contacts..."
-              className="w-full pl-10 pr-4 py-3 bg-white/5 rounded-xl text-sm text-[var(--text-primary)] placeholder-white/40 outline-none"
-              style={{ border: `1px solid ${getThemeStyles().borderNeutral}` }}
+              className="w-full pl-10 pr-4 py-3 bg-white/5 rounded-xl text-sm text-[var(--text-primary)] placeholder-white/40 outline-none border border-white/10"
             />
           </div>
         </div>
@@ -270,7 +275,7 @@ export function AddressBook({
                       </button>
 
                       <button
-                        onClick={() => deleteContact(contact.id)}
+                        onClick={() => handleDeleteContact(contact.id)}
                         className="p-2 hover:bg-white/10 rounded-lg"
                         title="Delete contact"
                       >
@@ -303,8 +308,8 @@ export function AddressBook({
       {/* Add Contact Modal */}
       {isAdding && (
         <AddContactModal
-          onAdd={(contact) => {
-            setContacts([...contacts, { ...contact, id: Date.now().toString() }]);
+          onAdd={async (contact) => {
+            await addContact(contact);
             setIsAdding(false);
           }}
           onClose={() => setIsAdding(false)}
@@ -317,7 +322,7 @@ export function AddressBook({
 
 // Add Contact Modal
 interface AddContactModalProps {
-  onAdd: (contact: Omit<Contact, "id">) => void;
+  onAdd: (contact: Omit<Contact, "id" | "addedAt">) => void;
   onClose: () => void;
   type: "degen" | "regen";
 }
@@ -338,7 +343,6 @@ function AddContactModal({ onAdd, onClose, type }: AddContactModalProps) {
       address,
       category,
       notes: notes || undefined,
-      addedAt: Date.now(),
     });
   };
 
