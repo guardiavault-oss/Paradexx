@@ -1,14 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { getThemeStyles, cn } from '../design-system';
+import { getThemeStyles } from '../design-system';
 import {
   Shield,
   Key,
   Bell,
   Globe,
-  Palette,
   Zap,
-  ChevronRight,
   Settings as SettingsIcon,
   Copy,
   Check,
@@ -28,7 +26,9 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { copyToClipboard } from '../utils/clipboard';
-import { useSettings } from '../hooks/useSettings';
+import { useSettings, UserSettings } from '../hooks/useSettings';
+import { toast } from '@/components/Toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SettingsProps {
   type: 'degen' | 'regen';
@@ -37,13 +37,28 @@ interface SettingsProps {
   onTabChange?: (tab: 'home' | 'trading' | 'activity' | 'more') => void;
 }
 
-type SettingsTab = 'profile' | 'security' | 'privacy' | 'notifications' | 'preferences' | 'advanced';
+type SettingsTab =
+  | 'profile'
+  | 'security'
+  | 'privacy'
+  | 'notifications'
+  | 'preferences'
+  | 'advanced';
 
-export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProps) {
+export function Settings({
+  type,
+  onClose,
+  activeTab: _activeTab,
+  onTabChange: _onTabChange,
+}: SettingsProps) {
   const [currentTab, setCurrentTab] = useState<SettingsTab>('profile');
   const [showApiKey, setShowApiKey] = useState(false);
   const [copiedApiKey, setCopiedApiKey] = useState(false);
+  const [copiedAddress, setCopiedAddress] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isDegen = type === 'degen';
+  const { logout } = useAuth();
+
   // Use design system theme styles
   const theme = getThemeStyles(type);
   const accentColor = theme.primaryColor;
@@ -52,16 +67,21 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
   // Use real settings from hook with localStorage + backend sync
   const {
     settings,
-    saving,
+    saving: _saving,
     toggleSetting,
     updateSetting,
     save,
     exportSettings,
     importSettings,
     generateApiKey,
+    resetToDefaults,
   } = useSettings();
 
-  const tabs: { id: SettingsTab; label: string; icon: any }[] = [
+  const tabs: {
+    id: SettingsTab;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }[] = [
     { id: 'profile', label: 'Profile', icon: Key },
     { id: 'security', label: 'Security', icon: Shield },
     { id: 'privacy', label: 'Privacy', icon: Globe },
@@ -71,63 +91,164 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
   ];
 
   const handleToggle = (key: string) => {
-    toggleSetting(key as keyof typeof settings);
+    toggleSetting(key as keyof UserSettings);
+    toast.success(`${key} updated`);
   };
 
   const handleSave = async () => {
-    await save();
+    const result = await save();
+    if (result.success) {
+      toast.success('Settings saved successfully');
+    } else {
+      toast.error(result.error || 'Failed to save settings');
+    }
+  };
+
+  const handleCopyAddress = async () => {
+    await copyToClipboard(settings.walletAddress);
+    setCopiedAddress(true);
+    toast.success('Address copied to clipboard');
+    setTimeout(() => setCopiedAddress(false), 2000);
+  };
+
+  const handleCopyApiKey = async () => {
+    await copyToClipboard(settings.apiKey);
+    setCopiedApiKey(true);
+    toast.success('API key copied to clipboard');
+    setTimeout(() => setCopiedApiKey(false), 2000);
+  };
+
+  const handleGenerateApiKey = async () => {
+    const newKey = await generateApiKey();
+    if (newKey) {
+      toast.success('New API key generated');
+    } else {
+      toast.error('Failed to generate API key');
+    }
+  };
+
+  const handleExportSettings = () => {
+    exportSettings();
+    toast.success('Settings exported');
+  };
+
+  const handleImportSettings = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const result = await importSettings(file);
+      if (result.success) {
+        toast.success('Settings imported successfully');
+      } else {
+        toast.error(result.error || 'Failed to import settings');
+      }
+    }
+  };
+
+  const handleResetToDefaults = () => {
+    if (confirm('Are you sure you want to reset all settings to defaults?')) {
+      resetToDefaults();
+      toast.success('Settings reset to defaults');
+    }
+  };
+
+  const handleClearCache = () => {
+    if (confirm('Are you sure you want to clear cache? This will log you out.')) {
+      localStorage.clear();
+      sessionStorage.clear();
+      toast.success('Cache cleared. Please log in again.');
+      setTimeout(() => window.location.reload(), 1500);
+    }
+  };
+
+  const handleDisconnectWallet = () => {
+    if (confirm('Are you sure you want to disconnect your wallet?')) {
+      logout();
+      toast.success('Wallet disconnected');
+      onClose();
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    if (
+      confirm(
+        'This action is IRREVERSIBLE. Are you absolutely sure you want to delete your account?'
+      )
+    ) {
+      if (confirm('Final confirmation: This will permanently delete all your data. Continue?')) {
+        localStorage.clear();
+        sessionStorage.clear();
+        toast.success('Account deleted');
+        setTimeout(() => (window.location.href = '/'), 1500);
+      }
+    }
+  };
+
+  const handleSendTestNotification = () => {
+    if ('Notification' in window) {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          new Notification('Paradex Wallet Test', {
+            body: 'This is a test notification from your wallet.',
+            icon: '/favicon.ico',
+          });
+          toast.success('Test notification sent');
+        } else {
+          toast.warning('Please enable notifications in your browser');
+        }
+      });
+    } else {
+      toast.warning('Notifications not supported in this browser');
+    }
   };
 
   return (
-    <div
-      className="bg-[var(--bg-base)] text-[var(--text-primary)] pb-24 md:pb-20 pt-20"
-    >
+    <div className="min-h-screen bg-[var(--bg-base)] pt-4 pb-24 text-[var(--text-primary)] md:pb-20">
       {/* Settings Navigation Header (Inline) */}
-      <div className="flex items-center justify-between px-4 mb-6 max-w-7xl mx-auto">
+      <div className="mx-auto mb-6 flex max-w-7xl items-center justify-between px-4">
         <div className="flex items-center gap-3">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={onClose}
-            className="p-2 rounded-[var(--radius-lg)] bg-[var(--bg-hover)] border border-[var(--border-neutral)] focus-ring"
+            className="focus-ring rounded-[var(--radius-lg)] border border-[var(--border-neutral)] bg-[var(--bg-hover)] p-2"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="h-5 w-5" />
           </motion.button>
           <div>
             <h1 className="text-2xl font-black uppercase">Settings</h1>
-            <p className="text-[var(--text-sm)] text-[var(--text-muted)]">Customize your wallet</p>
+            <p className="text-[var(--text-muted)] text-[var(--text-sm)]">Customize your wallet</p>
           </div>
         </div>
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={handleSave}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm"
+          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold"
           style={{ background: accentColor }}
         >
-          <Save className="w-4 h-4" />
+          <Save className="h-4 w-4" />
           <span className="hidden md:inline">Save</span>
         </motion.button>
       </div>
 
-      <div className="px-4 md:px-6 max-w-7xl mx-auto">
+      <div className="mx-auto max-w-7xl px-4 md:px-6">
         {/* Tabs - Horizontal Scroll on Mobile */}
-        <div className="mb-6 -mx-4 px-4 md:mx-0 md:px-0">
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            {tabs.map((tab) => (
+        <div className="-mx-4 mb-6 px-4 md:mx-0 md:px-0">
+          <div className="scrollbar-hide flex gap-2 overflow-x-auto pb-2">
+            {tabs.map(tab => (
               <motion.button
                 key={tab.id}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setCurrentTab(tab.id)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-all"
+                className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold whitespace-nowrap transition-all"
                 style={{
                   background: currentTab === tab.id ? accentColor : 'var(--bg-hover)',
                   border: `1px solid ${currentTab === tab.id ? accentColor : 'var(--border-neutral)'}`,
                   color: currentTab === tab.id ? 'var(--text-primary)' : 'var(--text-tertiary)',
                 }}
               >
-                <tab.icon className="w-4 h-4" />
+                <tab.icon className="h-4 w-4" />
                 {tab.label}
               </motion.button>
             ))}
@@ -149,15 +270,17 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
               <>
                 {/* Tribe Badge */}
                 <div
-                  className="p-6 rounded-xl border"
+                  className="rounded-xl border p-6"
                   style={{
                     background: `${accentColor}10`,
                     borderColor: `${accentColor}40`,
                   }}
                 >
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="mb-4 flex items-center justify-between">
                     <div>
-                      <div className="text-sm text-[var(--text-primary)]/60 mb-1">Current Tribe</div>
+                      <div className="mb-1 text-sm text-[var(--text-primary)]/60">
+                        Current Tribe
+                      </div>
                       <div className="text-2xl font-black uppercase" style={{ color: accentColor }}>
                         {isDegen ? '🔥 DEGEN' : '❄️ REGEN'}
                       </div>
@@ -165,7 +288,7 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className="px-4 py-2 rounded-lg font-bold text-sm border"
+                      className="rounded-lg border px-4 py-2 text-sm font-bold"
                       style={{
                         borderColor: 'rgba(255, 255, 255, 0.2)',
                         color: 'rgba(255, 255, 255, 0.8)',
@@ -182,35 +305,35 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                 </div>
 
                 {/* Profile Info */}
-                <div className="p-6 rounded-xl bg-white/5 border border-[var(--border-neutral)]/10 space-y-4">
-                  <h3 className="text-base font-black uppercase mb-4">Profile Information</h3>
+                <div className="space-y-4 rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-6">
+                  <h3 className="mb-4 text-base font-black uppercase">Profile Information</h3>
 
                   <div>
-                    <label className="text-xs text-[var(--text-primary)]/60 uppercase tracking-wide mb-2 block">
+                    <label className="mb-2 block text-xs tracking-wide text-[var(--text-primary)]/60 uppercase">
                       Display Name
                     </label>
                     <input
                       type="text"
                       value={settings.name}
-                      onChange={(e) => updateSetting('name', e.target.value)}
-                      className="w-full px-4 py-3 rounded-lg bg-[var(--bg-base)] border border-[var(--border-neutral)]/10 text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-neutral)]/30"
+                      onChange={e => updateSetting('name', e.target.value)}
+                      className="w-full rounded-lg border border-[var(--border-neutral)]/10 bg-[var(--bg-base)] px-4 py-3 text-[var(--text-primary)] focus:border-[var(--border-neutral)]/30 focus:outline-none"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs text-[var(--text-primary)]/60 uppercase tracking-wide mb-2 block">
+                    <label className="mb-2 block text-xs tracking-wide text-[var(--text-primary)]/60 uppercase">
                       Email Address
                     </label>
                     <input
                       type="email"
                       value={settings.email}
-                      onChange={(e) => updateSetting('email', e.target.value)}
-                      className="w-full px-4 py-3 rounded-lg bg-[var(--bg-base)] border border-[var(--border-neutral)]/10 text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-neutral)]/30"
+                      onChange={e => updateSetting('email', e.target.value)}
+                      className="w-full rounded-lg border border-[var(--border-neutral)]/10 bg-[var(--bg-base)] px-4 py-3 text-[var(--text-primary)] focus:border-[var(--border-neutral)]/30 focus:outline-none"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs text-[var(--text-primary)]/60 uppercase tracking-wide mb-2 block">
+                    <label className="mb-2 block text-xs tracking-wide text-[var(--text-primary)]/60 uppercase">
                       Wallet Address
                     </label>
                     <div className="flex items-center gap-2">
@@ -218,31 +341,34 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                         type="text"
                         value={settings.walletAddress}
                         disabled
-                        className="flex-1 px-4 py-3 rounded-lg bg-[var(--bg-base)] border border-[var(--border-neutral)]/10 text-[var(--text-primary)]/50 font-mono text-sm"
+                        title="Connected wallet address"
+                        className="flex-1 rounded-lg border border-[var(--border-neutral)]/10 bg-[var(--bg-base)] px-4 py-3 font-mono text-sm text-[var(--text-primary)]/50"
                       />
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => copyToClipboard(settings.walletAddress)}
-                        className="p-3 rounded-lg bg-white/5 border border-[var(--border-neutral)]/10"
+                        onClick={handleCopyAddress}
+                        className="rounded-lg border border-[var(--border-neutral)]/10 bg-white/5 p-3"
                       >
-                        {copiedApiKey ? (
-                          <Check className="w-5 h-5 text-green-400" />
+                        {copiedAddress ? (
+                          <Check className="h-5 w-5 text-green-400" />
                         ) : (
-                          <Copy className="w-5 h-5" />
+                          <Copy className="h-5 w-5" />
                         )}
                       </motion.button>
                     </div>
-                    <p className="text-xs text-[var(--text-primary)]/40 mt-2">Connected wallet cannot be changed</p>
+                    <p className="mt-2 text-xs text-[var(--text-primary)]/40">
+                      Connected wallet cannot be changed
+                    </p>
                   </div>
                 </div>
 
                 {/* Avatar/Profile Picture */}
-                <div className="p-6 rounded-xl bg-white/5 border border-[var(--border-neutral)]/10">
-                  <h3 className="text-base font-black uppercase mb-4">Profile Picture</h3>
+                <div className="rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-6">
+                  <h3 className="mb-4 text-base font-black uppercase">Profile Picture</h3>
                   <div className="flex items-center gap-4">
                     <div
-                      className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-black"
+                      className="flex h-20 w-20 items-center justify-center rounded-full text-3xl font-black"
                       style={{
                         background: `linear-gradient(135deg, ${accentColor} 0%, ${secondaryColor} 100%)`,
                       }}
@@ -254,20 +380,22 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                         <motion.button
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
-                          className="px-4 py-2 rounded-lg font-bold text-sm bg-white/5 border border-[var(--border-neutral)]/10"
+                          className="rounded-lg border border-[var(--border-neutral)]/10 bg-white/5 px-4 py-2 text-sm font-bold"
                         >
-                          <Upload className="w-4 h-4 inline mr-2" />
+                          <Upload className="mr-2 inline h-4 w-4" />
                           Upload
                         </motion.button>
                         <motion.button
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
-                          className="px-4 py-2 rounded-lg font-bold text-sm bg-white/5 border border-[var(--border-neutral)]/10"
+                          className="rounded-lg border border-[var(--border-neutral)]/10 bg-white/5 px-4 py-2 text-sm font-bold"
                         >
                           Remove
                         </motion.button>
                       </div>
-                      <p className="text-xs text-[var(--text-primary)]/40 mt-2">JPG, PNG or GIF. Max 2MB</p>
+                      <p className="mt-2 text-xs text-[var(--text-primary)]/40">
+                        JPG, PNG or GIF. Max 2MB
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -278,11 +406,13 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
             {currentTab === 'security' && (
               <>
                 {/* 2FA */}
-                <div className="p-6 rounded-xl bg-white/5 border border-[var(--border-neutral)]/10">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-6">
+                  <div className="mb-4 flex items-center justify-between">
                     <div>
-                      <h3 className="text-base font-bold mb-1">Two-Factor Authentication</h3>
-                      <p className="text-xs text-[var(--text-primary)]/60">Extra layer of security for your account</p>
+                      <h3 className="mb-1 text-base font-bold">Two-Factor Authentication</h3>
+                      <p className="text-xs text-[var(--text-primary)]/60">
+                        Extra layer of security for your account
+                      </p>
                     </div>
                     <motion.button
                       whileHover={{ scale: 1.05 }}
@@ -290,7 +420,9 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                       onClick={() => handleToggle('twoFactorEnabled')}
                       className="relative inline-flex h-8 w-14 items-center rounded-full transition-colors"
                       style={{
-                        background: settings.twoFactorEnabled ? accentColor : 'rgba(255, 255, 255, 0.1)',
+                        background: settings.twoFactorEnabled
+                          ? accentColor
+                          : 'rgba(255, 255, 255, 0.1)',
                       }}
                     >
                       <motion.span
@@ -305,10 +437,10 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
-                      className="mt-4 p-4 rounded-lg bg-green-500/10 border border-green-500/30"
+                      className="mt-4 rounded-lg border border-green-500/30 bg-green-500/10 p-4"
                     >
                       <div className="flex items-center gap-2 text-sm text-green-400">
-                        <Check className="w-4 h-4" />
+                        <Check className="h-4 w-4" />
                         2FA is enabled and protecting your account
                       </div>
                     </motion.div>
@@ -316,11 +448,13 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                 </div>
 
                 {/* Biometrics */}
-                <div className="p-6 rounded-xl bg-white/5 border border-[var(--border-neutral)]/10">
+                <div className="rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-base font-bold mb-1">Biometric Authentication</h3>
-                      <p className="text-xs text-[var(--text-primary)]/60">Use fingerprint or Face ID</p>
+                      <h3 className="mb-1 text-base font-bold">Biometric Authentication</h3>
+                      <p className="text-xs text-[var(--text-primary)]/60">
+                        Use fingerprint or Face ID
+                      </p>
                     </div>
                     <motion.button
                       whileHover={{ scale: 1.05 }}
@@ -328,7 +462,9 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                       onClick={() => handleToggle('biometricsEnabled')}
                       className="relative inline-flex h-8 w-14 items-center rounded-full transition-colors"
                       style={{
-                        background: settings.biometricsEnabled ? accentColor : 'rgba(255, 255, 255, 0.1)',
+                        background: settings.biometricsEnabled
+                          ? accentColor
+                          : 'rgba(255, 255, 255, 0.1)',
                       }}
                     >
                       <motion.span
@@ -341,24 +477,29 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                 </div>
 
                 {/* Auto Lock */}
-                <div className="p-6 rounded-xl bg-white/5 border border-[var(--border-neutral)]/10">
-                  <h3 className="text-base font-bold mb-4">Auto-Lock Timer</h3>
+                <div className="rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-6">
+                  <h3 className="mb-4 text-base font-bold">Auto-Lock Timer</h3>
                   <div className="space-y-3">
-                    {[1, 5, 15, 30, 60].map((minutes) => (
+                    {[1, 5, 15, 30, 60].map(minutes => (
                       <motion.button
                         key={minutes}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => updateSetting('autoLockTime', minutes)}
-                        className="w-full p-3 rounded-lg flex items-center justify-between transition-all"
+                        className="flex w-full items-center justify-between rounded-lg p-3 transition-all"
                         style={{
-                          background: settings.autoLockTime === minutes ? `${accentColor}20` : 'rgba(255, 255, 255, 0.03)',
+                          background:
+                            settings.autoLockTime === minutes
+                              ? `${accentColor}20`
+                              : 'rgba(255, 255, 255, 0.03)',
                           border: `1px solid ${settings.autoLockTime === minutes ? accentColor : 'rgba(255, 255, 255, 0.1)'}`,
                         }}
                       >
-                        <span className="text-sm">{minutes} {minutes === 1 ? 'minute' : 'minutes'}</span>
+                        <span className="text-sm">
+                          {minutes} {minutes === 1 ? 'minute' : 'minutes'}
+                        </span>
                         {settings.autoLockTime === minutes && (
-                          <Check className="w-5 h-5" style={{ color: accentColor }} />
+                          <Check className="h-5 w-5" style={{ color: accentColor }} />
                         )}
                       </motion.button>
                     ))}
@@ -366,23 +507,30 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                 </div>
 
                 {/* Session Management */}
-                <div className="p-6 rounded-xl bg-white/5 border border-[var(--border-neutral)]/10">
-                  <h3 className="text-base font-bold mb-4">Active Sessions</h3>
+                <div className="rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-6">
+                  <h3 className="mb-4 text-base font-bold">Active Sessions</h3>
                   <div className="space-y-3">
                     {[
                       { device: 'iPhone 14 Pro', location: 'New York, US', active: true },
                       { device: 'MacBook Pro', location: 'New York, US', active: false },
                     ].map((session, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-white/5">
+                      <div
+                        key={i}
+                        className="flex items-center justify-between rounded-lg bg-white/5 p-3"
+                      >
                         <div className="flex items-center gap-3">
-                          <Smartphone className="w-5 h-5 text-[var(--text-primary)]/40" />
+                          <Smartphone className="h-5 w-5 text-[var(--text-primary)]/40" />
                           <div>
-                            <div className="text-sm text-[var(--text-primary)]">{session.device}</div>
-                            <div className="text-xs text-[var(--text-primary)]/40">{session.location}</div>
+                            <div className="text-sm text-[var(--text-primary)]">
+                              {session.device}
+                            </div>
+                            <div className="text-xs text-[var(--text-primary)]/40">
+                              {session.location}
+                            </div>
                           </div>
                         </div>
                         {session.active ? (
-                          <span className="px-2 py-1 rounded text-xs font-bold bg-green-500/20 text-green-400">
+                          <span className="rounded bg-green-500/20 px-2 py-1 text-xs font-bold text-green-400">
                             Current
                           </span>
                         ) : (
@@ -403,16 +551,18 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full p-4 rounded-xl bg-white/5 border border-[var(--border-neutral)]/10 flex items-center justify-between"
+                  className="flex w-full items-center justify-between rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-4"
                 >
                   <div className="flex items-center gap-3">
-                    <Lock className="w-5 h-5" />
+                    <Lock className="h-5 w-5" />
                     <div className="text-left">
                       <div className="text-sm font-bold">Change Password</div>
-                      <div className="text-xs text-[var(--text-primary)]/60">Update your account password</div>
+                      <div className="text-xs text-[var(--text-primary)]/60">
+                        Update your account password
+                      </div>
                     </div>
                   </div>
-                  <ArrowLeft className="w-5 h-5 rotate-180" />
+                  <ArrowLeft className="h-5 w-5 rotate-180" />
                 </motion.button>
               </>
             )}
@@ -421,18 +571,21 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
             {currentTab === 'privacy' && (
               <>
                 {/* Privacy Mode */}
-                <div className="p-6 rounded-xl bg-white/5 border border-[var(--border-neutral)]/10">
-                  <h3 className="text-base font-bold mb-4">Privacy Level</h3>
+                <div className="rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-6">
+                  <h3 className="mb-4 text-base font-bold">Privacy Level</h3>
                   <div className="space-y-3">
-                    {(['low', 'medium', 'high'] as const).map((level) => (
+                    {(['low', 'medium', 'high'] as const).map(level => (
                       <motion.button
                         key={level}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => updateSetting('privacyMode', level)}
-                        className="w-full p-4 rounded-lg flex items-center justify-between transition-all"
+                        className="flex w-full items-center justify-between rounded-lg p-4 transition-all"
                         style={{
-                          background: settings.privacyMode === level ? `${accentColor}20` : 'rgba(255, 255, 255, 0.03)',
+                          background:
+                            settings.privacyMode === level
+                              ? `${accentColor}20`
+                              : 'rgba(255, 255, 255, 0.03)',
                           border: `1px solid ${settings.privacyMode === level ? accentColor : 'rgba(255, 255, 255, 0.1)'}`,
                         }}
                       >
@@ -445,7 +598,7 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                           </div>
                         </div>
                         {settings.privacyMode === level && (
-                          <Check className="w-5 h-5" style={{ color: accentColor }} />
+                          <Check className="h-5 w-5" style={{ color: accentColor }} />
                         )}
                       </motion.button>
                     ))}
@@ -453,11 +606,13 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                 </div>
 
                 {/* Privacy Toggles */}
-                <div className="p-6 rounded-xl bg-white/5 border border-[var(--border-neutral)]/10 space-y-4">
+                <div className="space-y-4 rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="text-sm font-bold">Hide Balances</div>
-                      <div className="text-xs text-[var(--text-primary)]/60">Blur amounts in your wallet</div>
+                      <div className="text-xs text-[var(--text-primary)]/60">
+                        Blur amounts in your wallet
+                      </div>
                     </div>
                     <motion.button
                       whileHover={{ scale: 1.05 }}
@@ -465,7 +620,9 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                       onClick={() => handleToggle('hideBalances')}
                       className="relative inline-flex h-8 w-14 items-center rounded-full transition-colors"
                       style={{
-                        background: settings.hideBalances ? accentColor : 'rgba(255, 255, 255, 0.1)',
+                        background: settings.hideBalances
+                          ? accentColor
+                          : 'rgba(255, 255, 255, 0.1)',
                       }}
                     >
                       <motion.span
@@ -481,7 +638,9 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="text-sm font-bold">Usage Analytics</div>
-                      <div className="text-xs text-[var(--text-primary)]/60">Help improve Paradex Wallet</div>
+                      <div className="text-xs text-[var(--text-primary)]/60">
+                        Help improve Paradex Wallet
+                      </div>
                     </div>
                     <motion.button
                       whileHover={{ scale: 1.05 }}
@@ -489,7 +648,9 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                       onClick={() => handleToggle('analyticsEnabled')}
                       className="relative inline-flex h-8 w-14 items-center rounded-full transition-colors"
                       style={{
-                        background: settings.analyticsEnabled ? accentColor : 'rgba(255, 255, 255, 0.1)',
+                        background: settings.analyticsEnabled
+                          ? accentColor
+                          : 'rgba(255, 255, 255, 0.1)',
                       }}
                     >
                       <motion.span
@@ -502,23 +663,25 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                 </div>
 
                 {/* Data Management */}
-                <div className="p-6 rounded-xl bg-white/5 border border-[var(--border-neutral)]/10 space-y-3">
-                  <h3 className="text-base font-bold mb-4">Data Management</h3>
+                <div className="space-y-3 rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-6">
+                  <h3 className="mb-4 text-base font-bold">Data Management</h3>
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="w-full p-3 rounded-lg bg-white/5 border border-[var(--border-neutral)]/10 flex items-center justify-between"
+                    onClick={handleExportSettings}
+                    className="flex w-full items-center justify-between rounded-lg border border-[var(--border-neutral)]/10 bg-white/5 p-3"
                   >
                     <span className="text-sm">Export My Data</span>
-                    <Download className="w-4 h-4" />
+                    <Download className="h-4 w-4" />
                   </motion.button>
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="w-full p-3 rounded-lg bg-white/5 border border-[var(--border-neutral)]/10 flex items-center justify-between"
+                    onClick={handleClearCache}
+                    className="flex w-full items-center justify-between rounded-lg border border-[var(--border-neutral)]/10 bg-white/5 p-3"
                   >
                     <span className="text-sm">Clear Cache</span>
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="h-4 w-4" />
                   </motion.button>
                 </div>
               </>
@@ -527,15 +690,35 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
             {/* Notifications Tab */}
             {currentTab === 'notifications' && (
               <>
-                <div className="p-6 rounded-xl bg-white/5 border border-[var(--border-neutral)]/10 space-y-4">
-                  <h3 className="text-base font-black uppercase mb-4">Notification Preferences</h3>
+                <div className="space-y-4 rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-6">
+                  <h3 className="mb-4 text-base font-black uppercase">Notification Preferences</h3>
 
                   {[
-                    { key: 'pushNotifications', label: 'Push Notifications', desc: 'Receive mobile notifications' },
-                    { key: 'tradeAlerts', label: 'Trade Alerts', desc: 'Notify on order fills & failures' },
-                    { key: 'securityAlerts', label: 'Security Alerts', desc: 'Critical security notifications' },
-                    { key: 'priceAlerts', label: 'Price Alerts', desc: 'Track token price movements' },
-                    { key: 'soundEnabled', label: 'Sound Effects', desc: 'Play sounds for notifications' },
+                    {
+                      key: 'pushNotifications',
+                      label: 'Push Notifications',
+                      desc: 'Receive mobile notifications',
+                    },
+                    {
+                      key: 'tradeAlerts',
+                      label: 'Trade Alerts',
+                      desc: 'Notify on order fills & failures',
+                    },
+                    {
+                      key: 'securityAlerts',
+                      label: 'Security Alerts',
+                      desc: 'Critical security notifications',
+                    },
+                    {
+                      key: 'priceAlerts',
+                      label: 'Price Alerts',
+                      desc: 'Track token price movements',
+                    },
+                    {
+                      key: 'soundEnabled',
+                      label: 'Sound Effects',
+                      desc: 'Play sounds for notifications',
+                    },
                   ].map((item, i) => (
                     <React.Fragment key={item.key}>
                       {i > 0 && <div className="h-px bg-white/10" />}
@@ -550,7 +733,9 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                           onClick={() => handleToggle(item.key)}
                           className="relative inline-flex h-8 w-14 items-center rounded-full transition-colors"
                           style={{
-                            background: settings[item.key as keyof typeof settings] ? accentColor : 'rgba(255, 255, 255, 0.1)',
+                            background: settings[item.key as keyof typeof settings]
+                              ? accentColor
+                              : 'rgba(255, 255, 255, 0.1)',
                           }}
                         >
                           <motion.span
@@ -568,7 +753,8 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full p-4 rounded-xl font-bold"
+                  onClick={handleSendTestNotification}
+                  className="w-full rounded-xl p-4 font-bold"
                   style={{
                     background: `${accentColor}20`,
                     border: `1px solid ${accentColor}`,
@@ -583,14 +769,14 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
             {currentTab === 'preferences' && (
               <>
                 {/* Network */}
-                <div className="p-6 rounded-xl bg-white/5 border border-[var(--border-neutral)]/10">
-                  <label className="text-xs text-[var(--text-primary)]/60 uppercase tracking-wide mb-3 block">
+                <div className="rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-6">
+                  <label className="mb-3 block text-xs tracking-wide text-[var(--text-primary)]/60 uppercase">
                     Default Network
                   </label>
                   <select
                     value={settings.defaultNetwork}
-                    onChange={(e) => updateSetting('defaultNetwork', e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg bg-[var(--bg-base)] border border-[var(--border-neutral)]/10 text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-neutral)]/30"
+                    onChange={e => updateSetting('defaultNetwork', e.target.value)}
+                    className="w-full rounded-lg border border-[var(--border-neutral)]/10 bg-[var(--bg-base)] px-4 py-3 text-[var(--text-primary)] focus:border-[var(--border-neutral)]/30 focus:outline-none"
                   >
                     <option value="ethereum">Ethereum</option>
                     <option value="polygon">Polygon</option>
@@ -602,36 +788,39 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                 </div>
 
                 {/* Trading Preferences */}
-                <div className="p-6 rounded-xl bg-white/5 border border-[var(--border-neutral)]/10 space-y-4">
+                <div className="space-y-4 rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-6">
                   <h3 className="text-base font-black uppercase">Trading Defaults</h3>
 
                   <div>
-                    <label className="text-xs text-[var(--text-primary)]/60 uppercase tracking-wide mb-2 block">
+                    <label className="mb-2 block text-xs tracking-wide text-[var(--text-primary)]/60 uppercase">
                       Slippage Tolerance (%)
                     </label>
                     <input
                       type="number"
                       step="0.1"
                       value={settings.slippageTolerance}
-                      onChange={(e) => updateSetting('slippageTolerance', parseFloat(e.target.value))}
-                      className="w-full px-4 py-3 rounded-lg bg-[var(--bg-base)] border border-[var(--border-neutral)]/10 text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-neutral)]/30"
+                      onChange={e => updateSetting('slippageTolerance', parseFloat(e.target.value))}
+                      className="w-full rounded-lg border border-[var(--border-neutral)]/10 bg-[var(--bg-base)] px-4 py-3 text-[var(--text-primary)] focus:border-[var(--border-neutral)]/30 focus:outline-none"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs text-[var(--text-primary)]/60 uppercase tracking-wide mb-3 block">
+                    <label className="mb-3 block text-xs tracking-wide text-[var(--text-primary)]/60 uppercase">
                       Gas Price Preset
                     </label>
                     <div className="grid grid-cols-3 gap-2">
-                      {['low', 'medium', 'high'].map((preset) => (
+                      {['low', 'medium', 'high'].map(preset => (
                         <motion.button
                           key={preset}
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                           onClick={() => updateSetting('gasPreset', preset)}
-                          className="p-3 rounded-lg font-bold text-sm capitalize transition-all"
+                          className="rounded-lg p-3 text-sm font-bold capitalize transition-all"
                           style={{
-                            background: settings.gasPreset === preset ? accentColor : 'rgba(255, 255, 255, 0.05)',
+                            background:
+                              settings.gasPreset === preset
+                                ? accentColor
+                                : 'rgba(255, 255, 255, 0.05)',
                             border: `1px solid ${settings.gasPreset === preset ? accentColor : 'rgba(255, 255, 255, 0.1)'}`,
                           }}
                         >
@@ -643,17 +832,17 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                 </div>
 
                 {/* Display Preferences */}
-                <div className="p-6 rounded-xl bg-white/5 border border-[var(--border-neutral)]/10 space-y-4">
+                <div className="space-y-4 rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-6">
                   <h3 className="text-base font-black uppercase">Display</h3>
 
                   <div>
-                    <label className="text-xs text-[var(--text-primary)]/60 uppercase tracking-wide mb-3 block">
+                    <label className="mb-3 block text-xs tracking-wide text-[var(--text-primary)]/60 uppercase">
                       Currency
                     </label>
                     <select
                       value={settings.currency}
-                      onChange={(e) => updateSetting('currency', e.target.value)}
-                      className="w-full px-4 py-3 rounded-lg bg-[var(--bg-base)] border border-[var(--border-neutral)]/10 text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-neutral)]/30"
+                      onChange={e => updateSetting('currency', e.target.value)}
+                      className="w-full rounded-lg border border-[var(--border-neutral)]/10 bg-[var(--bg-base)] px-4 py-3 text-[var(--text-primary)] focus:border-[var(--border-neutral)]/30 focus:outline-none"
                     >
                       <option value="USD">USD ($)</option>
                       <option value="EUR">EUR (€)</option>
@@ -663,13 +852,13 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                   </div>
 
                   <div>
-                    <label className="text-xs text-[var(--text-primary)]/60 uppercase tracking-wide mb-3 block">
+                    <label className="mb-3 block text-xs tracking-wide text-[var(--text-primary)]/60 uppercase">
                       Language
                     </label>
                     <select
                       value={settings.language}
-                      onChange={(e) => updateSetting('language', e.target.value)}
-                      className="w-full px-4 py-3 rounded-lg bg-[var(--bg-base)] border border-[var(--border-neutral)]/10 text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-neutral)]/30"
+                      onChange={e => updateSetting('language', e.target.value)}
+                      className="w-full rounded-lg border border-[var(--border-neutral)]/10 bg-[var(--bg-base)] px-4 py-3 text-[var(--text-primary)] focus:border-[var(--border-neutral)]/30 focus:outline-none"
                     >
                       <option value="en">English</option>
                       <option value="es">Español</option>
@@ -687,11 +876,13 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
             {currentTab === 'advanced' && (
               <>
                 {/* Developer Mode */}
-                <div className="p-6 rounded-xl bg-white/5 border border-[var(--border-neutral)]/10">
+                <div className="rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-base font-bold mb-1">Developer Mode</h3>
-                      <p className="text-xs text-[var(--text-primary)]/60">Access advanced features & APIs</p>
+                      <h3 className="mb-1 text-base font-bold">Developer Mode</h3>
+                      <p className="text-xs text-[var(--text-primary)]/60">
+                        Access advanced features & APIs
+                      </p>
                     </div>
                     <motion.button
                       whileHover={{ scale: 1.05 }}
@@ -699,7 +890,9 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                       onClick={() => handleToggle('developerMode')}
                       className="relative inline-flex h-8 w-14 items-center rounded-full transition-colors"
                       style={{
-                        background: settings.developerMode ? accentColor : 'rgba(255, 255, 255, 0.1)',
+                        background: settings.developerMode
+                          ? accentColor
+                          : 'rgba(255, 255, 255, 0.1)',
                       }}
                     >
                       <motion.span
@@ -712,23 +905,25 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                 </div>
 
                 {/* Custom RPC */}
-                <div className="p-6 rounded-xl bg-white/5 border border-[var(--border-neutral)]/10">
-                  <label className="text-xs text-[var(--text-primary)]/60 uppercase tracking-wide mb-3 block">
+                <div className="rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-6">
+                  <label className="mb-3 block text-xs tracking-wide text-[var(--text-primary)]/60 uppercase">
                     Custom RPC URL
                   </label>
                   <input
                     type="text"
                     value={settings.rpcUrl}
-                    onChange={(e) => updateSetting('rpcUrl', e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg bg-[var(--bg-base)] border border-[var(--border-neutral)]/10 text-[var(--text-primary)] font-mono text-sm focus:outline-none focus:border-[var(--border-neutral)]/30"
+                    onChange={e => updateSetting('rpcUrl', e.target.value)}
+                    className="w-full rounded-lg border border-[var(--border-neutral)]/10 bg-[var(--bg-base)] px-4 py-3 font-mono text-sm text-[var(--text-primary)] focus:border-[var(--border-neutral)]/30 focus:outline-none"
                   />
-                  <p className="text-xs text-[var(--text-primary)]/40 mt-2">Use custom RPC endpoint for transactions</p>
+                  <p className="mt-2 text-xs text-[var(--text-primary)]/40">
+                    Use custom RPC endpoint for transactions
+                  </p>
                 </div>
 
                 {/* API Key */}
-                <div className="p-6 rounded-xl bg-white/5 border border-[var(--border-neutral)]/10">
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-xs text-[var(--text-primary)]/60 uppercase tracking-wide">
+                <div className="rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-6">
+                  <div className="mb-3 flex items-center justify-between">
+                    <label className="text-xs tracking-wide text-[var(--text-primary)]/60 uppercase">
                       API Key
                     </label>
                     <motion.button
@@ -738,63 +933,88 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                       className="p-1"
                     >
                       {showApiKey ? (
-                        <EyeOff className="w-4 h-4 text-[var(--text-primary)]/60" />
+                        <EyeOff className="h-4 w-4 text-[var(--text-primary)]/60" />
                       ) : (
-                        <Eye className="w-4 h-4 text-[var(--text-primary)]/60" />
+                        <Eye className="h-4 w-4 text-[var(--text-primary)]/60" />
                       )}
                     </motion.button>
                   </div>
                   <div className="flex items-center gap-2">
                     <input
                       type={showApiKey ? 'text' : 'password'}
-                      value={settings.apiKey}
+                      value={settings.apiKey || 'No API key generated'}
                       readOnly
-                      className="flex-1 px-4 py-3 rounded-lg bg-[var(--bg-base)] border border-[var(--border-neutral)]/10 text-[var(--text-primary)]/70 font-mono text-sm"
+                      title="API Key"
+                      className="flex-1 rounded-lg border border-[var(--border-neutral)]/10 bg-[var(--bg-base)] px-4 py-3 font-mono text-sm text-[var(--text-primary)]/70"
                     />
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => copyToClipboard(settings.apiKey)}
-                      className="p-3 rounded-lg bg-white/5 border border-[var(--border-neutral)]/10"
+                      onClick={handleCopyApiKey}
+                      className="rounded-lg border border-[var(--border-neutral)]/10 bg-white/5 p-3"
                     >
                       {copiedApiKey ? (
-                        <Check className="w-5 h-5 text-green-400" />
+                        <Check className="h-5 w-5 text-green-400" />
                       ) : (
-                        <Copy className="w-5 h-5" />
+                        <Copy className="h-5 w-5" />
                       )}
                     </motion.button>
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className="p-3 rounded-lg bg-white/5 border border-[var(--border-neutral)]/10"
+                      onClick={handleGenerateApiKey}
+                      className="rounded-lg border border-[var(--border-neutral)]/10 bg-white/5 p-3"
+                      title="Generate new API key"
                     >
-                      <RefreshCw className="w-5 h-5" />
+                      <RefreshCw className="h-5 w-5" />
                     </motion.button>
                   </div>
+                </div>
+
+                {/* Import Settings */}
+                <div className="rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-6">
+                  <h3 className="mb-4 text-base font-bold">Import Settings</h3>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImportSettings}
+                    accept=".json"
+                    className="hidden"
+                  />
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--border-neutral)]/10 bg-white/5 p-3"
+                  >
+                    <Upload className="h-5 w-5" />
+                    Import from JSON
+                  </motion.button>
                 </div>
 
                 {/* Reset Settings */}
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full p-4 rounded-xl bg-white/5 border border-[var(--border-neutral)]/10 flex items-center justify-center gap-2 text-[var(--text-primary)]/80"
+                  onClick={handleResetToDefaults}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--border-neutral)]/10 bg-white/5 p-4 text-[var(--text-primary)]/80"
                 >
-                  <RefreshCw className="w-5 h-5" />
+                  <RefreshCw className="h-5 w-5" />
                   Reset to Defaults
                 </motion.button>
 
                 {/* Danger Zone */}
                 <div
-                  className="p-6 rounded-xl border"
+                  className="rounded-xl border p-6"
                   style={{
                     background: 'rgba(239, 68, 68, 0.1)',
                     borderColor: 'rgba(239, 68, 68, 0.3)',
                   }}
                 >
-                  <div className="flex items-start gap-3 mb-4">
-                    <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                  <div className="mb-4 flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 flex-shrink-0 text-red-400" />
                     <div>
-                      <h3 className="text-base font-bold text-red-400 mb-1">Danger Zone</h3>
+                      <h3 className="mb-1 text-base font-bold text-red-400">Danger Zone</h3>
                       <p className="text-xs text-[var(--text-primary)]/60">
                         These actions are irreversible and will permanently affect your account
                       </p>
@@ -804,17 +1024,19 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      className="w-full p-3 rounded-lg border border-red-500/50 text-red-400 font-bold text-sm flex items-center justify-center gap-2"
+                      onClick={handleDisconnectWallet}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-500/50 p-3 text-sm font-bold text-red-400"
                     >
-                      <LogOut className="w-4 h-4" />
+                      <LogOut className="h-4 w-4" />
                       Disconnect Wallet
                     </motion.button>
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      className="w-full p-3 rounded-lg border border-red-500/50 text-red-400 font-bold text-sm flex items-center justify-center gap-2"
+                      onClick={handleDeleteAccount}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-500/50 p-3 text-sm font-bold text-red-400"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="h-4 w-4" />
                       Delete Account
                     </motion.button>
                   </div>
@@ -825,32 +1047,33 @@ export function Settings({ type, onClose, activeTab, onTabChange }: SettingsProp
         </AnimatePresence>
 
         {/* Help & Support */}
-        <div className="mt-6 p-4 rounded-xl border" style={{
-          background: 'rgba(59, 130, 246, 0.1)',
-          borderColor: 'rgba(59, 130, 246, 0.3)',
-        }}>
+        <div
+          className="mt-6 rounded-xl border p-4"
+          style={{
+            background: 'rgba(59, 130, 246, 0.1)',
+            borderColor: 'rgba(59, 130, 246, 0.3)',
+          }}
+        >
           <div className="flex items-start gap-3">
-            <HelpCircle className="w-5 h-5 text-blue-400 flex-shrink-0" />
+            <HelpCircle className="h-5 w-5 flex-shrink-0 text-blue-400" />
             <div className="flex-1">
-              <div className="text-sm font-bold text-blue-400 mb-1">
-                Need Help?
-              </div>
-              <p className="text-xs text-[var(--text-primary)]/60 mb-3">
+              <div className="mb-1 text-sm font-bold text-blue-400">Need Help?</div>
+              <p className="mb-3 text-xs text-[var(--text-primary)]/60">
                 Visit our documentation or contact support for assistance
               </p>
               <div className="flex gap-2">
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-500/20 text-blue-400 flex items-center gap-1"
+                  className="flex items-center gap-1 rounded-lg bg-blue-500/20 px-3 py-1.5 text-xs font-bold text-blue-400"
                 >
                   Docs
-                  <ExternalLink className="w-3 h-3" />
+                  <ExternalLink className="h-3 w-3" />
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-500/20 text-blue-400"
+                  className="rounded-lg bg-blue-500/20 px-3 py-1.5 text-xs font-bold text-blue-400"
                 >
                   Support
                 </motion.button>

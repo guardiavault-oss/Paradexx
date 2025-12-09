@@ -49,7 +49,7 @@ import { NFTGallery } from './NFTGallery';
 import Portfolio from './Portfolio';
 import { MoreMenu } from './MoreMenu';
 import { SwapPageEnhanced } from './SwapPageEnhanced';
-import { TradingPageEnhanced } from './TradingPageEnhanced';
+import { SwapTradePage } from './SwapTradePage';
 import { BuyPage } from './BuyPage';
 import { AirdropPage } from './AirdropPage';
 import { HelpCenter } from './features/HelpCenter';
@@ -77,7 +77,6 @@ import { HardwareWalletConnect } from './HardwareWalletConnect';
 import { BridgeSecurity } from './BridgeSecurity';
 import { NotificationCenter } from './NotificationCenter';
 import { Settings as SettingsPage } from './Settings';
-
 // Import security components
 import { DecoyWalletMode } from './security/DecoyWalletMode';
 
@@ -869,7 +868,7 @@ export default function DashboardNew({
               }
             }}
           >
-            <TradingPageEnhanced type={type} onClose={() => setActiveTab('home')} />
+            <SwapTradePage />
           </motion.div>
         ) : activeTab === 'activity' ? (
           <motion.div
