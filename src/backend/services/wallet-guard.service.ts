@@ -6,6 +6,11 @@
 import crypto from 'crypto';
 import { logger } from '../services/logger.service';
 import { EventEmitter } from 'events';
+import axios from 'axios';
+
+// API Configuration
+const ETHERSCAN_API = 'https://api.etherscan.io/api';
+const GOPLUSLABS_API = 'https://api.gopluslabs.io/api/v1';
 
 // ============ Types & Interfaces ============
 
@@ -491,22 +496,122 @@ class WalletGuardService extends EventEmitter {
         const wallet = await this.getWalletStatus(walletAddress, network);
         const threats = await this.getRecentThreats({ walletAddress, hours: this.timeframeToHours(timeframe) });
 
+        // Fetch real analytics from Etherscan
+        let txCount = 0;
+        let uniqueInteractions = 0;
+        let topInteractions: WalletAnalytics['topInteractions'] = [];
+
+        try {
+            const response = await axios.get(ETHERSCAN_API, {
+                params: {
+                    module: 'account',
+                    action: 'txlist',
+                    address: walletAddress,
+                    startblock: 0,
+                    endblock: 99999999,
+                    page: 1,
+                    offset: 100,
+                    sort: 'desc',
+                    apikey: process.env['ETHERSCAN_API_KEY'] || '',
+                },
+                timeout: 5000,
+            });
+
+            if (response.data?.result && Array.isArray(response.data.result)) {
+                const txs = response.data.result;
+                txCount = txs.length;
+
+                // Calculate unique interactions
+                const addressCounts = new Map<string, number>();
+                for (const tx of txs) {
+                    const addr = (tx.to || '').toLowerCase();
+                    if (addr) {
+                        addressCounts.set(addr, (addressCounts.get(addr) || 0) + 1);
+                    }
+                }
+                uniqueInteractions = addressCounts.size;
+
+                // Get top interactions
+                topInteractions = Array.from(addressCounts.entries())
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5)
+                    .map(([address, count]) => ({
+                        address,
+                        count,
+                        type: this.classifyAddress(address),
+                    }));
+            }
+        } catch (error) {
+            logger.debug('[WalletGuard] Error fetching analytics:', error);
+        }
+
         return {
             walletAddress,
             network,
             timeframe,
             metrics: {
-                totalTransactions: wallet?.transactionCount || 0,
+                totalTransactions: txCount || wallet?.transactionCount || 0,
                 totalVolume: wallet?.balance || '0',
-                uniqueInteractions: Math.floor(Math.random() * 50) + 10, // Mock
-                gasSpent: '0.05',
+                uniqueInteractions,
+                gasSpent: '0', // Would calculate from tx receipts
                 threatsDetected: threats.length,
                 threatsBlocked: threats.filter(t => t.resolved).length,
                 riskTrend: this.calculateRiskTrend(walletAddress),
             },
-            topInteractions: this.getMockTopInteractions(),
-            riskHistory: this.generateRiskHistory(timeframe),
+            topInteractions,
+            riskHistory: this.generateRiskHistoryFromThreats(walletAddress, timeframe),
         };
+    }
+
+    private classifyAddress(address: string): string {
+        const lowerAddr = address.toLowerCase();
+        // Known DEX routers
+        const dexAddresses = [
+            '0x7a250d5630b4cf539739df2c5dacb4c659f2488d', // Uniswap V2
+            '0xe592427a0aece92de3edee1f18e0157c05861564', // Uniswap V3
+            '0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f', // SushiSwap
+        ];
+        if (dexAddresses.includes(lowerAddr)) return 'DEX';
+
+        // Known tokens
+        const tokens = [
+            '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // WETH
+            '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
+            '0xdac17f958d2ee523a2206206994597c13d831ec7', // USDT
+        ];
+        if (tokens.includes(lowerAddr)) return 'Token';
+
+        return 'Contract';
+    }
+
+    private generateRiskHistoryFromThreats(walletAddress: string, timeframe: string): WalletAnalytics['riskHistory'] {
+        const hours = this.timeframeToHours(timeframe);
+        const days = Math.min(Math.ceil(hours / 24), 30);
+        const history: WalletAnalytics['riskHistory'] = [];
+
+        // Get threats for this wallet in the timeframe
+        const cutoff = Date.now() - hours * 60 * 60 * 1000;
+        const threatsByDay = new Map<string, number>();
+
+        for (const threat of this.threatDetections) {
+            if (threat.walletAddress.toLowerCase() === walletAddress.toLowerCase() &&
+                threat.timestamp.getTime() >= cutoff) {
+                const day = threat.timestamp.toISOString().split('T')[0];
+                threatsByDay.set(day, (threatsByDay.get(day) || 0) + 1);
+            }
+        }
+
+        // Generate history based on actual threats
+        for (let i = days; i >= 0; i--) {
+            const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+            const dateStr = date.toISOString().split('T')[0];
+            const threatCount = threatsByDay.get(dateStr) || 0;
+            // Base score of 10, +15 per threat
+            const score = Math.min(100, 10 + threatCount * 15);
+            history.push({ date: dateStr, score });
+        }
+
+        return history;
     }
 
     // ============ Security Configuration ============
@@ -549,10 +654,59 @@ class WalletGuardService extends EventEmitter {
         // Check if address is in known malicious list
         if (KNOWN_MALICIOUS_ADDRESSES.has(address.toLowerCase())) {
             score += 100;
+            return Math.min(100, score);
         }
 
-        // Add random factor for demo (in production, this would be real analysis)
-        score += Math.random() * 20;
+        try {
+            // Use GoPlus Labs API for address risk assessment
+            const response = await axios.get(`${GOPLUSLABS_API}/address_security/${address}`, {
+                params: { chain_id: network === 'ethereum' ? '1' : '1' },
+                timeout: 5000,
+            });
+
+            if (response.data?.result) {
+                const result = response.data.result;
+                // Check risk indicators
+                if (result.blacklist_doubt === '1') score += 50;
+                if (result.honeypot_related_address === '1') score += 40;
+                if (result.phishing_activities === '1') score += 60;
+                if (result.stealing_attack === '1') score += 70;
+                if (result.fake_kyc === '1') score += 30;
+                if (result.blackmail_activities === '1') score += 50;
+                if (result.sanctioned === '1') score += 80;
+                if (result.malicious_mining_activities === '1') score += 40;
+                if (result.mixer === '1') score += 20;
+                if (result.cybercrime === '1') score += 60;
+            }
+        } catch (error) {
+            logger.debug('[WalletGuard] Error fetching risk score from GoPlus:', error);
+            // Fallback: check transaction history from Etherscan
+            try {
+                const etherscanRes = await axios.get(ETHERSCAN_API, {
+                    params: {
+                        module: 'account',
+                        action: 'txlist',
+                        address,
+                        startblock: 0,
+                        endblock: 99999999,
+                        page: 1,
+                        offset: 10,
+                        sort: 'desc',
+                        apikey: process.env['ETHERSCAN_API_KEY'] || '',
+                    },
+                    timeout: 5000,
+                });
+
+                if (etherscanRes.data?.result?.length > 0) {
+                    // Check for suspicious patterns
+                    const txs = etherscanRes.data.result;
+                    const failedTxs = txs.filter((tx: any) => tx.isError === '1').length;
+                    if (failedTxs > txs.length / 2) score += 20; // High failure rate
+                }
+            } catch {
+                // Keep base score if API fails
+            }
+        }
 
         return Math.min(100, Math.max(0, score));
     }
@@ -591,24 +745,89 @@ class WalletGuardService extends EventEmitter {
     ): Promise<ThreatDetection[]> {
         const threats: ThreatDetection[] = [];
 
-        // Mock pattern analysis - in production, this would analyze real transactions
-        const patterns = [
-            { type: 'UNUSUAL_ACTIVITY', probability: 0.1 },
-            { type: 'HIGH_VALUE_TRANSFER', probability: 0.05 },
-            { type: 'NEW_CONTRACT_INTERACTION', probability: 0.15 },
-        ];
+        try {
+            // Fetch recent transactions from Etherscan
+            const response = await axios.get(ETHERSCAN_API, {
+                params: {
+                    module: 'account',
+                    action: 'txlist',
+                    address: walletAddress,
+                    startblock: 0,
+                    endblock: 99999999,
+                    page: 1,
+                    offset: 20,
+                    sort: 'desc',
+                    apikey: process.env['ETHERSCAN_API_KEY'] || '',
+                },
+                timeout: 5000,
+            });
 
-        for (const pattern of patterns) {
-            if (Math.random() < pattern.probability) {
-                threats.push(this.createThreat(
-                    walletAddress,
-                    pattern.type,
-                    ThreatLevel.MEDIUM,
-                    `Detected ${pattern.type.toLowerCase().replace(/_/g, ' ')}`,
-                    0.7 + Math.random() * 0.3,
-                    { network, pattern: pattern.type }
-                ));
+            if (response.data?.result && Array.isArray(response.data.result)) {
+                const txs = response.data.result;
+                
+                // Analyze transaction patterns
+                const uniqueContacts = new Set(txs.map((tx: any) => tx.to?.toLowerCase()).filter(Boolean));
+                const failedTxs = txs.filter((tx: any) => tx.isError === '1');
+                const recentTxs = txs.filter((tx: any) => {
+                    const txTime = Number.parseInt(tx.timeStamp, 10) * 1000;
+                    return Date.now() - txTime < 3600000; // Last hour
+                });
+
+                // Detect unusual activity: many transactions in short time
+                if (recentTxs.length > 5) {
+                    threats.push(this.createThreat(
+                        walletAddress,
+                        'UNUSUAL_ACTIVITY',
+                        ThreatLevel.MEDIUM,
+                        `High transaction frequency: ${recentTxs.length} transactions in the last hour`,
+                        0.75,
+                        { network, txCount: recentTxs.length }
+                    ));
+                }
+
+                // Detect high failure rate
+                if (failedTxs.length > txs.length * 0.3 && txs.length > 5) {
+                    threats.push(this.createThreat(
+                        walletAddress,
+                        'HIGH_FAILURE_RATE',
+                        ThreatLevel.MEDIUM,
+                        `High transaction failure rate: ${((failedTxs.length / txs.length) * 100).toFixed(1)}%`,
+                        0.8,
+                        { network, failedCount: failedTxs.length, totalCount: txs.length }
+                    ));
+                }
+
+                // Detect interactions with many new addresses
+                if (uniqueContacts.size > txs.length * 0.8 && txs.length > 10) {
+                    threats.push(this.createThreat(
+                        walletAddress,
+                        'MANY_NEW_INTERACTIONS',
+                        ThreatLevel.LOW,
+                        `Interacting with many unique addresses (${uniqueContacts.size} unique in ${txs.length} txs)`,
+                        0.6,
+                        { network, uniqueAddresses: uniqueContacts.size }
+                    ));
+                }
+
+                // Check for large value transfers
+                const highValueTxs = txs.filter((tx: any) => {
+                    const value = Number.parseFloat(tx.value) / 1e18;
+                    return value > 10; // More than 10 ETH
+                });
+
+                if (highValueTxs.length > 0) {
+                    threats.push(this.createThreat(
+                        walletAddress,
+                        'HIGH_VALUE_TRANSFERS',
+                        ThreatLevel.LOW,
+                        `${highValueTxs.length} high-value transfers detected (>10 ETH)`,
+                        0.7,
+                        { network, count: highValueTxs.length }
+                    ));
+                }
             }
+        } catch (error) {
+            logger.debug('[WalletGuard] Error analyzing transaction patterns:', error);
         }
 
         return threats;
@@ -790,35 +1009,11 @@ class WalletGuardService extends EventEmitter {
         return 'stable';
     }
 
-    private getMockTopInteractions(): WalletAnalytics['topInteractions'] {
-        return [
-            { address: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D', count: 15, type: 'DEX' },
-            { address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', count: 12, type: 'Token' },
-            { address: '0x6B175474E89094C44Da98b954EescdeCB5f8f4', count: 8, type: 'Token' },
-        ];
-    }
-
-    private generateRiskHistory(timeframe: string): WalletAnalytics['riskHistory'] {
-        const hours = this.timeframeToHours(timeframe);
-        const points = Math.min(hours / 24, 30);
-        const history: WalletAnalytics['riskHistory'] = [];
-
-        for (let i = points; i >= 0; i--) {
-            const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
-            history.push({
-                date: date.toISOString().split('T')[0],
-                score: Math.floor(Math.random() * 30) + 10,
-            });
-        }
-
-        return history;
-    }
-
     private startBackgroundMonitoring(): void {
         if (this.monitoringInterval) return;
 
         this.monitoringInterval = setInterval(async () => {
-            for (const [key, wallet] of this.monitoredWallets) {
+            for (const [, wallet] of this.monitoredWallets) {
                 if (!wallet.isMonitored) continue;
 
                 try {

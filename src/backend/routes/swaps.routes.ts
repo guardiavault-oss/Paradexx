@@ -104,32 +104,79 @@ router.get('/quote', async (req: Request, res: Response) => {
       logger.error('ParaSwap quote error:', error.message);
     }
 
-    // Fallback: return estimated quote based on mock rates
-    const mockRates: Record<string, number> = {
-      'ETH-USDC': 2400,
-      'ETH-USDT': 2400,
-      'USDC-ETH': 1/2400,
-      'USDT-ETH': 1/2400,
-      'WBTC-ETH': 15,
-      'ETH-WBTC': 1/15,
-      'MATIC-USDC': 0.85,
-      'USDC-MATIC': 1/0.85,
-    };
+    // Try 1inch as fallback if ParaSwap fails
+    if (ONE_INCH_API_KEY) {
+      try {
+        const oneInchResponse = await axios.get(`${ONEINCH_API}/swap/v6.0/${chain}/quote`, {
+          params: {
+            src: fromToken.address,
+            dst: toToken.address,
+            amount: amountWei,
+          },
+          headers: {
+            'Authorization': `Bearer ${ONE_INCH_API_KEY}`,
+          },
+          timeout: 10000,
+        });
 
-    const pair = `${fromToken.symbol}-${toToken.symbol}`;
-    const rate = mockRates[pair] || 1;
-    const toAmount = Number(amount) * rate;
+        if (oneInchResponse.data?.dstAmount) {
+          const destAmount = Number(oneInchResponse.data.dstAmount) / Math.pow(10, toToken.decimals);
+          
+          return res.json({
+            from: fromToken.symbol,
+            to: toToken.symbol,
+            fromAmount: Number(amount),
+            toAmount: destAmount,
+            rate: destAmount / Number(amount),
+            estimatedGas: oneInchResponse.data.gas || '150000',
+            aggregator: '1inch',
+            chainId: chain,
+          });
+        }
+      } catch (oneInchError: any) {
+        logger.error('1inch quote error:', oneInchError.message);
+      }
+    }
 
-    res.json({
+    // Try LI.FI as final fallback
+    try {
+      const lifiResponse = await axios.get(`${LIFI_API}/quote`, {
+        params: {
+          fromChain: chain,
+          toChain: chain,
+          fromToken: fromToken.address,
+          toToken: toToken.address,
+          fromAmount: amountWei,
+        },
+        timeout: 10000,
+      });
+
+      if (lifiResponse.data?.estimate) {
+        const estimate = lifiResponse.data.estimate;
+        const destAmount = Number(estimate.toAmount) / Math.pow(10, toToken.decimals);
+        
+        return res.json({
+          from: fromToken.symbol,
+          to: toToken.symbol,
+          fromAmount: Number(amount),
+          toAmount: destAmount,
+          rate: destAmount / Number(amount),
+          estimatedGas: estimate.gasCosts?.[0]?.amount || '150000',
+          aggregator: 'lifi',
+          chainId: chain,
+        });
+      }
+    } catch (lifiError: any) {
+      logger.error('LI.FI quote error:', lifiError.message);
+    }
+
+    // All aggregators failed - return error instead of fake data
+    res.status(503).json({
+      error: 'Unable to get swap quote',
+      message: 'All DEX aggregators are temporarily unavailable. Please try again.',
       from: fromToken.symbol,
       to: toToken.symbol,
-      fromAmount: Number(amount),
-      toAmount,
-      rate,
-      estimatedGas: '150000',
-      aggregator: 'estimate',
       chainId: chain,
-      warning: 'This is an estimated quote. Actual rates may vary.',
     });
   } catch (error) {
     logger.error('Get swap quote error:', error);

@@ -20,6 +20,7 @@ import axios from 'axios';
 
 // API Configuration - read lazily to allow dotenv to load first
 const COINGECKO_API = 'https://api.coingecko.com/api/v3';
+const ETHERSCAN_API = 'https://api.etherscan.io/api';
 
 // Chain configurations - getter functions for lazy env access
 function getChainConfig(chainId: number): { name: string; scanner: string; apiKey: string } {
@@ -207,6 +208,17 @@ class WhaleTrackerService extends EventEmitter {
         const whale = fromWhale || toWhale!;
         const type = fromWhale ? 'sell' : 'buy';
 
+        // Fetch real USD value from CoinGecko
+        let valueUsd = '$0';
+        try {
+            const ethPrice = await this.getEthPrice();
+            const valueInEth = Number.parseFloat(tx.value);
+            valueUsd = `$${(valueInEth * ethPrice).toFixed(2)}`;
+        } catch (error) {
+            // Fallback estimation
+            valueUsd = `$${(Number.parseFloat(tx.value) * 2000).toFixed(2)}`;
+        }
+
         // Create transaction record
         const whaleTx: WhaleTransaction = {
             id: `whale_tx_${Date.now()}`,
@@ -217,7 +229,7 @@ class WhaleTrackerService extends EventEmitter {
             tokenSymbol: 'ETH', // Would fetch from token API
             tokenName: 'Ethereum',
             amount: tx.value,
-            valueUsd: `$${(parseFloat(tx.value) * 2000).toFixed(2)}`, // Mock USD value
+            valueUsd,
             chainId: tx.chainId,
             txHash: tx.txHash,
             timestamp: new Date(),
@@ -229,12 +241,44 @@ class WhaleTrackerService extends EventEmitter {
         }
 
         // Check if this is a significant transaction
-        const valueUsd = parseFloat(whaleTx.valueUsd.replace(/[$,]/g, ''));
-        if (valueUsd >= LARGE_TX_THRESHOLD_USD) {
+        const valueUsdNum = Number.parseFloat(whaleTx.valueUsd.replace(/[$,]/g, ''));
+        if (valueUsdNum >= LARGE_TX_THRESHOLD_USD) {
             return this.createAlert(whale, whaleTx);
         }
 
         return null;
+    }
+
+    private ethPriceCache: { price: number; timestamp: number } | null = null;
+
+    private async getEthPrice(): Promise<number> {
+        // Use cached price if less than 60 seconds old
+        if (this.ethPriceCache && Date.now() - this.ethPriceCache.timestamp < 60000) {
+            return this.ethPriceCache.price;
+        }
+
+        try {
+            const response = await axios.get(`${COINGECKO_API}/simple/price`, {
+                params: {
+                    ids: 'ethereum',
+                    vs_currencies: 'usd',
+                },
+                timeout: 5000,
+            });
+
+            if (response.data?.ethereum?.usd) {
+                this.ethPriceCache = {
+                    price: response.data.ethereum.usd,
+                    timestamp: Date.now(),
+                };
+                return response.data.ethereum.usd;
+            }
+        } catch (error) {
+            logger.debug('[WhaleTracker] Failed to fetch ETH price from CoinGecko:', error);
+        }
+
+        // Return cached or default
+        return this.ethPriceCache?.price || 2000;
     }
 
     private createAlert(whale: WhaleWallet, tx: WhaleTransaction): WhaleAlert {
@@ -269,8 +313,9 @@ class WhaleTrackerService extends EventEmitter {
         return alert;
     }
 
+    // eslint-disable-next-line unicorn/prefer-string-replace-all
     private calculateSeverity(tx: WhaleTransaction): 'low' | 'medium' | 'high' | 'critical' {
-        const value = parseFloat(tx.valueUsd.replace(/[$,]/g, ''));
+        const value = Number.parseFloat(tx.valueUsd.replace(/[$,]/g, ''));
         if (value >= 10000000) return 'critical'; // $10M+
         if (value >= 1000000) return 'high'; // $1M+
         if (value >= 500000) return 'medium'; // $500k+
@@ -329,8 +374,8 @@ class WhaleTrackerService extends EventEmitter {
         if (options?.category) {
             whales = whales.filter(w => w.category === options.category);
         }
-        if (options?.minWinRate) {
-            whales = whales.filter(w => w.winRate >= options.minWinRate);
+        if (options?.minWinRate !== undefined) {
+            whales = whales.filter(w => w.winRate >= options.minWinRate!);
         }
         if (options?.followingOnly) {
             whales = whales.filter(w => w.following);
@@ -383,18 +428,70 @@ class WhaleTrackerService extends EventEmitter {
         totalValue: string;
         topPerformers: string[];
     }> {
-        // Mock portfolio - in production would fetch from blockchain
-        return {
-            tokens: [
-                { symbol: 'ETH', balance: '1,234.5', valueUsd: '$2,469,000', pnl: '+45.2%' },
-                { symbol: 'USDC', balance: '500,000', valueUsd: '$500,000', pnl: '0%' },
-                { symbol: 'PEPE', balance: '10B', valueUsd: '$150,000', pnl: '+234%' },
-            ],
-            totalValue: '$3.2M',
-            topPerformers: ['PEPE (+234%)', 'ETH (+45.2%)', 'ARB (+28%)'],
-        };
+        try {
+            // Fetch real portfolio from Etherscan
+            const response = await axios.get(
+                `${ETHERSCAN_API}?module=account&action=tokenlist&address=${address}&apikey=${process.env['ETHERSCAN_API_KEY'] || ''}`
+            );
+
+            const ethPrice = await this.getEthPrice();
+            const tokens: { symbol: string; balance: string; valueUsd: string; pnl: string }[] = [];
+            let totalValueUsd = 0;
+
+            // Get ETH balance
+            const ethBalanceRes = await axios.get(
+                `${ETHERSCAN_API}?module=account&action=balance&address=${address}&apikey=${process.env['ETHERSCAN_API_KEY'] || ''}`
+            );
+
+            if (ethBalanceRes.data?.result) {
+                const ethBalance = Number.parseFloat(ethBalanceRes.data.result) / 1e18;
+                const ethValue = ethBalance * ethPrice;
+                totalValueUsd += ethValue;
+                tokens.push({
+                    symbol: 'ETH',
+                    balance: ethBalance.toFixed(4),
+                    valueUsd: `$${ethValue.toLocaleString()}`,
+                    pnl: 'N/A',
+                });
+            }
+
+            // Process top tokens if available
+            if (response.data?.result && Array.isArray(response.data.result)) {
+                const topTokens = response.data.result.slice(0, 5);
+                for (const token of topTokens) {
+                    const decimals = Number.parseInt(token.TokenDivisor || '18', 10);
+                    const balance = Number.parseFloat(token.TokenQuantity || '0') / (10 ** decimals);
+                    tokens.push({
+                        symbol: token.TokenSymbol || 'UNKNOWN',
+                        balance: balance.toLocaleString(),
+                        valueUsd: 'N/A', // Would need price API for each token
+                        pnl: 'N/A',
+                    });
+                }
+            }
+
+            const formatValue = (val: number): string => {
+                if (val >= 1000000) return `$${(val / 1000000).toFixed(2)}M`;
+                if (val >= 1000) return `$${(val / 1000).toFixed(2)}K`;
+                return `$${val.toFixed(2)}`;
+            };
+
+            return {
+                tokens,
+                totalValue: formatValue(totalValueUsd),
+                topPerformers: tokens.filter(t => t.pnl !== 'N/A').map(t => `${t.symbol} (${t.pnl})`).slice(0, 3),
+            };
+        } catch (error) {
+            logger.debug('[WhaleTracker] Error fetching whale portfolio:', error);
+            return {
+                tokens: [],
+                totalValue: '$0',
+                topPerformers: [],
+            };
+        }
     }
 }
 
 export const whaleTrackerService = new WhaleTrackerService();
-export { WhaleTrackerService, WhaleWallet, WhaleTransaction, WhaleAlert, CopyTradeSignal };
+export { WhaleTrackerService };
+export type { WhaleWallet, WhaleTransaction, WhaleAlert, CopyTradeSignal };

@@ -224,26 +224,97 @@ class AirdropHunterService extends EventEmitter {
             throw new Error('Airdrop not found');
         }
 
-        // Mock eligibility check
-        const isEligible = Math.random() > 0.4;
-        const eligibleAmount = isEligible ? (Math.random() * 1000).toFixed(2) : undefined;
+        // Real eligibility check via on-chain data
+        const criteriaResults = await this.checkOnChainCriteria(airdrop, walletAddress);
+        const metCount = criteriaResults.filter(c => c.met).length;
+        const isEligible = metCount >= criteriaResults.length * 0.5; // Need 50% criteria met
+
+        // Calculate estimated amount based on activity
+        let eligibleAmount: string | undefined;
+        if (isEligible && criteriaResults.length > 0) {
+            // Base amount + bonus for each criterion met
+            const baseAmount = 100;
+            const bonusPerCriterion = 50;
+            const totalAmount = baseAmount + (metCount * bonusPerCriterion);
+            eligibleAmount = `${totalAmount} ${airdrop.tokenSymbol}`;
+        }
 
         const check: EligibilityCheck = {
             airdropId,
             walletAddress: walletAddress.toLowerCase(),
             status: isEligible ? 'eligible' : 'not_eligible',
-            eligibleAmount: eligibleAmount ? `${eligibleAmount} ${airdrop.tokenSymbol}` : undefined,
-            estimatedValue: eligibleAmount ? `$${(parseFloat(eligibleAmount) * 5).toFixed(2)}` : undefined,
-            criteria: airdrop.requirements.map(req => ({
-                criterion: req,
-                met: Math.random() > 0.3,
-                details: undefined,
-            })),
+            eligibleAmount,
+            estimatedValue: eligibleAmount ? `$${(Number.parseFloat(eligibleAmount) * 5).toFixed(2)}` : undefined,
+            criteria: criteriaResults,
             checkedAt: new Date(),
         };
 
         this.eligibilityCache.set(cacheKey, check);
         return check;
+    }
+
+    private async checkOnChainCriteria(
+        airdrop: Airdrop,
+        walletAddress: string
+    ): Promise<{ criterion: string; met: boolean; details?: string }[]> {
+        const results: { criterion: string; met: boolean; details?: string }[] = [];
+        const rpcUrl = CHAIN_RPCS[airdrop.chainId] || CHAIN_RPCS[1];
+
+        try {
+            // Check transaction count on the relevant chain
+            const txCountResponse = await axios.post(rpcUrl, {
+                jsonrpc: '2.0',
+                method: 'eth_getTransactionCount',
+                params: [walletAddress, 'latest'],
+                id: 1,
+            }, { timeout: 5000 });
+
+            const txCount = Number.parseInt(txCountResponse.data?.result || '0', 16);
+
+            // Check each requirement based on activity
+            for (const req of airdrop.requirements) {
+                const reqLower = req.toLowerCase();
+                let met = false;
+                let details: string | undefined;
+
+                if (reqLower.includes('transaction') || reqLower.includes('used') || reqLower.includes('bridge')) {
+                    // Check if wallet has transactions
+                    met = txCount > 5;
+                    details = `${txCount} transactions on chain`;
+                } else if (reqLower.includes('active') || reqLower.includes('participation')) {
+                    met = txCount > 10;
+                    details = `Activity level: ${txCount > 10 ? 'Active' : 'Low'}`;
+                } else if (reqLower.includes('restake') || reqLower.includes('stake')) {
+                    // Would need to check staking contracts - for now check balance
+                    const balanceRes = await axios.post(rpcUrl, {
+                        jsonrpc: '2.0',
+                        method: 'eth_getBalance',
+                        params: [walletAddress, 'latest'],
+                        id: 2,
+                    }, { timeout: 5000 });
+                    const balance = Number.parseInt(balanceRes.data?.result || '0', 16) / 1e18;
+                    met = balance > 0.1;
+                    details = `Balance: ${balance.toFixed(4)} ETH`;
+                } else if (reqLower.includes('defi') || reqLower.includes('liquidity')) {
+                    // Check for DEX interactions would require indexer
+                    met = txCount > 20;
+                    details = `DeFi activity: ${txCount > 20 ? 'Detected' : 'Minimal'}`;
+                } else {
+                    // Default: check if wallet is active
+                    met = txCount > 0;
+                    details = `Wallet active: ${txCount > 0 ? 'Yes' : 'No'}`;
+                }
+
+                results.push({ criterion: req, met, details });
+            }
+        } catch (error) {
+            // If RPC fails, return unknown status
+            for (const req of airdrop.requirements) {
+                results.push({ criterion: req, met: false, details: 'Unable to verify - check manually' });
+            }
+        }
+
+        return results;
     }
 
     async checkAllEligibility(walletAddress: string): Promise<EligibilityCheck[]> {
@@ -390,10 +461,5 @@ class AirdropHunterService extends EventEmitter {
 }
 
 export const airdropHunterService = new AirdropHunterService();
-export {
-    AirdropHunterService,
-    Airdrop,
-    EligibilityCheck,
-    FarmingOpportunity,
-    ClaimRecord
-};
+export { AirdropHunterService };
+export type { Airdrop, EligibilityCheck, FarmingOpportunity, ClaimRecord };

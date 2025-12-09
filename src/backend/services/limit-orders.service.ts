@@ -193,15 +193,79 @@ class LimitOrdersService extends EventEmitter {
         const cacheKey = `${chainId}-${tokenAddress}`;
         const cached = this.priceCache.get(cacheKey);
 
+        // Use cached price if less than 10 seconds old
         if (cached && Date.now() - cached.timestamp.getTime() < 10000) {
             return cached.price;
         }
 
-        // Mock price - in production would fetch from DEX/API
-        const mockPrice = (1000 + Math.random() * 100).toFixed(2);
-        this.priceCache.set(cacheKey, { price: mockPrice, timestamp: new Date() });
+        try {
+            // Fetch real price from CoinGecko
+            const axios = (await import('axios')).default;
+            
+            // Map chainId to CoinGecko platform
+            const platformMap: Record<number, string> = {
+                1: 'ethereum',
+                137: 'polygon-pos',
+                56: 'binance-smart-chain',
+                42161: 'arbitrum-one',
+                10: 'optimistic-ethereum',
+                8453: 'base',
+            };
+            
+            const platform = platformMap[chainId] || 'ethereum';
+            
+            const response = await axios.get(`https://api.coingecko.com/api/v3/simple/token_price/${platform}`, {
+                params: {
+                    contract_addresses: tokenAddress,
+                    vs_currencies: 'usd',
+                },
+                timeout: 5000,
+            });
 
-        return mockPrice;
+            const priceData = response.data?.[tokenAddress.toLowerCase()];
+            if (priceData?.usd) {
+                const price = priceData.usd.toString();
+                this.priceCache.set(cacheKey, { price, timestamp: new Date() });
+                return price;
+            }
+        } catch (error) {
+            logger.debug(`Failed to fetch price for ${tokenAddress}:`, error);
+        }
+
+        // Fallback: try DeFiLlama
+        try {
+            const axios = (await import('axios')).default;
+            const chainPrefix: Record<number, string> = {
+                1: 'ethereum',
+                137: 'polygon',
+                56: 'bsc',
+                42161: 'arbitrum',
+                10: 'optimism',
+                8453: 'base',
+            };
+            
+            const prefix = chainPrefix[chainId] || 'ethereum';
+            const response = await axios.get(`https://coins.llama.fi/prices/current/${prefix}:${tokenAddress}`, {
+                timeout: 5000,
+            });
+
+            const priceData = response.data?.coins?.[`${prefix}:${tokenAddress}`];
+            if (priceData?.price) {
+                const price = priceData.price.toString();
+                this.priceCache.set(cacheKey, { price, timestamp: new Date() });
+                return price;
+            }
+        } catch (error) {
+            logger.debug(`DeFiLlama price fetch failed for ${tokenAddress}:`, error);
+        }
+
+        // Return cached price even if stale, or throw error
+        const staleCache = this.priceCache.get(cacheKey);
+        if (staleCache) {
+            return staleCache.price;
+        }
+
+        throw new Error(`Unable to fetch price for token ${tokenAddress}`);
     }
 
     private async checkOrders() {

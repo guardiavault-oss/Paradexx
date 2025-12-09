@@ -421,11 +421,30 @@ class SmartGasService extends EventEmitter {
         const userTxs = Array.from(this.scheduledTxs.values())
             .filter(tx => tx.userId === userId && tx.status === 'executed');
 
-        // Mock calculation - in production would track actual savings
+        // Calculate real savings from executed transactions
+        let totalSavedGwei = 0;
+        const ETH_PRICE_USD = 2000; // Could fetch from price API
+        const STANDARD_GAS_LIMIT = 21000;
+
+        for (const tx of userTxs) {
+            if (tx.actualGasPrice && tx.targetGasPrice) {
+                // Savings = (target - actual) * gas limit
+                const savedWei = Number(tx.targetGasPrice - tx.actualGasPrice);
+                if (savedWei > 0) {
+                    totalSavedGwei += savedWei / 1e9;
+                }
+            }
+        }
+
+        // Convert gwei savings to USD (approximate)
+        const totalSavedEth = (totalSavedGwei * STANDARD_GAS_LIMIT) / 1e9;
+        const totalSavedUsd = totalSavedEth * ETH_PRICE_USD;
+        const avgSavedUsd = userTxs.length > 0 ? totalSavedUsd / userTxs.length : 0;
+
         return {
-            totalSaved: '$124.50',
+            totalSaved: `$${totalSavedUsd.toFixed(2)}`,
             transactionsOptimized: userTxs.length,
-            averageSavings: '$8.30',
+            averageSavings: `$${avgSavedUsd.toFixed(2)}`,
         };
     }
 

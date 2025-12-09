@@ -175,7 +175,7 @@ class TransactionService {
   }
 
   /**
-   * Get swap quote from multiple DEXes
+   * Get swap quote from multiple DEXes via aggregators
    */
   async getSwapQuote(params: {
     fromToken: string;
@@ -184,25 +184,82 @@ class TransactionService {
     chain: string;
   }): Promise<SwapQuote> {
     try {
-      // TODO: Implement actual DEX aggregation
-      // For now, return mock quote from Uniswap
-      const router = DEX_ROUTERS[params.chain]?.uniswap || DEX_ROUTERS.ethereum.uniswap;
+      const chainId = getChainId(params.chain) || 1;
+      const amountWei = ethers.parseEther(params.amount).toString();
 
-      // Calculate mock output (98% of input, simulating 2% slippage)
-      const expectedOutput = (parseFloat(params.amount) * 0.98).toString();
-      const minOutput = (parseFloat(expectedOutput) * 0.99).toString();
+      // Try ParaSwap first (free API)
+      try {
+        const axios = (await import('axios')).default;
+        const response = await axios.get('https://apiv5.paraswap.io/prices', {
+          params: {
+            srcToken: params.fromToken,
+            destToken: params.toToken,
+            amount: amountWei,
+            srcDecimals: 18,
+            destDecimals: 18,
+            side: 'SELL',
+            network: chainId,
+          },
+          timeout: 10000,
+        });
 
-      return {
-        fromToken: params.fromToken,
-        toToken: params.toToken,
-        fromAmount: params.amount,
-        expectedOutput,
-        minOutput,
-        priceImpact: 2.0,
-        router,
-        dex: 'Uniswap V3',
-        gasEstimate: '150000',
-      };
+        if (response.data?.priceRoute) {
+          const route = response.data.priceRoute;
+          const expectedOutput = ethers.formatEther(route.destAmount);
+          const minOutput = (Number.parseFloat(expectedOutput) * 0.99).toString();
+
+          return {
+            fromToken: params.fromToken,
+            toToken: params.toToken,
+            fromAmount: params.amount,
+            expectedOutput,
+            minOutput,
+            priceImpact: Number.parseFloat(route.priceImpact || '0'),
+            router: route.bestRoute?.[0]?.swaps?.[0]?.swapExchanges?.[0]?.exchange || 'ParaSwap',
+            dex: 'ParaSwap Aggregator',
+            gasEstimate: route.gasCost || '200000',
+          };
+        }
+      } catch (paraswapError) {
+        logger.warn('ParaSwap quote failed, trying fallback:', paraswapError);
+      }
+
+      // Fallback to LI.FI
+      try {
+        const axios = (await import('axios')).default;
+        const response = await axios.get('https://li.quest/v1/quote', {
+          params: {
+            fromChain: chainId,
+            toChain: chainId,
+            fromToken: params.fromToken,
+            toToken: params.toToken,
+            fromAmount: amountWei,
+          },
+          timeout: 10000,
+        });
+
+        if (response.data?.estimate) {
+          const estimate = response.data.estimate;
+          const expectedOutput = ethers.formatEther(estimate.toAmount);
+          const minOutput = ethers.formatEther(estimate.toAmountMin);
+
+          return {
+            fromToken: params.fromToken,
+            toToken: params.toToken,
+            fromAmount: params.amount,
+            expectedOutput,
+            minOutput,
+            priceImpact: estimate.priceImpact || 0,
+            router: estimate.toolDetails?.name || 'LI.FI',
+            dex: 'LI.FI Aggregator',
+            gasEstimate: estimate.gasCosts?.[0]?.amount || '200000',
+          };
+        }
+      } catch (lifiError) {
+        logger.warn('LI.FI quote failed:', lifiError);
+      }
+
+      throw new Error('All DEX aggregators failed to provide a quote');
     } catch (error) {
       logger.error('Get swap quote error:', error);
       throw new Error('Failed to get swap quote');
@@ -210,7 +267,7 @@ class TransactionService {
   }
 
   /**
-   * Execute token swap
+   * Execute token swap via DEX aggregator
    */
   async executeSwap(params: {
     wallet: string;
@@ -219,14 +276,42 @@ class TransactionService {
     slippage: number;
   }): Promise<string> {
     try {
-      // TODO: Implement actual swap execution
-      // This is a simplified version
+      const provider = (walletService as any).getProvider('ethereum');
+      const wallet = new ethers.Wallet(params.privateKey, provider);
 
-      // 1. Approve token spending
-      // 2. Execute swap on DEX
-      // 3. Return transaction hash
+      // Get swap transaction data from ParaSwap
+      const axios = (await import('axios')).default;
+      const chainId = 1; // Default to Ethereum mainnet
 
-      return '0x' + 'a'.repeat(64); // Mock transaction hash
+      // Build transaction via ParaSwap
+      const buildResponse = await axios.post('https://apiv5.paraswap.io/transactions/1', {
+        srcToken: params.quote.fromToken,
+        destToken: params.quote.toToken,
+        srcAmount: ethers.parseEther(params.quote.fromAmount).toString(),
+        destAmount: ethers.parseEther(params.quote.minOutput).toString(),
+        priceRoute: params.quote, // This should be the full price route
+        userAddress: params.wallet,
+        partner: 'paradex',
+        slippage: params.slippage * 100, // Convert to basis points
+      }, {
+        params: { network: chainId },
+        timeout: 10000,
+      });
+
+      if (!buildResponse.data?.to || !buildResponse.data?.data) {
+        throw new Error('Failed to build swap transaction');
+      }
+
+      // Execute the transaction
+      const tx = await wallet.sendTransaction({
+        to: buildResponse.data.to,
+        data: buildResponse.data.data,
+        value: buildResponse.data.value || '0',
+        gasLimit: buildResponse.data.gas || params.quote.gasEstimate,
+      });
+
+      logger.info(`Swap transaction sent: ${tx.hash}`);
+      return tx.hash;
     } catch (error: any) {
       logger.error('Execute swap error:', error);
       throw new Error(error.message || 'Swap execution failed');
