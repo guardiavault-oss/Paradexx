@@ -1,8 +1,8 @@
-# Force Railway to use Node.js and npm (not pnpm)
+# Force Railway to use Node.js (npm is included with nodejs)
 [phases.setup]
-nixPkgs = ["nodejs-18_x", "npm"]
+nixPkgs = ["nodejs-18_x"]
 
-# Disable pnpm detection
+# Install dependencies
 [phases.install]
 dependsOn = ["setup"]
 cmds = [
