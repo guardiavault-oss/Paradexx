@@ -5,9 +5,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+import { API_URL } from '../config/api';
 
 export interface MemeToken {
   address: string;
@@ -432,10 +430,10 @@ export function useTrendingTokens(chainId?: number) {
     const fetchTrending = async () => {
       try {
         setLoading(true);
-        
+
         // DexScreener trending tokens
         const response = await fetch('https://api.dexscreener.com/token-boosts/top/v1');
-        
+
         if (response.ok) {
           const data = await response.json();
           const transformed: MemeToken[] = (data || []).slice(0, 20).map((item: any, index: number) => {

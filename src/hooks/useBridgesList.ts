@@ -5,9 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { bridgeSecurityService, type SecurityScore } from '../services/bridgeSecurityService';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+import { API_URL } from '../config/api';
 
 export interface Bridge {
   id: string;
@@ -169,7 +167,7 @@ export function useBridgesList(): UseBridgesListResult {
       if (token) headers.Authorization = `Bearer ${token}`;
 
       const response = await fetch(`${API_URL}/api/bridge/list`, { headers });
-      
+
       if (response.ok) {
         const data = await response.json();
         if (data.bridges && Array.isArray(data.bridges)) {
@@ -223,7 +221,7 @@ export function useBridgesList(): UseBridgesListResult {
   const fetchAlerts = useCallback(async () => {
     try {
       const { alerts: apiAlerts } = await bridgeSecurityService.getSecurityAlerts();
-      
+
       // Map API alerts to component format
       const mappedAlerts: SecurityAlert[] = apiAlerts.map((alert, index) => ({
         id: alert.alert_id || `alert-${index}`,
@@ -248,7 +246,7 @@ export function useBridgesList(): UseBridgesListResult {
     const init = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         await Promise.all([fetchBridges(), fetchAlerts()]);
       } catch (err) {
@@ -265,7 +263,7 @@ export function useBridgesList(): UseBridgesListResult {
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       await Promise.all([fetchBridges(), fetchAlerts()]);
     } catch (err) {

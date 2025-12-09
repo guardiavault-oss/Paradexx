@@ -81,21 +81,43 @@ APP_URL=https://yourdomain.com
    - Decline: `4000 0000 0000 0002`
    - Use any future expiry date and any CVC
 
-## 💳 Current Pricing Plans
+## 💳 Current Pricing Plans (Updated Dec 2025)
 
-The system supports three pricing tiers:
+The system supports tiered subscription pricing with swap fee discounts:
 
-### Starter Plan
-- **Price:** $9.99/month or $119.88/year
-- **Stripe Amount:** $9.99 (monthly) or $119.88 (annual)
+### Free Plan
+- **Price:** $0/month
+- **Swap Fee:** 0.5% (base rate)
+- **Features:** Basic wallet, transactions, email support
 
-### Guardian+ Plan
-- **Price:** $99/year
-- **Stripe Amount:** $99.00
+### Pro Plan
+- **Price:** $19.99/month or $199.99/year (save $40)
+- **Stripe Amount:** $19.99 (monthly) or $199.99 (annual)
+- **Swap Fee:** 0.35% (30% discount)
+- **Features:** All Free features + advanced analytics, gas optimization, whale tracking, multi-wallet
 
-### Vault Pro Plan
-- **Price:** $499/year
+### Elite Plan
+- **Price:** $49.99/month or $499.99/year (save $100)
+- **Stripe Amount:** $49.99 (monthly) or $499.99 (annual)
+- **Swap Fee:** 0.2% (60% discount)
+- **Features:** All Pro features + MEV protection, honeypot detection, rug detection, DeFi aggregation, API access
+
+### Lifetime Pass
+- **Price:** $499 one-time payment
 - **Stripe Amount:** $499.00
+- **Swap Fee:** 0.15% (70% discount - best rate)
+- **Features:** All Elite features forever + early access to new features + founding member badge
+
+### Premium Add-ons (One-Time)
+- **Sniper Bot:** $49
+- **Whale Alerts Pro:** $29
+- **Private Node:** $99
+- **MEV Protection Plus:** $39
+- **Inheritance Protocol:** $149
+- **Multi-Sig Templates:** $79
+- **Manual Death Verification:** $199
+- **Exit Strategies:** $69
+- **Complete Bundle:** $349 (40% off individual prices)
 
 ## 🔄 Payment Flow
 

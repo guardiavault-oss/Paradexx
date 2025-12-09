@@ -48,6 +48,8 @@ interface KnownWhale {
   followers: number;
 }
 
+import { API_URL } from '../config/api';
+
 const WHALE_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   smart_money: { label: "Smart Money", color: "#10b981", icon: <Zap className="w-3 h-3" /> },
   top_trader: { label: "Top Trader", color: "#0080FF", icon: <Award className="w-3 h-3" /> },
@@ -55,8 +57,6 @@ const WHALE_LABELS: Record<string, { label: string; color: string; icon: React.R
   degen: { label: "Degen", color: "#DC143C", icon: <Activity className="w-3 h-3" /> },
   whale: { label: "Whale", color: "#f59e0b", icon: <DollarSign className="w-3 h-3" /> },
 };
-
-const API_URL = import.meta.env.VITE_API_URL || 'https://paradexx-production.up.railway.app';
 
 const formatAddress = (address: string): string => {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -75,7 +75,7 @@ const formatTimeAgo = (timestamp: number): string => {
   const seconds = Math.floor(diff / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
-  
+
   if (hours > 0) return `${hours}h ago`;
   if (minutes > 0) return `${minutes}m ago`;
   return `${seconds}s ago`;
@@ -84,7 +84,7 @@ const formatTimeAgo = (timestamp: number): string => {
 export function WhaleTracker({ isOpen, onClose, type }: WhaleTrackerProps) {
   const isDegen = type === "degen";
   const primaryColor = isDegen ? "#DC143C" : "#0080FF";
-  
+
   const [whaleAlerts, setWhaleAlerts] = useState<WhaleAlert[]>([]);
   const [knownWhales, setKnownWhales] = useState<KnownWhale[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -99,12 +99,12 @@ export function WhaleTracker({ isOpen, onClose, type }: WhaleTrackerProps) {
           fetch(`${API_URL}/api/whale-tracker/alerts`),
           fetch(`${API_URL}/api/whale-tracker/known-whales`)
         ]);
-        
+
         if (alertsRes.ok) {
           const alertsData = await alertsRes.json();
           setWhaleAlerts(alertsData.alerts || []);
         }
-        
+
         if (whalesRes.ok) {
           const whalesData = await whalesRes.json();
           setKnownWhales(whalesData.whales || []);
@@ -169,13 +169,13 @@ export function WhaleTracker({ isOpen, onClose, type }: WhaleTrackerProps) {
         }}
       >
         {/* Header */}
-        <div 
+        <div
           className="px-6 py-4 border-b"
           style={{ borderColor: `${primaryColor}20` }}
         >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div 
+              <div
                 className="p-3 rounded-xl"
                 style={{ background: `${primaryColor}20` }}
               >
@@ -186,7 +186,7 @@ export function WhaleTracker({ isOpen, onClose, type }: WhaleTrackerProps) {
                 <p className="text-sm text-white/60">Real-time whale activity & insights</p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <motion.div
                 animate={{ scale: [1, 1.2, 1] }}
@@ -194,7 +194,7 @@ export function WhaleTracker({ isOpen, onClose, type }: WhaleTrackerProps) {
                 className="w-2 h-2 rounded-full bg-green-400"
               />
               <span className="text-xs text-green-400">Live</span>
-              
+
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -281,7 +281,7 @@ export function WhaleTracker({ isOpen, onClose, type }: WhaleTrackerProps) {
                             <Wallet className="w-5 h-5 text-yellow-400" />
                           )}
                         </div>
-                        
+
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-semibold text-white">
@@ -311,7 +311,7 @@ export function WhaleTracker({ isOpen, onClose, type }: WhaleTrackerProps) {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="text-right">
                         <div className="text-sm font-bold text-white">
                           {formatAmount(alert.valueUsd)}
@@ -372,7 +372,7 @@ export function WhaleTracker({ isOpen, onClose, type }: WhaleTrackerProps) {
                             </div>
                           </div>
                         </div>
-                        
+
                         <motion.button
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
@@ -382,7 +382,7 @@ export function WhaleTracker({ isOpen, onClose, type }: WhaleTrackerProps) {
                           <Copy className="w-4 h-4 text-white" />
                         </motion.button>
                       </div>
-                      
+
                       <div className="grid grid-cols-3 gap-3">
                         <div className="p-3 rounded-xl bg-white/5">
                           <div className="text-xs text-white/60 mb-1">Win Rate</div>
@@ -399,7 +399,7 @@ export function WhaleTracker({ isOpen, onClose, type }: WhaleTrackerProps) {
                           <div className="text-sm font-bold text-white">{whale.totalTrades}</div>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
                         <div className="flex items-center gap-2 text-xs text-white/60">
                           <Eye className="w-3 h-3" />
@@ -422,7 +422,7 @@ export function WhaleTracker({ isOpen, onClose, type }: WhaleTrackerProps) {
         </div>
 
         {/* Info Footer */}
-        <div 
+        <div
           className="p-4 border-t"
           style={{
             borderColor: `${primaryColor}20`,

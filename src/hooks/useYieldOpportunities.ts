@@ -5,9 +5,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+import { API_URL } from '../config/api';
 
 export interface YieldOpportunity {
   id: string;
@@ -37,10 +35,10 @@ interface UseYieldOpportunitiesResult {
 async function fetchFromDefiLlama(): Promise<YieldOpportunity[]> {
   try {
     const response = await fetch('https://yields.llama.fi/pools');
-    
+
     if (response.ok) {
       const data = await response.json();
-      
+
       // Get top 20 pools by TVL from major chains
       const pools = (data.data || [])
         .filter((pool: {
@@ -53,7 +51,7 @@ async function fetchFromDefiLlama(): Promise<YieldOpportunity[]> {
         })
         .sort((a: { tvlUsd: number }, b: { tvlUsd: number }) => b.tvlUsd - a.tvlUsd)
         .slice(0, 20);
-      
+
       return pools.map((pool: {
         pool: string;
         project: string;
@@ -65,7 +63,7 @@ async function fetchFromDefiLlama(): Promise<YieldOpportunity[]> {
         rewardTokens: string[];
       }, index: number) => {
         const totalApy = (pool.apyBase || 0) + (pool.apyReward || 0);
-        
+
         return {
           id: pool.pool || `${index}`,
           protocol: pool.project || 'Unknown',
@@ -84,7 +82,7 @@ async function fetchFromDefiLlama(): Promise<YieldOpportunity[]> {
   } catch (err) {
     console.error('Error fetching from DeFi Llama:', err);
   }
-  
+
   return [];
 }
 
@@ -123,12 +121,12 @@ function getStrategy(protocol: string): string {
     'gmx': 'Perpetual LP',
     'frax': 'Stablecoin Staking',
   };
-  
+
   const lowerProtocol = protocol.toLowerCase();
   for (const [key, strategy] of Object.entries(strategyMap)) {
     if (lowerProtocol.includes(key)) return strategy;
   }
-  
+
   return 'Yield Farming';
 }
 
@@ -140,7 +138,7 @@ async function fetchFromBackend(): Promise<YieldOpportunity[]> {
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const response = await fetch(`${API_URL}/api/yield/opportunities`, { headers });
-    
+
     if (response.ok) {
       const data = await response.json();
       return data.opportunities || data || [];
@@ -148,7 +146,7 @@ async function fetchFromBackend(): Promise<YieldOpportunity[]> {
   } catch (err) {
     console.error('Error fetching from backend:', err);
   }
-  
+
   return [];
 }
 
@@ -164,17 +162,17 @@ export function useYieldOpportunities(): UseYieldOpportunitiesResult {
     try {
       // Try backend first
       let data = await fetchFromBackend();
-      
+
       // Fallback to DeFi Llama
       if (data.length === 0) {
         data = await fetchFromDefiLlama();
       }
-      
+
       // Final fallback to default opportunities
       if (data.length === 0) {
         data = getDefaultOpportunities();
       }
-      
+
       setOpportunities(data);
     } catch (err) {
       console.error('Error fetching yield opportunities:', err);
@@ -187,7 +185,7 @@ export function useYieldOpportunities(): UseYieldOpportunitiesResult {
 
   useEffect(() => {
     refresh();
-    
+
     // Refresh every 5 minutes
     const interval = setInterval(refresh, 5 * 60 * 1000);
     return () => clearInterval(interval);

@@ -1,6 +1,6 @@
 /**
  * TransactionStatusPanel - Post-Transaction Status Display
- * 
+ *
  * Shows transaction states: creating → pending → confirmed → failed
  * With Etherscan link on all completed transactions
  */
@@ -52,7 +52,7 @@ export function TransactionStatusPanel({
   fromAmount = '1.0',
   toAmount = '3,600',
   networkFee = '0.0012',
-  serviceFee = '0.79%',
+  serviceFee = '0.5%', // Updated from 0.79% - base rate, reduced with subscription
   timestamp = new Date(),
   confirmations = 0,
   requiredConfirmations = 12,

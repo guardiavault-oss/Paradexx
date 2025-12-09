@@ -1,0 +1,26 @@
+# Force Railway to use Node.js and npm (not pnpm)
+[phases.setup]
+nixPkgs = ["nodejs-18_x", "npm"]
+
+# Disable pnpm detection
+[phases.install]
+dependsOn = ["setup"]
+cmds = [
+  "cd src/backend && npm install --legacy-peer-deps",
+  "cd src/backend && npx prisma generate"
+]
+
+[phases.build]
+dependsOn = ["install"]
+cmds = [
+  "cd src/backend && npm run build"
+]
+
+[start]
+cmd = "cd src/backend && npx prisma db push --accept-data-loss && npm start"
+
+# Variables
+[variables]
+NIXPACKS_NO_CACHE = "1"
+NPM_CONFIG_LEGACY_PEER_DEPS = "true"
+

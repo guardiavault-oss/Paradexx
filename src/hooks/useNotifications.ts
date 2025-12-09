@@ -1,12 +1,20 @@
 /**
  * useNotifications - Hook for fetching user notifications
  * Connects to the notification.service.ts backend
+ *
+ * Enhanced Features:
+ * - WebSocket real-time push notifications
+ * - Notification preferences management
+ * - Sound/vibration alerts
+ * - Grouped notifications
+ * - Browser notification support
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { logger } from '../services/logger.service';
+import { API_URL, getWsUrl } from '../config/api';
 
-const API_URL = import.meta.env?.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+const WS_URL = getWsUrl();
 
 export type NotificationType =
   | 'transaction_confirmed'
@@ -44,6 +52,20 @@ interface UseNotificationsOptions {
   autoRefresh?: boolean;
   refreshInterval?: number; // ms
   limit?: number;
+  enableWebSocket?: boolean;
+  enableSounds?: boolean;
+  enableVibration?: boolean;
+}
+
+export interface NotificationPreferences {
+  enabled: boolean;
+  types: Record<string, boolean>;
+  soundEnabled: boolean;
+  vibrationEnabled: boolean;
+  showPreview: boolean;
+  quietHoursEnabled: boolean;
+  quietHoursStart: string;
+  quietHoursEnd: string;
 }
 
 interface UseNotificationsReturn {
@@ -51,12 +73,41 @@ interface UseNotificationsReturn {
   unreadCount: number;
   loading: boolean;
   error: string | null;
+  connected: boolean;
+  preferences: NotificationPreferences;
   refresh: () => Promise<void>;
   markAsRead: (notificationId: string) => Promise<boolean>;
   markAllAsRead: () => Promise<boolean>;
   deleteNotification: (notificationId: string) => Promise<boolean>;
   clearAll: () => Promise<boolean>;
+  updatePreferences: (prefs: Partial<NotificationPreferences>) => Promise<void>;
 }
+
+const DEFAULT_PREFERENCES: NotificationPreferences = {
+  enabled: true,
+  types: {
+    transaction_confirmed: true,
+    transaction_failed: true,
+    price_alert: true,
+    security_alert: true,
+    guardian_request: true,
+    guardian_approved: true,
+    recovery_initiated: true,
+    wallet_locked: true,
+    large_transaction: true,
+    approval_detected: true,
+    phishing_detected: true,
+    whale_alert: true,
+    system: true,
+    info: true,
+  },
+  soundEnabled: true,
+  vibrationEnabled: true,
+  showPreview: true,
+  quietHoursEnabled: false,
+  quietHoursStart: "22:00",
+  quietHoursEnd: "08:00",
+};
 
 export function useNotifications(options: UseNotificationsOptions = {}): UseNotificationsReturn {
   const {
@@ -64,14 +115,194 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     autoRefresh = true,
     refreshInterval = 60000, // 1 minute
     limit = 50,
+    enableWebSocket = true,
+    enableSounds = true,
+    enableVibration = true,
   } = options;
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+  const [connected, setConnected] = useState(false);
+  const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_PREFERENCES);
+
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Check if in quiet hours
+  const isQuietHours = useCallback(() => {
+    if (!preferences.quietHoursEnabled) return false;
+    const now = new Date();
+    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const start = preferences.quietHoursStart;
+    const end = preferences.quietHoursEnd;
+    if (start <= end) {
+      return currentTime >= start && currentTime < end;
+    }
+    return currentTime >= start || currentTime < end;
+  }, [preferences.quietHoursEnabled, preferences.quietHoursStart, preferences.quietHoursEnd]);
+
+  // Play notification sound
+  const playNotificationSound = useCallback(() => {
+    if (!enableSounds || !preferences.soundEnabled || isQuietHours()) return;
+    try {
+      const audio = new Audio('/notification.mp3');
+      audio.volume = 0.5;
+      audio.play().catch(() => {});
+    } catch {
+      // Ignore audio errors
+    }
+  }, [enableSounds, preferences.soundEnabled, isQuietHours]);
+
+  // Vibrate device
+  const vibrate = useCallback(() => {
+    if (!enableVibration || !preferences.vibrationEnabled || isQuietHours()) return;
+    if ('vibrate' in navigator) {
+      navigator.vibrate(200);
+    }
+  }, [enableVibration, preferences.vibrationEnabled, isQuietHours]);
+
+  // Handle incoming notification
+  const handleNewNotification = useCallback((notification: Notification) => {
+    if (!preferences.enabled || !preferences.types[notification.type]) return;
+
+    setNotifications(prev => {
+      if (prev.some(n => n.id === notification.id)) return prev;
+      return [notification, ...prev];
+    });
+
+    if (!isQuietHours()) {
+      playNotificationSound();
+      vibrate();
+    }
+
+    // Show browser notification
+    if (preferences.showPreview && 'Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification(notification.title, {
+          body: notification.message,
+          icon: '/icon.png',
+          tag: notification.id,
+        });
+      } catch {
+        // Browser notifications may not be available
+      }
+    }
+  }, [preferences, isQuietHours, playNotificationSound, vibrate]);
+
+  // WebSocket connection
+  const connectWebSocket = useCallback(() => {
+    if (!enableWebSocket || !preferences.enabled) return;
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+
+    try {
+      const ws = new WebSocket(`${WS_URL}/notifications?token=${token}`);
+
+      ws.onopen = () => {
+        logger.info('Notification WebSocket connected');
+        setConnected(true);
+        setError(null);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'notification' && data.data) {
+            const notification: Notification = {
+              ...data.data,
+              createdAt: new Date(data.data.createdAt || data.data.timestamp),
+            };
+            handleNewNotification(notification);
+          } else if (data.type === 'read' && data.data?.id) {
+            setNotifications(prev =>
+              prev.map(n => n.id === data.data.id ? { ...n, read: true } : n)
+            );
+          } else if (data.type === 'delete' && data.data?.id) {
+            setNotifications(prev => prev.filter(n => n.id !== data.data.id));
+          }
+        } catch (err) {
+          logger.warn('Failed to parse notification message:', err);
+        }
+      };
+
+      ws.onerror = () => {
+        setError('WebSocket connection error');
+      };
+
+      ws.onclose = () => {
+        logger.info('Notification WebSocket closed');
+        setConnected(false);
+        wsRef.current = null;
+        if (preferences.enabled && mountedRef.current) {
+          reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
+        }
+      };
+
+      wsRef.current = ws;
+    } catch (err) {
+      logger.error('Failed to connect WebSocket:', err);
+    }
+  }, [enableWebSocket, preferences.enabled, handleNewNotification]);
+
+  // Update preferences
+  const updatePreferences = useCallback(async (prefs: Partial<NotificationPreferences>) => {
+    const newPrefs = { ...preferences, ...prefs };
+    setPreferences(newPrefs);
+    localStorage.setItem('notificationPreferences', JSON.stringify(newPrefs));
+
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+
+    try {
+      await fetch(`${API_URL}/api/user/notification-preferences`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(prefs),
+      });
+    } catch (err) {
+      logger.warn('Failed to sync notification preferences:', err);
+    }
+  }, [preferences]);
+
+  // Load preferences from storage
+  useEffect(() => {
+    const stored = localStorage.getItem('notificationPreferences');
+    if (stored) {
+      try {
+        setPreferences(prev => ({ ...prev, ...JSON.parse(stored) }));
+      } catch {
+        // Ignore parse errors
+      }
+    }
+  }, []);
+
+  // Connect WebSocket
+  useEffect(() => {
+    if (enableWebSocket && preferences.enabled) {
+      connectWebSocket();
+    }
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+    };
+  }, [enableWebSocket, preferences.enabled, connectWebSocket]);
+
+  // Request browser notification permission
+  useEffect(() => {
+    if (preferences.showPreview && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, [preferences.showPreview]);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -79,7 +310,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
       if (userId) params.append('userId', userId);
 
       const response = await fetch(`${API_URL}/api/notifications?${params}`);
-      
+
       if (!mountedRef.current) return;
 
       if (response.ok) {
@@ -123,7 +354,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
       const response = await fetch(`${API_URL}/api/notifications/${notificationId}/read`, {
         method: 'PATCH',
       });
-      
+
       if (response.ok) {
         setNotifications(prev =>
           prev.map(n =>
@@ -151,7 +382,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
       const response = await fetch(`${API_URL}/api/notifications/read-all${params}`, {
         method: 'PATCH',
       });
-      
+
       if (response.ok) {
         setNotifications(prev => prev.map(n => ({ ...n, read: true })));
         return true;
@@ -170,7 +401,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
       const response = await fetch(`${API_URL}/api/notifications/${notificationId}`, {
         method: 'DELETE',
       });
-      
+
       if (response.ok) {
         setNotifications(prev => prev.filter(n => n.id !== notificationId));
         return true;
@@ -190,7 +421,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
       const response = await fetch(`${API_URL}/api/notifications/clear${params}`, {
         method: 'DELETE',
       });
-      
+
       if (response.ok) {
         setNotifications([]);
         return true;
@@ -233,11 +464,14 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     unreadCount,
     loading,
     error,
+    connected,
+    preferences,
     refresh,
     markAsRead,
     markAllAsRead,
     deleteNotification,
     clearAll,
+    updatePreferences,
   };
 }
 
@@ -283,6 +517,6 @@ export function formatNotificationTime(date: Date): string {
   if (minutes < 60) return `${minutes}m ago`;
   if (hours < 24) return `${hours}h ago`;
   if (days < 7) return `${days}d ago`;
-  
+
   return date.toLocaleDateString();
 }

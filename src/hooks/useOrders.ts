@@ -4,9 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+import { API_URL } from '../config/api';
 
 export interface Order {
   id: string;
@@ -139,7 +137,7 @@ export function useOrders(): UseOrdersResult {
       });
 
       if (response.ok || response.status === 404) {
-        setOrders(prev => prev.map(o => 
+        setOrders(prev => prev.map(o =>
           o.id === orderId ? { ...o, status: 'cancelled' } : o
         ));
         return true;
@@ -148,7 +146,7 @@ export function useOrders(): UseOrdersResult {
     } catch (err) {
       console.error('Error cancelling order:', err);
       // Cancel locally on error
-      setOrders(prev => prev.map(o => 
+      setOrders(prev => prev.map(o =>
         o.id === orderId ? { ...o, status: 'cancelled' } : o
       ));
       return true;
@@ -288,7 +286,7 @@ export function useDCAPlans(): UseDCAPlansResult {
   }, []);
 
   const updatePlanStatus = useCallback(async (
-    planId: string, 
+    planId: string,
     action: 'pause' | 'resume' | 'cancel'
   ): Promise<boolean> => {
     try {
@@ -312,7 +310,7 @@ export function useDCAPlans(): UseDCAPlansResult {
       };
 
       if (response.ok || response.status === 404) {
-        setPlans(prev => prev.map(p => 
+        setPlans(prev => prev.map(p =>
           p.id === planId ? { ...p, status: statusMap[action] } : p
         ));
         return true;
@@ -326,7 +324,7 @@ export function useDCAPlans(): UseDCAPlansResult {
         resume: 'active' as const,
         cancel: 'cancelled' as const,
       };
-      setPlans(prev => prev.map(p => 
+      setPlans(prev => prev.map(p =>
         p.id === planId ? { ...p, status: statusMap[action] } : p
       ));
       return true;

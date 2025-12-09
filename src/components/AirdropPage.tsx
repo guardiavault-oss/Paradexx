@@ -35,7 +35,7 @@ export function AirdropPage({ onBack, onClose, type }: AirdropPageProps) {
     // Use design system theme styles
     const theme = getThemeStyles(type);
     const primaryColor = theme.primaryColor;
-    
+
     // Support both onBack and onClose
     const handleClose = onClose || onBack;
 
@@ -49,7 +49,7 @@ export function AirdropPage({ onBack, onClose, type }: AirdropPageProps) {
         const fetchAirdrops = async () => {
             setLoading(true);
             try {
-                const API_URL = import.meta.env.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+                const { API_URL } = await import('../config/api');
                 const response = await fetch(`${API_URL}/api/airdrop/active`);
                 if (response.ok) {
                     const data = await response.json();

@@ -5,9 +5,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+import { API_URL } from '../config/api';
 
 export interface MemeToken {
   tokenAddress: string;
@@ -171,7 +169,7 @@ export function useMemeRadar(options: UseMemeRadarOptions = {}): UseMemeRadarRes
 
       if (response.ok) {
         const boosts = await response.json();
-        
+
         // Transform DexScreener data to our format
         const transformedTokens: MemeToken[] = (boosts || []).slice(0, 20).map((boost: any, index: number) => ({
           tokenAddress: boost.tokenAddress || `0x${index.toString().padStart(40, '0')}`,

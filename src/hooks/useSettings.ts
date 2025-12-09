@@ -1,6 +1,6 @@
 /**
  * useSettings Hook - Real API integration for user settings
- * 
+ *
  * Provides settings management with localStorage persistence and backend sync
  */
 
@@ -85,8 +85,9 @@ const DEFAULT_SETTINGS: UserSettings = {
   developerMode: false,
 };
 
-// API base URL
-const API_BASE = (typeof import.meta !== 'undefined' && (import.meta as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL) || 'https://paradexx-production.up.railway.app';
+// API base URL from centralized config
+import { API_URL } from '../config/api';
+const API_BASE = API_URL;
 
 // Load settings from localStorage
 const loadSettings = (): UserSettings => {
@@ -124,7 +125,7 @@ export function useSettings() {
       try {
         // Get wallet address from connected wallet
         const storedAddress = localStorage.getItem('paradex_wallet_address');
-        
+
         if (storedAddress) {
           const response = await fetch(`${API_BASE}/api/user/settings`, {
             headers: {
@@ -197,7 +198,7 @@ export function useSettings() {
 
       // Try to sync with backend
       const storedAddress = localStorage.getItem('paradex_wallet_address');
-      
+
       if (storedAddress) {
         const response = await fetch(`${API_BASE}/api/user/settings`, {
           method: 'PUT',
@@ -270,7 +271,7 @@ export function useSettings() {
   const generateApiKey = useCallback(async (): Promise<string | null> => {
     try {
       const storedAddress = localStorage.getItem('paradex_wallet_address');
-      
+
       if (storedAddress) {
         const response = await fetch(`${API_BASE}/api/user/api-key`, {
           method: 'POST',
@@ -308,13 +309,13 @@ export function useSettings() {
   return {
     // Data
     settings,
-    
+
     // State
     loading,
     saving,
     error,
     lastSaved,
-    
+
     // Actions
     updateSetting,
     updateSettings,

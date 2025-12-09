@@ -125,7 +125,7 @@ export function PortfolioAnalytics({
     const fetchPortfolioData = async () => {
       setLoading(true);
       try {
-        const API_URL = import.meta.env.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+        const { API_URL } = await import('../../config/api');
         // Get wallet address from localStorage
         const storedWallet = localStorage.getItem('paradex_wallet');
         const walletData = storedWallet ? JSON.parse(storedWallet) : null;

@@ -28,14 +28,13 @@ interface WalletConnectSession {
   connectedAt: number;
 }
 
+import { API_URL } from '../../config/api';
+
 interface WalletConnectModalProps {
   isOpen: boolean;
   onClose: () => void;
   type: 'degen' | 'regen';
 }
-
-// API URL for backend
-const API_URL = import.meta.env.VITE_API_URL || 'https://paradexx-production.up.railway.app';
 
 // Haptic feedback utility
 const triggerHaptic = (style: 'light' | 'medium' | 'heavy' = 'light') => {
@@ -63,8 +62,17 @@ function SessionCard({
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
 
-  const connectedDuration = Date.now() - session.connectedAt;
+  // Update time every minute to keep duration accurate
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const connectedDuration = currentTime - session.connectedAt;
   const hours = Math.floor(connectedDuration / (1000 * 60 * 60));
   const minutes = Math.floor((connectedDuration % (1000 * 60 * 60)) / (1000 * 60));
 
@@ -210,7 +218,7 @@ export function WalletConnectModal({ isOpen, onClose, type }: WalletConnectModal
         console.debug('Failed to fetch WalletConnect sessions:', err);
       }
     };
-    
+
     if (isOpen) {
       fetchSessions();
     }

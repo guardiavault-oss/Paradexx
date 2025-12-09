@@ -22,9 +22,7 @@ import {
   TrendingUp,
   TrendingDown,
 } from 'lucide-react';
-
-// API URL for backend services
-const API_URL = import.meta.env.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+import { API_URL } from '../../config/api';
 
 interface Token {
   address: string;
@@ -179,7 +177,7 @@ export function TransactionSimulator({
       const gasPrice = gasSpeed === 'fast' ? 35 : gasSpeed === 'standard' ? 25 : 15;
       const gasCostETH = (Number(estimatedGas) * gasPrice * 1e-9).toFixed(6);
       const gasCostUSD = Number(gasCostETH) * ethPrice;
-      
+
       setSimulationResult({
         success: true,
         expectedOutcome: 'success',
@@ -193,11 +191,11 @@ export function TransactionSimulator({
           recommendations: ['Local simulation - verify on-chain before signing'],
         },
         balanceChanges: [
-          { 
-            symbol: selectedToken, 
-            change: `-${amount}`, 
-            isPositive: false, 
-            changeUSD: Number(amount) * (selectedToken === 'ETH' ? ethPrice : 1) 
+          {
+            symbol: selectedToken,
+            change: `-${amount}`,
+            isPositive: false,
+            changeUSD: Number(amount) * (selectedToken === 'ETH' ? ethPrice : 1)
           },
         ],
         tokenApprovals: [],

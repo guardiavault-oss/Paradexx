@@ -5,9 +5,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+import { API_URL } from '../config/api';
 
 export interface NFT {
   id: string;
@@ -56,7 +54,7 @@ async function fetchFromAlchemy(address: string): Promise<NFT[]> {
 
     if (response.ok) {
       const data = await response.json();
-      
+
       return (data.ownedNfts || []).map((nft: {
         tokenId: string;
         name?: string;
@@ -102,7 +100,7 @@ async function fetchFromAlchemy(address: string): Promise<NFT[]> {
   } catch (err) {
     console.error('Error fetching from Alchemy:', err);
   }
-  
+
   return [];
 }
 
@@ -125,7 +123,7 @@ async function fetchFromOpenSea(address: string): Promise<NFT[]> {
 
     if (response.ok) {
       const data = await response.json();
-      
+
       return (data.nfts || []).map((nft: {
         identifier: string;
         name?: string;
@@ -159,7 +157,7 @@ async function fetchFromOpenSea(address: string): Promise<NFT[]> {
   } catch (err) {
     console.error('Error fetching from OpenSea:', err);
   }
-  
+
   return [];
 }
 
@@ -171,7 +169,7 @@ async function fetchFromBackend(address: string): Promise<NFT[]> {
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const response = await fetch(`${API_URL}/api/nft/gallery?address=${address}`, { headers });
-    
+
     if (response.ok) {
       const data = await response.json();
       return data.nfts || data || [];
@@ -179,7 +177,7 @@ async function fetchFromBackend(address: string): Promise<NFT[]> {
   } catch (err) {
     console.error('Error fetching NFTs from backend:', err);
   }
-  
+
   return [];
 }
 
@@ -209,22 +207,22 @@ export function useNFTGallery(walletAddress?: string): UseNFTGalleryResult {
     try {
       // Try backend first
       let data = await fetchFromBackend(walletAddress);
-      
+
       // Fallback to Alchemy
       if (data.length === 0) {
         data = await fetchFromAlchemy(walletAddress);
       }
-      
+
       // Fallback to OpenSea
       if (data.length === 0) {
         data = await fetchFromOpenSea(walletAddress);
       }
-      
+
       // If no wallet connected or no NFTs found, use sample data
       if (data.length === 0) {
         data = getSampleNFTs();
       }
-      
+
       setNfts(data);
     } catch (err) {
       console.error('Error fetching NFTs:', err);

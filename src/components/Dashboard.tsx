@@ -59,6 +59,8 @@ import { HardwareWalletConnect } from "./HardwareWalletConnect";
 import { HelpCenter } from "./HelpCenter";
 import { ParadexLogo } from "./ParadexLogo";
 import { useDashboardStats } from "../hooks/useDashboardStats";
+import PrivacyShield from "./modals/PrivacyShield";
+import LimitOrdersModal from "./modals/LimitOrdersModal";
 
 interface DashboardProps {
   type: "degen" | "regen";
@@ -89,6 +91,8 @@ export default function Dashboard({ type, degenPercent, regenPercent, onLogout }
   const [showAddressBook, setShowAddressBook] = useState(false);
   const [showHardwareWallet, setShowHardwareWallet] = useState(false);
   const [showHelpCenter, setShowHelpCenter] = useState(false);
+  const [showPrivacyShield, setShowPrivacyShield] = useState(false);
+  const [showLimitOrders, setShowLimitOrders] = useState(false);
   const [activeTab, setActiveTab] = useState<"home" | "trading" | "activity" | "more">("home");
   const isDegen = type === "degen";
   const primaryColor = isDegen ? "#DC143C" : "#0080FF";
@@ -163,9 +167,9 @@ export default function Dashboard({ type, degenPercent, regenPercent, onLogout }
     } else if (page === "help") {
       setShowHelpCenter(true);
     } else if (page === "privacy") {
-      // TODO: Add privacy shield modal
+      setShowPrivacyShield(true);
     } else if (page === "limit") {
-      // TODO: Add limit orders modal
+      setShowLimitOrders(true);
     }
   };
 
@@ -1058,6 +1062,34 @@ export default function Dashboard({ type, degenPercent, regenPercent, onLogout }
             isOpen={showHelpCenter}
             onClose={() => {
               setShowHelpCenter(false);
+              setActiveTab("home");
+            }}
+            type={type}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Privacy Shield Modal */}
+      <AnimatePresence>
+        {showPrivacyShield && (
+          <PrivacyShield
+            isOpen={showPrivacyShield}
+            onClose={() => {
+              setShowPrivacyShield(false);
+              setActiveTab("home");
+            }}
+            type={type}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Limit Orders Modal */}
+      <AnimatePresence>
+        {showLimitOrders && (
+          <LimitOrdersModal
+            isOpen={showLimitOrders}
+            onClose={() => {
+              setShowLimitOrders(false);
               setActiveTab("home");
             }}
             type={type}

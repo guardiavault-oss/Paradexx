@@ -5,9 +5,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+import { API_URL } from '../config/api';
 
 export interface SecurityCheck {
   id: string;
@@ -152,7 +150,7 @@ export function useSecurityCenter(): UseSecurityCenterResult {
       checks.push({
         id: 'backup',
         title: 'Recovery Phrase Backed Up',
-        description: hasBackup 
+        description: hasBackup
           ? 'Your seed phrase is securely stored'
           : 'Back up your recovery phrase',
         status: hasBackup ? 'pass' : 'fail',
@@ -165,7 +163,7 @@ export function useSecurityCenter(): UseSecurityCenterResult {
       checks.push({
         id: '2fa',
         title: 'Biometric Authentication',
-        description: hasBiometric 
+        description: hasBiometric
           ? 'Face ID / Touch ID enabled'
           : 'Enable biometric authentication',
         status: hasBiometric ? 'pass' : 'warn',
@@ -178,7 +176,7 @@ export function useSecurityCenter(): UseSecurityCenterResult {
       checks.push({
         id: 'cloud_backup',
         title: 'Cloud Backup',
-        description: cloudBackupEnabled 
+        description: cloudBackupEnabled
           ? 'Encrypted backup to iCloud/Google'
           : 'Enable encrypted cloud backup',
         status: cloudBackupEnabled ? 'pass' : 'warn',
@@ -191,7 +189,7 @@ export function useSecurityCenter(): UseSecurityCenterResult {
       checks.push({
         id: 'guardians',
         title: 'Recovery Guardians',
-        description: guardianCount > 0 
+        description: guardianCount > 0
           ? `${guardianCount} guardian${guardianCount > 1 ? 's' : ''} configured`
           : 'No guardians configured yet',
         status: guardianCount >= 2 ? 'pass' : guardianCount > 0 ? 'warn' : 'fail',
@@ -201,13 +199,13 @@ export function useSecurityCenter(): UseSecurityCenterResult {
 
       // Activity check-in
       const lastCheckIn = localStorage.getItem('last_check_in');
-      const daysSinceCheckIn = lastCheckIn 
+      const daysSinceCheckIn = lastCheckIn
         ? Math.floor((Date.now() - parseInt(lastCheckIn)) / (1000 * 60 * 60 * 24))
         : 30;
       checks.push({
         id: 'check_in',
         title: 'Recent Activity Check-In',
-        description: daysSinceCheckIn <= 7 
+        description: daysSinceCheckIn <= 7
           ? `Last check-in ${daysSinceCheckIn} day${daysSinceCheckIn !== 1 ? 's' : ''} ago`
           : 'No recent check-in',
         status: daysSinceCheckIn <= 7 ? 'pass' : daysSinceCheckIn <= 14 ? 'warn' : 'fail',
@@ -220,7 +218,7 @@ export function useSecurityCenter(): UseSecurityCenterResult {
       checks.push({
         id: 'hardware',
         title: 'Hardware Wallet',
-        description: hasHardware 
+        description: hasHardware
           ? 'Hardware wallet connected'
           : 'No hardware wallet connected',
         status: hasHardware ? 'pass' : 'fail',
@@ -233,7 +231,7 @@ export function useSecurityCenter(): UseSecurityCenterResult {
       checks.push({
         id: 'mev',
         title: 'MEV Protection',
-        description: mevEnabled 
+        description: mevEnabled
           ? 'All transactions protected'
           : 'MEV protection disabled',
         status: mevEnabled ? 'pass' : 'warn',
@@ -290,7 +288,7 @@ export function useSecurityCenter(): UseSecurityCenterResult {
             if (ethData.result && Array.isArray(ethData.result)) {
               // Process token transactions to find approvals
               const approvalSet = new Map<string, TokenApproval>();
-              
+
               ethData.result.forEach((tx: {
                 contractAddress: string;
                 tokenSymbol: string;
@@ -397,7 +395,7 @@ export function useSecurityCenter(): UseSecurityCenterResult {
     // Weight critical/high items more in the score
     let weightedScore = 0;
     let totalWeight = 0;
-    
+
     checks.forEach(check => {
       const weight = check.impact === 'critical' ? 4 : check.impact === 'high' ? 3 : check.impact === 'medium' ? 2 : 1;
       totalWeight += weight;
@@ -460,7 +458,7 @@ export function useSecurityCenter(): UseSecurityCenterResult {
 
       // Update local state anyway for demo
       setApprovals(prev => prev.filter(a => a.id !== approvalId));
-      
+
       // Update stored approvals
       const storedApprovals = localStorage.getItem('token_approvals');
       if (storedApprovals) {
@@ -495,7 +493,7 @@ export function useSecurityCenter(): UseSecurityCenterResult {
 
       // Update local state anyway
       setConnectedDapps(prev => prev.filter(d => d.id !== dappId));
-      
+
       // Update stored dApps
       const storedDapps = localStorage.getItem('connected_dapps');
       if (storedDapps) {

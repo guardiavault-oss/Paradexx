@@ -5,9 +5,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+import { API_URL } from '../config/api';
 
 export interface TokenBalance {
   symbol: string;
@@ -88,12 +86,12 @@ async function fetchGasPrice(): Promise<GasPrice> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const etherscanKey = (import.meta as any).env?.VITE_ETHERSCAN_API_KEY;
-    
+
     if (etherscanKey) {
       const response = await fetch(
         `https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=${etherscanKey}`
       );
-      
+
       if (response.ok) {
         const data = await response.json();
         if (data.status === '1' && data.result) {
@@ -105,7 +103,7 @@ async function fetchGasPrice(): Promise<GasPrice> {
         }
       }
     }
-    
+
     // Try backend API
     const response = await fetch(`${API_URL}/api/gas-price`);
     if (response.ok) {
@@ -115,7 +113,7 @@ async function fetchGasPrice(): Promise<GasPrice> {
   } catch (err) {
     console.error('Error fetching gas price:', err);
   }
-  
+
   // Default fallback
   return { slow: 15, standard: 20, fast: 30 };
 }
@@ -134,7 +132,7 @@ async function fetchTokenBalances(address: string | null): Promise<TokenBalance[
 
     // Try backend API first
     const response = await fetch(`${API_URL}/api/portfolio/tokens?address=${address}`, { headers });
-    
+
     if (response.ok) {
       const data = await response.json();
       return data.tokens || data || [];
@@ -147,13 +145,13 @@ async function fetchTokenBalances(address: string | null): Promise<TokenBalance[
       const ethResponse = await fetch(
         `https://api.etherscan.io/api?module=account&action=tokentx&address=${address}&startblock=0&endblock=99999999&sort=desc&apikey=${etherscanKey}`
       );
-      
+
       if (ethResponse.ok) {
         const ethData = await ethResponse.json();
         if (ethData.result && Array.isArray(ethData.result)) {
           // Process token transactions to get balances
           const tokenMap = new Map<string, TokenBalance>();
-          
+
           // Get unique tokens
           ethData.result.slice(0, 20).forEach((tx: {
             tokenSymbol: string;
@@ -175,7 +173,7 @@ async function fetchTokenBalances(address: string | null): Promise<TokenBalance[
               });
             }
           });
-          
+
           return Array.from(tokenMap.values()).slice(0, 10);
         }
       }
@@ -196,7 +194,7 @@ async function fetchWatchlist(): Promise<WatchlistItem[]> {
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const response = await fetch(`${API_URL}/api/watchlist`, { headers });
-    
+
     if (response.ok) {
       const data = await response.json();
       return data.items || data || [];
@@ -230,7 +228,7 @@ async function fetchPendingTransactions(address: string | null): Promise<Pending
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const response = await fetch(`${API_URL}/api/transactions/pending?address=${address}`, { headers });
-    
+
     if (response.ok) {
       const data = await response.json();
       return data.transactions || data || [];
@@ -260,7 +258,7 @@ async function fetchPositions(address: string | null): Promise<DeFiPosition[]> {
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const response = await fetch(`${API_URL}/api/defi/positions?address=${address}`, { headers });
-    
+
     if (response.ok) {
       const data = await response.json();
       return data.positions || data || [];
@@ -271,7 +269,7 @@ async function fetchPositions(address: string | null): Promise<DeFiPosition[]> {
       `https://api.zapper.xyz/v2/balances?addresses[]=${address}&networks[]=ethereum`,
       { headers: { 'Accept': 'application/json' } }
     );
-    
+
     if (zapperResponse.ok) {
       const zapperData = await zapperResponse.json();
       // Process Zapper data
@@ -304,7 +302,7 @@ async function fetchPriceAlerts(): Promise<PriceAlert[]> {
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const response = await fetch(`${API_URL}/api/alerts/price`, { headers });
-    
+
     if (response.ok) {
       const data = await response.json();
       return data.alerts || data || [];

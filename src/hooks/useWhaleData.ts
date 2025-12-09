@@ -5,8 +5,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { logger } from '../services/logger.service';
-
-const API_URL = import.meta.env?.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+import { API_URL } from '../config/api';
 
 // Types matching whale-tracker.service.ts
 export interface WhaleWallet {
@@ -95,7 +94,7 @@ export function useWhaleData(options: UseWhaleDataOptions = {}): UseWhaleDataRet
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
 
@@ -124,7 +123,7 @@ export function useWhaleData(options: UseWhaleDataOptions = {}): UseWhaleDataRet
           createdAt: new Date(a.createdAt),
         }));
         setAlerts(alertList);
-        
+
         // Calculate stats
         const bullish = alertList.filter((a: WhaleAlert) => a.signal === 'bullish').length;
         const bearish = alertList.filter((a: WhaleAlert) => a.signal === 'bearish').length;
@@ -151,7 +150,7 @@ export function useWhaleData(options: UseWhaleDataOptions = {}): UseWhaleDataRet
       if (mountedRef.current) {
         logger.error('Failed to fetch whale data:', err);
         setError('Failed to load whale data');
-        
+
         // Set fallback data for UI display
         if (whales.length === 0) {
           setFallbackData();
@@ -204,7 +203,7 @@ export function useWhaleData(options: UseWhaleDataOptions = {}): UseWhaleDataRet
         following: false,
       },
     ];
-    
+
     setWhales(knownWhales);
     setStats({
       totalTracked: knownWhales.length,
@@ -226,12 +225,12 @@ export function useWhaleData(options: UseWhaleDataOptions = {}): UseWhaleDataRet
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address }),
       });
-      
+
       if (response.ok) {
-        setWhales(prev => 
-          prev.map(w => 
-            w.address.toLowerCase() === address.toLowerCase() 
-              ? { ...w, following: true } 
+        setWhales(prev =>
+          prev.map(w =>
+            w.address.toLowerCase() === address.toLowerCase()
+              ? { ...w, following: true }
               : w
           )
         );
@@ -251,12 +250,12 @@ export function useWhaleData(options: UseWhaleDataOptions = {}): UseWhaleDataRet
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address }),
       });
-      
+
       if (response.ok) {
-        setWhales(prev => 
-          prev.map(w => 
-            w.address.toLowerCase() === address.toLowerCase() 
-              ? { ...w, following: false } 
+        setWhales(prev =>
+          prev.map(w =>
+            w.address.toLowerCase() === address.toLowerCase()
+              ? { ...w, following: false }
               : w
           )
         );

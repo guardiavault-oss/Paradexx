@@ -5,9 +5,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+import { API_URL } from '../config/api';
 
 export interface Contact {
   id: string;
@@ -89,7 +87,7 @@ async function fetchFromBackend(): Promise<Contact[]> {
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const response = await fetch(`${API_URL}/api/address-book`, { headers });
-    
+
     if (response.ok) {
       const data = await response.json();
       return data.contacts || data || [];
@@ -112,7 +110,7 @@ async function saveToBackend(contact: Contact): Promise<boolean> {
       headers,
       body: JSON.stringify(contact),
     });
-    
+
     return response.ok;
   } catch (err) {
     console.error('Error saving contact to backend:', err);
@@ -131,7 +129,7 @@ async function deleteFromBackend(id: string): Promise<boolean> {
       method: 'DELETE',
       headers,
     });
-    
+
     return response.ok;
   } catch (err) {
     console.error('Error deleting contact from backend:', err);
@@ -173,10 +171,10 @@ export function useAddressBook(): UseAddressBookResult {
     try {
       // Try to load from backend first
       let data = await fetchFromBackend();
-      
+
       // Merge with local storage data
       const localData = loadFromLocalStorage();
-      
+
       if (data.length === 0 && localData.length > 0) {
         // Use local data if backend is empty
         data = localData;
@@ -186,18 +184,18 @@ export function useAddressBook(): UseAddressBookResult {
         const localOnlyContacts = localData.filter(c => !backendIds.has(c.id));
         data = [...data, ...localOnlyContacts];
       }
-      
+
       // If still empty, use default contacts
       if (data.length === 0) {
         data = getDefaultContacts();
       }
-      
+
       setContacts(data);
       saveToLocalStorage(data);
     } catch (err) {
       console.error('Error loading contacts:', err);
       setError('Failed to load contacts');
-      
+
       // Fallback to localStorage
       const localData = loadFromLocalStorage();
       setContacts(localData.length > 0 ? localData : getDefaultContacts());
@@ -243,7 +241,7 @@ export function useAddressBook(): UseAddressBookResult {
   // Update existing contact
   const updateContact = useCallback(async (id: string, updates: Partial<Contact>): Promise<boolean> => {
     setContacts(prev => {
-      const updated = prev.map(c => 
+      const updated = prev.map(c =>
         c.id === id ? { ...c, ...updates } : c
       );
       saveToLocalStorage(updated);

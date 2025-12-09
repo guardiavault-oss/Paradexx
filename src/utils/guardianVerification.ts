@@ -1,23 +1,22 @@
 import { logger } from '../services/logger.service';
 import { split, combine } from 'shamir-secret-sharing';
 import { verifyMessage, hashMessage } from 'ethers';
+import { API_URL } from '../config/api';
 
 /**
  * Guardian verification and multi-sig recovery system
- * 
+ *
  * This module uses Shamir's Secret Sharing (shamir-secret-sharing npm package)
  * for cryptographically secure key splitting:
  * - K-of-N threshold scheme (e.g., 2-of-3 or 3-of-5)
  * - Zero-dependency, independently audited implementation
- * 
+ *
  * Backend endpoints:
  * - POST /api/guardian - Add guardian
  * - GET /api/guardian/vault/:vaultId - Get guardians for vault
  * - POST /api/guardian/verify - Verify guardian action
  * - POST /api/guardian/notify - Send guardian notification
  */
-
-const API_URL = import.meta.env?.VITE_API_URL || 'https://paradexx-production.up.railway.app';
 
 // Utility functions for Uint8Array conversion
 const toUint8Array = (data: string): Uint8Array => new TextEncoder().encode(data);
@@ -96,7 +95,7 @@ export function addGuardian(
 // Send guardian invitation via backend API
 async function sendGuardianInvitation(guardian: Guardian): Promise<void> {
   logger.info(`Sending invitation to ${guardian.email}`);
-  
+
   try {
     // Send invitation via backend API
     const response = await fetch(`${API_URL}/api/guardian/notify`, {
@@ -116,7 +115,7 @@ async function sendGuardianInvitation(guardian: Guardian): Promise<void> {
   } catch (error) {
     logger.warn('Backend unavailable for guardian invitation:', error);
   }
-  
+
   // Generate local invite link as backup
   const inviteLink = `${globalThis.location?.origin || ''}/guardian/accept/${guardian.id}`;
   logger.info(`Invitation link: ${inviteLink}`);
@@ -131,7 +130,7 @@ export function acceptGuardianInvitation(
   // - Email verification
   // - KYC for Elite tier
   // - Wallet signature verification
-  
+
   const guardian: Guardian = {
     id: guardianId,
     email: 'verified@example.com', // Would come from verification
@@ -171,10 +170,10 @@ export async function splitSecret(
 
   // Convert secret to Uint8Array
   const secretBytes = toUint8Array(secret);
-  
+
   // Split using Shamir's Secret Sharing
   const shares = await split(secretBytes, totalShares, threshold);
-  
+
   // Convert each share to base64 for storage
   return shares.map(share => toBase64(share));
 }
@@ -191,10 +190,10 @@ export async function combineShares(shares: string[]): Promise<string> {
 
   // Convert base64 shares back to Uint8Array
   const shareBytes = shares.map(share => fromBase64(share));
-  
+
   // Combine shares to reconstruct secret
   const reconstructed = await combine(shareBytes);
-  
+
   // Convert back to string
   return fromUint8Array(reconstructed);
 }
@@ -207,7 +206,7 @@ function generateKeyShard(guardianId: string): string {
   // This function generates a placeholder shard ID
   // The actual shard data is stored after calling splitSecret()
   // and distributed to each guardian securely
-  
+
   const shardId = `shard_${guardianId}_${Date.now().toString(36)}`;
   return toBase64(toUint8Array(shardId));
 }
@@ -230,11 +229,11 @@ export async function setupGuardianRecovery(
   try {
     // Split the private key into shares
     const shares = await splitSecret(privateKey, guardians.length, threshold);
-    
+
     // Assign each share to a guardian
     for (let i = 0; i < guardians.length; i++) {
       guardians[i].keyShard = shares[i];
-      
+
       // In production: encrypt shard with guardian's public key before storing
       // and send encrypted shard to guardian via secure channel
       logger.info(`Shard ${i + 1}/${guardians.length} assigned to guardian ${guardians[i].id}`);
@@ -260,10 +259,10 @@ export async function setupGuardianRecovery(
 // Check-in (prove owner is alive)
 export function recordCheckIn(): number {
   const timestamp = Date.now();
-  
+
   // Store in localStorage (in prod: sync to backend)
   localStorage.setItem('paradox_last_checkin', timestamp.toString());
-  
+
   return timestamp;
 }
 
@@ -320,7 +319,7 @@ export function initiateRecoveryRequest(
 // Notify owner of recovery request (gives them chance to dispute)
 function notifyOwnerOfRecoveryRequest(request: RecoveryRequest): void {
   logger.info('ALERT: Recovery request initiated!', request);
-  
+
   // In production:
   // - Send urgent email
   // - Send push notification
@@ -369,7 +368,7 @@ function verifyGuardianSignature(guardianId: string, signature: string): boolean
     // The signature should be a signed message of the form:
     // "Guardian approval for recovery request: {requestId}"
     // Along with the guardian's address embedded or looked up
-    
+
     if (!signature || signature.length === 0) {
       return false;
     }
@@ -409,7 +408,7 @@ export function disputeRecovery(
 
   // Cancel recovery request
   logger.info('Recovery disputed by owner:', reason);
-  
+
   // Notify all guardians
   // In production: Send emails explaining dispute
 }
@@ -419,7 +418,7 @@ function verifyOwnerSignature(signature: string): boolean {
   try {
     // The signature should be a signed message from the wallet owner
     // proving they control the wallet address
-    
+
     if (!signature || signature.length === 0) {
       return false;
     }
@@ -503,7 +502,7 @@ async function reconstructKeyFromShards(
 ): Promise<string> {
   // Collect key shards from approved guardians
   const shards: string[] = [];
-  
+
   for (const approval of approvals) {
     const guardian = guardians.find(g => g.id === approval.guardianId);
     if (guardian?.keyShard) {
@@ -516,10 +515,10 @@ async function reconstructKeyFromShards(
   }
 
   logger.info('Reconstructing key from shards:', { shardCount: shards.length });
-  
+
   // Use Shamir's Secret Sharing to combine the shards
   const reconstructedKey = await combineShares(shards);
-  
+
   return reconstructedKey;
 }
 
@@ -528,7 +527,7 @@ export function removeGuardian(guardianId: string): void {
   // Revoke guardian access
   // Delete their key shard
   // Redistribute shards among remaining guardians
-  
+
   logger.info('Guardian removed:', guardianId);
 }
 

@@ -1,43 +1,11 @@
 import React, {
-  useState, useEffect, useRef,
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  lazy, Suspense
+  useState,
+  useEffect,
+  useRef,
+  lazy,
+  Suspense,
 } from "react";
-import { createRoot } from "react-dom/client";
 import { motion, AnimatePresence } from "motion/react";
-// Placeholder logo for local development
-const logoImage = "https://images.unsplash.com/photo-1622630998477-20aa696ecb05?w=200&h=200&fit=crop";
 
 // Lazy load components that use Three.js to prevent multiple instances
 const TunnelLanding = lazy(() => import("./components/TunnelLanding"));
@@ -45,7 +13,6 @@ const DashboardNew = lazy(() => import("./components/DashboardNew"));
 
 import Assessment from "./components/landing/Assessment";
 import FadeTransition from "./components/FadeTransition";
-import Dashboard from "./components/Dashboard";
 import WalletEntry from "./components/WalletEntry";
 import GlassOnboarding from "./components/GlassOnboarding";
 import TribeOnboarding from "./components/TribeOnboarding";
@@ -56,6 +23,17 @@ import PrivacyPolicy from "./components/legal/PrivacyPolicy";
 import { ApiProvider } from "./providers/ApiProvider";
 
 type Side = "degen" | "regen" | null;
+
+// Interface for tribe selection and assessment results
+interface TribeAssessmentResults {
+  tribe: "degen" | "regen";
+  originalTribe?: "degen" | "regen";
+  degenPercent?: number;
+  regenPercent?: number;
+  score?: number;
+  answers?: Record<string, string | number | boolean>;
+  completedAt?: string;
+}
 
 // Helper functions for the shader
 const commonShaderUtils = `
@@ -76,12 +54,12 @@ const commonShaderUtils = `
       vec2 i = floor(p);
       vec2 f = fract(p);
       f = f * f * (3.0 - 2.0 * f);
-      
+
       vec2 h00 = hash2_2(i);
       vec2 h10 = hash2_2(i + vec2(1.0, 0.0));
       vec2 h01 = hash2_2(i + vec2(0.0, 1.0));
       vec2 h11 = hash2_2(i + vec2(1.0, 1.0));
-      
+
       return mix(mix(h00, h10, f.x), mix(h01, h11, f.x), f.y);
   }
 
@@ -90,12 +68,12 @@ const commonShaderUtils = `
       vec2 i = floor(p);
       vec2 f = fract(p);
       f = f * f * (3.0 - 2.0 * f);
-      
+
       float h00 = hash1_2(i);
       float h10 = hash1_2(i + vec2(1.0, 0.0));
       float h01 = hash1_2(i + vec2(0.0, 1.0));
       float h11 = hash1_2(i + vec2(1.0, 1.0));
-      
+
       return mix(mix(h00, h10, f.x), mix(h01, h11, f.x), f.y);
   }
 `;
@@ -205,7 +183,7 @@ const ParticleShader: React.FC<{ type: "degen" | "regen" }> = ({
       }
 
       float degFromRootUV(in vec2 uv) {
-        return iTime * ANIMATION_SPEED * (hash1_2(uv) - 0.5) * 2.0;   
+        return iTime * ANIMATION_SPEED * (hash1_2(uv) - 0.5) * 2.0;
       }
 
       vec2 randomAround2_2(in vec2 point, in vec2 range, in vec2 uv) {
@@ -219,7 +197,7 @@ const ParticleShader: React.FC<{ type: "degen" | "regen" }> = ({
         vec2 pointUV = voronoiPointFromRoot(rootUV, deg);
         float dist = 2.0;
         float distBloom = 0.0;
-      
+
         vec2 tempUV = uv + (noise2_2(uv * 2.0) - 0.5) * 0.1;
         tempUV += -(noise2_2(uv * 3.0 + iTime) - 0.5) * 0.07;
 
@@ -231,25 +209,25 @@ const ParticleShader: React.FC<{ type: "degen" | "regen" }> = ({
 
         float border = (hash1_2(rootUV) - 0.5) * 2.0;
         float disappear = 1.0 - smoothstep(border, border + 0.5, originalUV.y);
-        
+
         border = (hash1_2(rootUV + 0.214) - 1.8) * 0.7;
         float appear = smoothstep(border, border + 0.4, originalUV.y);
-        
+
         return particles * disappear * appear;
       }
 
-      vec3 layeredParticles(in vec2 uv, in float sizeMod, in float alphaMod, in int layers, in float smoke) { 
+      vec3 layeredParticles(in vec2 uv, in float sizeMod, in float alphaMod, in int layers, in float smoke) {
         vec3 particles = vec3(0.0);
         float size = 1.0;
         float alpha = 1.0;
         vec2 offset = vec2(0.0);
         vec2 noiseOffset;
         vec2 bokehUV;
-        
+
         for (int i = 0; i < LAYERS_COUNT; i++) {
             if (i >= layers) break;
             noiseOffset = (noise2_2(uv * size * 2.0 + 0.5) - 0.5) * 0.15;
-            bokehUV = (uv * size + iTime * MOVEMENT_DIRECTION * MOVEMENT_SPEED) + offset + noiseOffset; 
+            bokehUV = (uv * size + iTime * MOVEMENT_DIRECTION * MOVEMENT_SPEED) + offset + noiseOffset;
             particles += fireParticles(bokehUV, uv) * alpha * (1.0 - smoothstep(0.0, 1.0, smoke) * (float(i) / float(layers)));
             offset += hash2_2(vec2(alpha, alpha)) * 10.0;
             alpha *= alphaMod;
@@ -262,17 +240,17 @@ const ParticleShader: React.FC<{ type: "degen" | "regen" }> = ({
         vec2 uv = (2.0 * fragCoord - iResolution.xy) / iResolution.x;
         float vignette = 1.0 - smoothstep(0.4, 1.4, length(uv + vec2(0.0, 0.3)));
         uv *= 1.8;
-        
+
         float smokeIntensity = layeredNoise1_2(uv * 10.0 + iTime * 4.0 * MOVEMENT_DIRECTION * MOVEMENT_SPEED, 1.7, 0.7, 6, 0.2);
-        smokeIntensity *= pow(1.0 - smoothstep(-1.0, 1.6, uv.y), 2.0); 
+        smokeIntensity *= pow(1.0 - smoothstep(-1.0, 1.6, uv.y), 2.0);
         vec3 smoke = smokeIntensity * SMOKE_COLOR * 0.8 * vignette;
         smoke *= pow(layeredNoise1_2(uv * 4.0 + iTime * 0.5 * MOVEMENT_DIRECTION * MOVEMENT_SPEED, 1.8, 0.5, 3, 0.2), 2.0) * 1.5;
-        
+
         vec3 particles = layeredParticles(uv, SIZE_MOD, ALPHA_MOD, LAYERS_COUNT, smokeIntensity);
         vec3 col = particles + smoke + SMOKE_COLOR * 0.02;
         col *= vignette;
         col = smoothstep(-0.08, 1.0, col);
-        
+
         fragColor = vec4(col, 1.0);
       }
 
@@ -364,8 +342,7 @@ const ParticleShader: React.FC<{ type: "degen" | "regen" }> = ({
 const SplitParticleBackground: React.FC = () => {
   return (
     <div
-      className="fixed inset-0 w-full h-full flex flex-col md:flex-row pointer-events-none"
-      style={{ zIndex: 0 }}
+      className="fixed inset-0 w-full h-full flex flex-col md:flex-row pointer-events-none z-0"
     >
       <div className="w-full md:w-1/2 h-1/2 md:h-full relative overflow-hidden bg-black">
         <div className="absolute inset-0 opacity-80">
@@ -382,6 +359,8 @@ const SplitParticleBackground: React.FC = () => {
 };
 
 // Feature Page Background Shader (Voronoi Glass Tunnel)
+// Kept for potential future visual enhancement - currently unused
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const FeatureBackground: React.FC<{
   type: "degen" | "regen";
 }> = ({ type }) => {
@@ -412,7 +391,7 @@ const FeatureBackground: React.FC<{
         vec3 skyBottom = vec3(0.15, 0.02, 0.02);
       `
       : `
-        // Blue/Cyan glass tint for Regen  
+        // Blue/Cyan glass tint for Regen
         vec3 glassTint = vec3(0.2, 0.5, 1.3);
         vec3 skyTop = vec3(0.05, 0.1, 0.25);
         vec3 skyBottom = vec3(0.02, 0.05, 0.15);
@@ -425,7 +404,7 @@ const FeatureBackground: React.FC<{
 
       #define PI 3.141592654
       #define TAU (2.0*PI)
-      
+
       const float planeDist = 0.75;
       float g_hmul = 1.0;
 
@@ -486,7 +465,7 @@ const FeatureBackground: React.FC<{
 
       vec3 skyColor(vec3 ro, vec3 rd) {
         ${glassColorLogic}
-        
+
         float ld = max(dot(rd, vec3(0.0, 0.0, 1.0)), 0.0);
         vec3 gradient = mix(skyBottom, skyTop, rd.y * 0.5 + 0.5);
         return gradient * (1.0 + tanh_approx(3.0*pow(ld, 100.0)));
@@ -495,34 +474,34 @@ const FeatureBackground: React.FC<{
       float voronoi2(vec2 p) {
         vec2 g = floor(p), o;
         p -= g;
-        
+
         vec3 d = vec3(1.0);
-          
+
         for(int y = -1; y <= 1; y++) {
           for(int x = -1; x <= 1; x++) {
             o = vec2(float(x), float(y));
             o += hash2(g + o) - p;
-            d.z = dot(o, o); 
+            d.z = dot(o, o);
             d.y = max(d.x, min(d.y, d.z));
-            d.x = min(d.x, d.z); 
+            d.x = min(d.x, d.z);
           }
         }
-        
+
         return max(d.y/1.2 - d.x, 0.0)/1.2;
       }
 
       float hf2(vec2 p) {
         const float zo = zoomOuter;
         const float zi = zoomInner;
-        
+
         p /= zo;
         p /= zi;
-        
+
         float d = -voronoi2(p);
         d *= zi*zo;
-        
+
         float h = 0.2*tanh_approx(3.0*smoothstep(0.0, 1.0*zo*zi, -d));
-        
+
         return h*zo*zi;
       }
 
@@ -532,22 +511,22 @@ const FeatureBackground: React.FC<{
 
       vec3 normal(vec2 p, float eps) {
         vec2 e = vec2(0.00001, 0.0);
-        
+
         vec3 n;
         n.x = height(p + e.xy) - height(p - e.xy);
         n.y = height(p + e.yx) - height(p - e.yx);
         n.z = -2.0*e.x;
-        
+
         return normalize(n);
       }
 
       vec4 plane(vec3 pro, vec3 ro, vec3 rd, vec3 pp, vec3 off, float aa, float n_, out vec3 pnor) {
         ${glassColorLogic}
-        
+
         float h0 = hash(n_);
         float h1 = fract(7793.0*h0);
         float h2 = fract(6337.0*h0);
-        
+
         vec2 p = (pp-off*vec3(1.0, 1.0, 0.0)).xy;
         const float s = 1.0;
         vec3 lp1 = vec3(5.0, 1.0, 0.0)*vec3(s, 1.0, s)+pro;
@@ -567,7 +546,7 @@ const FeatureBackground: React.FC<{
 
         vec3 ld1 = normalize(lp1 - po);
         vec3 ld2 = normalize(lp2 - po);
-        
+
         float diff1 = max(dot(nor, ld1), 0.0);
         float diff2 = max(dot(nor, ld2), 0.0);
         diff1 = ld1.z*nor.z;
@@ -579,7 +558,7 @@ const FeatureBackground: React.FC<{
         vec3 mat = glassTint * 0.15;
         vec3 lcol1 = glassTint * 1.2;
         vec3 lcol2 = glassTint * 0.9;
-        
+
         float hf = smoothstep(0.0, 0.0002, -he);
         vec3 lpow1 = 1.0*lcol1/dot(ld1, ld1);
         vec3 lpow2 = 1.0*lcol2/dot(ld2, ld2);
@@ -593,7 +572,7 @@ const FeatureBackground: React.FC<{
         float t = 1.0;
         t *= smoothstep(aa, -aa, -(hd-hsz/4.0));
         t *= mix(1.0, 0.75, hf);
-        
+
         return vec4(col, t);
       }
 
@@ -601,7 +580,7 @@ const FeatureBackground: React.FC<{
         float lp = length(p);
         vec2 np = p + 1.0/iResolution.xy;
         float rdd = 2.0+tanh_approx(length(0.25*p));
-        
+
         vec3 rd = normalize(p.x*uu + p.y*vv + rdd*ww);
         vec3 nrd = normalize(np.x*uu + np.y*vv + rdd*ww);
 
@@ -632,14 +611,14 @@ const FeatureBackground: React.FC<{
 
             vec3 pnor = vec3(0.0);
             vec4 pcol = plane(pro, ro, rd, pp, off, aa, nz+float(i), pnor);
-            
+
             vec3 refr = refract(rd, pnor, 1.0-0.075);
             if (pcol.w > (1.0-cutOff) && refr != vec3(0.0)) {
               rd = refr;
             }
 
             float dz = pp.z-ro.z;
-            const float fi = 0.0; 
+            const float fi = 0.0;
             float fadeIn = smoothstep(planeDist*(float(furthest)+fi), planeDist*(float(fadeFrom)-fi), dz);
             float fadeOut = smoothstep(0.0, planeDist*0.1, dz);
             pcol.w *= fadeOut*fadeIn;
@@ -660,7 +639,7 @@ const FeatureBackground: React.FC<{
         vec2 q = fragCoord/iResolution.xy;
         vec2 p = -1.0 + 2.0 * q;
         p.x *= iResolution.x/iResolution.y;
-        
+
         float z = 0.33*planeDist*iTime;
         vec3 pro = offset(z-1.0);
         vec3 ro = offset(z);
@@ -674,7 +653,7 @@ const FeatureBackground: React.FC<{
         vec3 col = color(ww, uu, vv, pro, ro, p);
         col *= smoothstep(0.0, 4.0, iTime);
         col = sRGB(col);
-        
+
         fragColor = vec4(col, 1.0);
       }
 
@@ -769,7 +748,8 @@ const FeatureBackground: React.FC<{
   );
 };
 
-// Degen Fire Overlay Component
+// Degen Fire Overlay Component - Intentionally disabled per user request
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const DegenFireOverlay: React.FC<{
   isVisible: boolean;
   isSelected: boolean;
@@ -814,7 +794,7 @@ const DegenFireOverlay: React.FC<{
       vec3 getLine(vec3 col, vec2 fc, mat2 mtx, float shift) {
         float t = iTime;
         vec2 uv = (fc / iResolution.xy) * mtx;
-        uv.x += uv.y < 0.5 ? 23.0 + t * 0.35 : -11.0 + t * 0.3;    
+        uv.x += uv.y < 0.5 ? 23.0 + t * 0.35 : -11.0 + t * 0.3;
         uv.y = abs(uv.y - shift);
         uv *= 5.0;
         float q = fire(uv - t * 0.013) / 2.0;
@@ -990,35 +970,35 @@ const PageTransition: React.FC<{
       void main() {
         vec2 uv = gl_FragCoord.xy / iResolution.xy;
         bool isMobile = iResolution.x < 768.0;
-        
+
         // Diagonal wipe direction - adjust for mobile (top-down) vs desktop (left-right)
         float wipeCoord = isMobile ? (1.0 - uv.y) : (uv.x + uv.y * 0.3);
-        
+
         // Add noise displacement to edge
         float noiseValue = noise(uv * 10.0 + iTime * 2.0);
         float edge = iProgress * 1.4 - 0.2 + noiseValue * 0.15;
-        
+
         // Create the wipe mask with soft edge
         float mask = smoothstep(edge - 0.1, edge + 0.05, wipeCoord);
-        
+
         // Glitch effect at the edge
         float glitch = step(0.4, noiseValue) * step(edge - 0.08, wipeCoord) * step(wipeCoord, edge + 0.08);
-        
+
         // Color gradient - red/orange fire colors
         vec3 color = mix(
           vec3(1.0, 0.2, 0.0),  // Orange
           vec3(1.0, 0.05, 0.2),  // Red-pink
           noiseValue
         );
-        
+
         // Add bright edge glow
         float edgeGlow = smoothstep(0.1, 0.0, abs(wipeCoord - edge)) * 2.0;
         color += vec3(1.0, 0.6, 0.2) * edgeGlow;
-        
+
         // Final alpha - full opacity in transition area, fade at edges
         float alpha = (1.0 - mask) * (1.0 - smoothstep(0.85, 1.0, iProgress));
         alpha = max(alpha, glitch * 0.8);
-        
+
         gl_FragColor = vec4(color, alpha);
       }
     ` : `
@@ -1047,35 +1027,35 @@ const PageTransition: React.FC<{
       void main() {
         vec2 uv = gl_FragCoord.xy / iResolution.xy;
         bool isMobile = iResolution.x < 768.0;
-        
-        // Diagonal wipe direction - adjust for mobile (bottom-up) vs desktop (right-left)  
+
+        // Diagonal wipe direction - adjust for mobile (bottom-up) vs desktop (right-left)
         float wipeCoord = isMobile ? uv.y : (1.0 - uv.x + uv.y * 0.3);
-        
+
         // Add crystalline noise pattern
         float noiseValue = noise(uv * 15.0 + iTime * 1.5);
         float edge = iProgress * 1.4 - 0.2 + noiseValue * 0.12;
-        
+
         // Create the wipe mask with soft edge
         float mask = smoothstep(edge - 0.1, edge + 0.05, wipeCoord);
-        
+
         // Crystallization effect at the edge
         float crystal = step(0.5, noiseValue) * step(edge - 0.08, wipeCoord) * step(wipeCoord, edge + 0.08);
-        
+
         // Color gradient - blue/cyan ice colors
         vec3 color = mix(
           vec3(0.0, 0.8, 1.0),   // Cyan
           vec3(0.2, 0.4, 1.0),   // Blue
           noiseValue
         );
-        
+
         // Add bright edge glow
         float edgeGlow = smoothstep(0.1, 0.0, abs(wipeCoord - edge)) * 2.0;
         color += vec3(0.4, 0.9, 1.0) * edgeGlow;
-        
+
         // Final alpha - full opacity in transition area, fade at edges
         float alpha = (1.0 - mask) * (1.0 - smoothstep(0.85, 1.0, iProgress));
         alpha = max(alpha, crystal * 0.8);
-        
+
         gl_FragColor = vec4(color, alpha);
       }
     `;
@@ -1171,13 +1151,13 @@ const PageTransition: React.FC<{
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 w-full h-full pointer-events-none"
-      style={{ zIndex: 60 }}
+      className="fixed inset-0 w-full h-full pointer-events-none z-60"
     />
   );
 };
 
-// Regen Fire Overlay Component
+// Regen Fire Overlay Component (Kept for future use - can be re-enabled for ice/snow particle effects)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const RegenFireOverlay: React.FC<{
   isVisible: boolean;
   isSelected?: boolean;
@@ -1222,7 +1202,7 @@ const RegenFireOverlay: React.FC<{
       vec3 getLine(vec3 col, vec2 fc, mat2 mtx, float shift) {
         float t = iTime;
         vec2 uv = (fc / iResolution.xy) * mtx;
-        uv.x += uv.y < 0.5 ? 23.0 + t * 0.35 : -11.0 + t * 0.3;    
+        uv.x += uv.y < 0.5 ? 23.0 + t * 0.35 : -11.0 + t * 0.3;
         uv.y = abs(uv.y - shift);
         uv *= 5.0;
         float q = fire(uv - t * 0.013) / 2.0;
@@ -1329,28 +1309,28 @@ const RegenFireOverlay: React.FC<{
     };
   }, [isSelected]);
 
+  // Animation values computed based on state
+  const animateValue = isSelected
+    ? { opacity: [0.15, 0.5, 0.5, 0] }
+    : { opacity: isVisible ? 0.15 : 0 };
+
+  const transitionValue = isSelected
+    ? {
+        opacity: {
+          times: [0, 0.4, 0.6, 1],
+          duration: 2.5,
+          ease: "easeInOut" as const,
+        },
+      }
+    : { duration: 0.5, ease: "easeInOut" as const };
+
   return (
     <motion.canvas
       ref={canvasRef}
-      className="fixed pointer-events-none bottom-0 md:top-0 md:right-0 left-0 md:left-auto w-full md:w-1/2 h-1/2 md:h-full"
-      style={{ zIndex: 2 }}
+      className="fixed pointer-events-none bottom-0 md:top-0 md:right-0 left-0 md:left-auto w-full md:w-1/2 h-1/2 md:h-full z-2"
       initial={{ opacity: 0 }}
-      animate={
-        isSelected
-          ? { opacity: [0.15, 0.5, 0.5, 0] }
-          : { opacity: isVisible ? 0.15 : 0 }
-      }
-      transition={
-        isSelected
-          ? {
-            opacity: {
-              times: [0, 0.4, 0.6, 1],
-              duration: 2.5,
-              ease: "easeInOut",
-            },
-          }
-          : { duration: 0.5, ease: "easeInOut" }
-      }
+      animate={animateValue}
+      transition={transitionValue}
     />
   );
 };
@@ -1495,30 +1475,13 @@ const CenterQuestion: React.FC = () => {
         transition={{ delay: 0.5, duration: 0.8 }}
         className="absolute md:bottom-24 top-1/2 md:top-auto left-1/2 z-20 pointer-events-none -translate-x-1/2 -translate-y-1/2 md:translate-y-0 w-full max-w-[90vw] md:max-w-md"
       >
-        <div
-          style={{
-            background: "rgba(0, 0, 0, 0.85)",
-            backdropFilter: "blur(20px)",
-            padding: "32px",
-            borderRadius: "24px",
-            border: "1px solid rgba(255, 255, 255, 0.15)",
-            boxShadow: "0 20px 60px rgba(0, 0, 0, 0.9)",
-          }}
-        >
+        <div className="glass-card-center">
           {/* Main text */}
           <motion.p
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="text-center text-white"
-            style={{
-              fontFamily: "'Rajdhani', sans-serif",
-              fontSize: "clamp(24px, 5vw, 32px)",
-              fontWeight: 700,
-              letterSpacing: "0.05em",
-              lineHeight: 1.2,
-              textTransform: "uppercase",
-            }}
+            className="text-center text-white center-question-text"
           >
             Choose your path.
             <br />
@@ -1625,7 +1588,7 @@ function AppContent() {
   const [showResults, setShowResults] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
   const [effectTrigger, setEffectTrigger] = useState(0);
-  const [assessmentResults, setAssessmentResults] = useState<any>(null);
+  const [assessmentResults, setAssessmentResults] = useState<TribeAssessmentResults | null>(null);
   const [showTerms, setShowTerms] = useState(false); // Terms of Service
   const [showPrivacy, setShowPrivacy] = useState(false); // Privacy Policy
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Track auth state
@@ -1639,7 +1602,7 @@ function AppContent() {
   // Check for existing session on mount AND handle OAuth callback
   useEffect(() => {
     // Check for OAuth callback parameters in URL
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(globalThis.location.search);
     const accessToken = urlParams.get('access_token');
     const refreshToken = urlParams.get('refresh_token');
     const error = urlParams.get('error');
@@ -1647,7 +1610,7 @@ function AppContent() {
     // Handle OAuth errors
     if (error === 'no_account') {
       alert('Please create an account first before using Google Sign-In');
-      window.history.replaceState({}, document.title, window.location.pathname);
+      globalThis.history.replaceState({}, document.title, globalThis.location.pathname);
       return;
     }
 
@@ -1658,7 +1621,7 @@ function AppContent() {
       setIsAuthenticated(true);
 
       // Clean URL (remove tokens from URL bar)
-      window.history.replaceState({}, document.title, window.location.pathname);
+      globalThis.history.replaceState({}, document.title, globalThis.location.pathname);
 
       // Reset all views first
       setShowSplash(false);
@@ -1730,7 +1693,7 @@ function AppContent() {
   };
 
   const handleLogin = async (email: string, password: string) => {
-    console.log("Login:", email);
+    console.info("Login:", email);
 
     // Close login modal
     setShowLoginModal(false);
@@ -1740,7 +1703,7 @@ function AppContent() {
 
     try {
       // Authenticate with backend API
-      const API_URL = import.meta.env.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+      const { API_URL } = await import('./config/api');
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1818,11 +1781,18 @@ function AppContent() {
     }
   };
 
-  const handleOnboardingComplete = async (data: any, seedPhrase?: string[]) => {
-    console.log("Onboarding complete:", data);
-    console.log("Seed phrase:", seedPhrase);
+  // Interface for onboarding data
+  interface OnboardingData {
+    email?: string;
+    password?: string;
+    name?: string;
+  }
 
-    const API_BASE = import.meta.env.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+  const handleOnboardingComplete = async (data: OnboardingData, seedPhrase?: string[]) => {
+    console.info("Onboarding complete:", data);
+    console.info("Seed phrase:", seedPhrase);
+
+    const { API_URL: API_BASE } = await import('./config/api');
 
     try {
       // Register user with backend
@@ -1843,7 +1813,7 @@ function AppContent() {
         localStorage.setItem('accessToken', result.accessToken);
         localStorage.setItem('refreshToken', result.refreshToken);
         setIsAuthenticated(true);
-        console.log('User registered and tokens saved');
+        console.info('User registered and tokens saved');
       } else {
         throw new Error(result.message || 'Registration failed');
       }
@@ -1861,8 +1831,8 @@ function AppContent() {
     setShowDashboard(false);
   };
 
-  const handleTribeComplete = (results: any) => {
-    console.log("Tribe selection complete:", results);
+  const handleTribeComplete = (results: TribeAssessmentResults) => {
+    console.info("Tribe selection complete:", results);
 
     // Save tribe selection to localStorage for persistence
     localStorage.setItem('userTribe', results.tribe);
@@ -1911,9 +1881,22 @@ function AppContent() {
     setShowResults(true);
   };
 
-  const handleAssessmentComplete = (results: any) => {
-    console.log("Assessment results:", results);
-    setAssessmentResults(results);
+  // Type for Assessment component results
+  type AssessmentResultData = {
+    originalTribe: "degen" | "regen";
+    degenPercent: number;
+    regenPercent: number;
+  };
+
+  const handleAssessmentComplete = (results: AssessmentResultData) => {
+    console.info("Assessment results:", results);
+    // Transform to TribeAssessmentResults format
+    setAssessmentResults({
+      tribe: results.originalTribe,
+      originalTribe: results.originalTribe,
+      degenPercent: results.degenPercent,
+      regenPercent: results.regenPercent,
+    });
     // Trigger fade to dashboard
     setFadeActive3(true);
   };
@@ -1939,6 +1922,7 @@ function AppContent() {
       {!showSplash && (
         <>
           {/* Shader Background - Only visible on main split screen */}
+          {/* biome-ignore lint/style/noInlineStyles: Dynamic opacity based on selectedSide state */}
           <div
             style={{
               opacity: selectedSide ? 0 : 1,
@@ -1980,77 +1964,9 @@ function AppContent() {
           <FadeTransition isActive={fadeWalletEntry} onComplete={handleWalletFadeComplete} duration={1000} />
 
           {/* Content */}
-          <div className="relative" style={{ zIndex: 10 }}>
+          <div className="relative z-10">
             <AnimatePresence mode="wait">
-              {showTerms ? (
-                <TermsOfService
-                  key="terms"
-                  onBack={() => setShowTerms(false)}
-                />
-              ) : showPrivacy ? (
-                <PrivacyPolicy
-                  key="privacy"
-                  onBack={() => setShowPrivacy(false)}
-                />
-              ) : showWalletEntry ? (
-                <WalletEntry
-                  key="wallet-entry"
-                  onCreateWallet={handleCreateWallet}
-                  onLoginWallet={handleLoginWallet}
-                  onShowTerms={() => { setShowTerms(true); }}
-                  onShowPrivacy={() => { setShowPrivacy(true); }}
-                />
-              ) : showOnboarding ? (
-                <GlassOnboarding
-                  key="onboarding"
-                  onComplete={handleOnboardingComplete}
-                  type={onboardingType!}
-                  onBack={() => {
-                    setShowOnboarding(false);
-                    setShowWalletEntry(true);
-                    setFadeWalletEntry(false);
-                  }}
-                />
-              ) : showTribeOnboarding ? (
-                <TribeOnboarding
-                  key="tribe-onboarding"
-                  onComplete={handleTribeComplete}
-                />
-              ) : showDashboard ? (
-                <Suspense fallback={<div className="w-full h-screen bg-black" />}>
-                  <DashboardNew
-                    key="dashboard"
-                    type={selectedSide!}
-                    degenPercent={assessmentResults?.degenPercent || 50}
-                    regenPercent={assessmentResults?.regenPercent || 50}
-                    onLogout={handleLogout}
-                  />
-                </Suspense>
-              ) : !selectedSide ? (
-                <SplitScreenView
-                  key="split"
-                  hoveredSide={hoveredSide}
-                  setHoveredSide={setHoveredSide}
-                  onSelectSide={handleSelectSide}
-                />
-              ) : showAssessment ? (
-                <Assessment
-                  key="assessment"
-                  initialTribe={selectedSide}
-                  onComplete={handleAssessmentComplete}
-                  onShowResults={handleShowResults}
-                  showResults={showResults}
-                />
-              ) : (
-                <Suspense fallback={<div className="w-full h-screen bg-black" />}>
-                  <TunnelLanding
-                    key="landing"
-                    type={selectedSide}
-                    onBack={handleBack}
-                    onComplete={handleTunnelComplete}
-                  />
-                </Suspense>
-              )}
+              {renderCurrentView()}
             </AnimatePresence>
           </div>
 
@@ -2069,6 +1985,132 @@ function AppContent() {
       )}
     </div>
   );
+
+  // Helper function to render the current view based on state
+  function renderCurrentView() {
+    // PRIORITY 1: Legal pages (always accessible)
+    if (showTerms) {
+      return (
+        <TermsOfService
+          key="terms"
+          onBack={() => setShowTerms(false)}
+        />
+      );
+    }
+
+    if (showPrivacy) {
+      return (
+        <PrivacyPolicy
+          key="privacy"
+          onBack={() => setShowPrivacy(false)}
+        />
+      );
+    }
+
+    // PRIORITY 2: Authentication flow (must complete before anything else)
+    // If not authenticated and should show wallet entry, show it
+    if (!isAuthenticated && showWalletEntry) {
+      return (
+        <WalletEntry
+          key="wallet-entry"
+          onCreateWallet={handleCreateWallet}
+          onLoginWallet={handleLoginWallet}
+          onShowTerms={() => { setShowTerms(true); }}
+          onShowPrivacy={() => { setShowPrivacy(true); }}
+        />
+      );
+    }
+
+    // If not authenticated and in onboarding flow
+    if (!isAuthenticated && showOnboarding) {
+      return (
+        <GlassOnboarding
+          key="onboarding"
+          onComplete={handleOnboardingComplete}
+          type={onboardingType!}
+          onBack={() => {
+            setShowOnboarding(false);
+            setShowWalletEntry(true);
+            setFadeWalletEntry(false);
+          }}
+        />
+      );
+    }
+
+    // If not authenticated and no specific view, show wallet entry
+    if (!isAuthenticated && !showWalletEntry && !showOnboarding) {
+      // Force show wallet entry for unauthenticated users
+      setShowWalletEntry(true);
+      return (
+        <WalletEntry
+          key="wallet-entry"
+          onCreateWallet={handleCreateWallet}
+          onLoginWallet={handleLoginWallet}
+          onShowTerms={() => { setShowTerms(true); }}
+          onShowPrivacy={() => { setShowPrivacy(true); }}
+        />
+      );
+    }
+
+    // PRIORITY 3: Authenticated user flows
+    if (showTribeOnboarding) {
+      return (
+        <TribeOnboarding
+          key="tribe-onboarding"
+          onComplete={handleTribeComplete}
+        />
+      );
+    }
+
+    if (showDashboard) {
+      return (
+        <Suspense fallback={<div className="w-full h-screen bg-black" />}>
+          <DashboardNew
+            key="dashboard"
+            type={selectedSide!}
+            degenPercent={assessmentResults?.degenPercent || 50}
+            regenPercent={assessmentResults?.regenPercent || 50}
+            onLogout={handleLogout}
+          />
+        </Suspense>
+      );
+    }
+
+    if (!selectedSide) {
+      return (
+        <SplitScreenView
+          key="split"
+          hoveredSide={hoveredSide}
+          setHoveredSide={setHoveredSide}
+          onSelectSide={handleSelectSide}
+        />
+      );
+    }
+
+    if (showAssessment) {
+      return (
+        <Assessment
+          key="assessment"
+          initialTribe={selectedSide}
+          onComplete={handleAssessmentComplete}
+          onShowResults={handleShowResults}
+          showResults={showResults}
+        />
+      );
+    }
+
+    // Default: Show TunnelLanding
+    return (
+      <Suspense fallback={<div className="w-full h-screen bg-black" />}>
+        <TunnelLanding
+          key="landing"
+          type={selectedSide}
+          onBack={handleBack}
+          onComplete={handleTunnelComplete}
+        />
+      </Suspense>
+    );
+  }
 }
 
 export default function App() {

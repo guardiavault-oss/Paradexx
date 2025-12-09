@@ -7,9 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useDashboard } from './useDashboard';
 import { useSecurityScore } from './useSecurityCenter';
 import { useDegenData } from './useDegenData';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'https://paradexx-production.up.railway.app';
+import { API_URL } from '../config/api';
 
 export interface DashboardStats {
   portfolioValue: number;
@@ -38,7 +36,7 @@ async function fetchYieldStats(): Promise<{ monthlyYield: number; averageAPY: nu
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const response = await fetch(`${API_URL}/api/defi/yield-stats`, { headers });
-    
+
     if (response.ok) {
       const data = await response.json();
       return {
@@ -54,13 +52,13 @@ async function fetchYieldStats(): Promise<{ monthlyYield: number; averageAPY: nu
     if (positionsResponse.ok) {
       const positions = await positionsResponse.json();
       const positionsList = positions.positions || positions || [];
-      
+
       if (positionsList.length > 0) {
         const totalAPY = positionsList.reduce((sum: number, p: { apy?: number }) => sum + (p.apy || 0), 0);
         const avgAPY = totalAPY / positionsList.length;
-        const totalValue = positionsList.reduce((sum: number, p: { valueUSD?: number; amount?: number }) => 
+        const totalValue = positionsList.reduce((sum: number, p: { valueUSD?: number; amount?: number }) =>
           sum + (p.valueUSD || p.amount || 0), 0);
-        
+
         return {
           monthlyYield: totalValue * (avgAPY / 100) / 12, // Estimate monthly yield
           averageAPY: avgAPY,
@@ -72,7 +70,7 @@ async function fetchYieldStats(): Promise<{ monthlyYield: number; averageAPY: nu
   } catch (err) {
     console.error('Error fetching yield stats:', err);
   }
-  
+
   return {
     monthlyYield: 0,
     averageAPY: 0,
@@ -84,11 +82,11 @@ async function fetchYieldStats(): Promise<{ monthlyYield: number; averageAPY: nu
 // Calculate PnL from token changes
 function calculateDailyPnL(tokens: Array<{ value: number; change24h: number }>): { amount: number; percent: number } {
   if (!tokens.length) return { amount: 0, percent: 0 };
-  
+
   const totalValue = tokens.reduce((sum, t) => sum + t.value, 0);
   const pnlAmount = tokens.reduce((sum, t) => sum + (t.value * t.change24h / 100), 0);
   const pnlPercent = totalValue > 0 ? (pnlAmount / totalValue) * 100 : 0;
-  
+
   return {
     amount: pnlAmount,
     percent: pnlPercent,
@@ -154,7 +152,7 @@ export function useDashboardStats(walletAddress?: string): UseDashboardStatsResu
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       await Promise.all([
         dashboard.refresh(),
@@ -180,11 +178,11 @@ export function useDashboardStats(walletAddress?: string): UseDashboardStatsResu
 // Export individual stat hooks for granular use
 export function usePortfolioValue(address?: string) {
   const { stats, loading, refresh } = useDashboardStats(address);
-  return { 
-    value: stats.portfolioValue, 
+  return {
+    value: stats.portfolioValue,
     change: stats.dailyPnL,
     changePercent: stats.dailyPnLPercent,
-    loading, 
+    loading,
     refresh,
   };
 }
