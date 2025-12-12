@@ -4,6 +4,7 @@ import { Mail, Lock, Eye, EyeOff, X, Shield, Fingerprint, ArrowLeft, Key } from 
 import { ParadexLogo } from "./ParadexLogo";
 import ForgotPasswordModal from "./ForgotPasswordModal";
 import BurnTransition from "./BurnTransition";
+import { API_URL } from '../config/api';
 
 interface LoginModalProps {
   onLogin: (email: string, password: string) => void;
@@ -420,7 +421,7 @@ export default function LoginModal({ onLogin, onClose, onBack, useBurnTransition
                 <button
                   type="button"
                   onClick={() => {
-                    window.location.href = 'http://localhost:3001/api/auth/oauth/google';
+                    window.location.href = `${API_URL}/api/auth/oauth/google`;
                   }}
                   className="w-full p-4 rounded-2xl border-2 transition-all hover:border-white/40"
                   style={{

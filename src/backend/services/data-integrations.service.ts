@@ -474,19 +474,31 @@ export const airdropTrackerService = new AirdropTrackerService();
 
 // Convenience function to get all market data
 export async function getMarketOverview() {
-    const [topCoins, trending, global, protocols, yields] = await Promise.all([
-        coinGeckoService.getTopCoins(20),
-        coinGeckoService.getTrendingCoins(),
-        coinGeckoService.getGlobalData(),
-        defiLlamaService.getTopProtocols(20),
-        defiLlamaService.getYields(),
-    ]);
+    try {
+        const [topCoins, trending, global, protocols, yields] = await Promise.all([
+            coinGeckoService.getTopCoins(20),
+            coinGeckoService.getTrendingCoins(),
+            coinGeckoService.getGlobalData(),
+            defiLlamaService.getTopProtocols(20),
+            defiLlamaService.getYields(),
+        ]);
 
-    return {
-        topCoins,
-        trending,
-        global,
-        protocols,
-        topYields: yields.slice(0, 10),
-    };
+        // Return clean data without any axios response objects
+        return {
+            topCoins: Array.isArray(topCoins) ? topCoins : [],
+            trending: Array.isArray(trending) ? trending : [],
+            global: global && typeof global === 'object' ? global : null,
+            protocols: Array.isArray(protocols) ? protocols : [],
+            topYields: Array.isArray(yields) ? yields.slice(0, 10) : [],
+        };
+    } catch (error) {
+        logger.error('Error getting market overview:', error);
+        return {
+            topCoins: [],
+            trending: [],
+            global: null,
+            protocols: [],
+            topYields: [],
+        };
+    }
 }

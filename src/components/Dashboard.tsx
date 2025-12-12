@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { getThemeStyles } from "../design-system";
 import {
@@ -59,6 +59,10 @@ import { HardwareWalletConnect } from "./HardwareWalletConnect";
 import { HelpCenter } from "./HelpCenter";
 import { ParadexLogo } from "./ParadexLogo";
 import { useDashboardStats } from "../hooks/useDashboardStats";
+import { useMEVProtection } from "../hooks/useMEVProtection";
+import { useDegenData } from "../hooks/useDegenData";
+import { useWhaleData } from "../hooks/useWhaleData";
+import { API_URL } from "../config/api";
 import PrivacyShield from "./modals/PrivacyShield";
 import LimitOrdersModal from "./modals/LimitOrdersModal";
 
@@ -99,13 +103,60 @@ export default function Dashboard({ type, degenPercent, regenPercent, onLogout }
   const secondaryColor = isDegen ? "#8B0000" : "#000080";
 
   // Real API data from useDashboardStats hook
-  const { stats, loading: statsLoading } = useDashboardStats();
+  const walletAddress = localStorage.getItem('walletAddress') || undefined;
+  const { stats, loading: statsLoading } = useDashboardStats(walletAddress);
   const portfolioValue = stats.portfolioValue || 0;
-  const degenScore = stats.degenScore || (isDegen ? 847 : 0);
+  const degenScore = stats.degenScore || 0; // Real score from API, no fallback
   const dailyPnL = stats.dailyPnL || 0;
   const securityScore = stats.securityScore || 0;
   const monthlyYield = stats.monthlyYield || 0;
   const averageAPY = stats.averageAPY || 0;
+
+  // MEV Protection stats
+  const { stats: mevStats } = useMEVProtection();
+  
+  // Degen stats for win rate
+  const { stats: degenStats, pnl: degenPnL } = useDegenData();
+  
+  // Airdrop stats
+  const [airdropStats, setAirdropStats] = useState({ eligible: 0, potential: 0 });
+  
+  // Whale tracker data
+  const { whales, stats: whaleStats } = useWhaleData({ autoRefresh: false });
+  const followingCount = whales.filter(w => w.following).length;
+  const activeWhales = whales.length;
+  
+  useEffect(() => {
+    const fetchAirdropStats = async () => {
+      try {
+        const token = localStorage.getItem('accessToken');
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        
+        const response = await fetch(`${API_URL}/api/airdrop/active`, { headers });
+        if (response.ok) {
+          const data = await response.json();
+          const airdrops = data.airdrops || [];
+          const eligible = airdrops.filter((a: any) => a.status === 'active' || a.status === 'upcoming').length;
+          // Calculate potential from estimated values
+          const potential = airdrops.reduce((sum: number, a: any) => {
+            const estValue = a.estimatedValue || '$0';
+            const match = estValue.match(/\$([\d,]+)/);
+            if (match) {
+              const value = parseFloat(match[1].replace(/,/g, ''));
+              return sum + (value || 0);
+            }
+            return sum;
+          }, 0);
+          setAirdropStats({ eligible, potential });
+        }
+      } catch (error) {
+        console.error('Error fetching airdrop stats:', error);
+      }
+    };
+    
+    fetchAirdropStats();
+  }, []);
 
   const handleTabChange = (tab: "home" | "trading" | "activity" | "more") => {
     setActiveTab(tab);
@@ -423,8 +474,12 @@ export default function Dashboard({ type, degenPercent, regenPercent, onLogout }
                     </div>
                     <ChevronRight className="w-5 h-5 text-[var(--text-primary)]/40" />
                   </div>
-                  <div className="text-2xl text-[var(--text-primary)] font-bold mb-1">5 Active</div>
-                  <div className="text-sm text-green-500">+247% Win Rate</div>
+                  <div className="text-2xl text-[var(--text-primary)] font-bold mb-1">
+                    {degenStats?.tradesCount || 0} Active
+                  </div>
+                  <div className="text-sm text-green-500">
+                    {degenStats?.winRate ? `+${degenStats.winRate.toFixed(0)}% Win Rate` : 'No trades yet'}
+                  </div>
                 </motion.div>
 
                 {/* MEV Shield Widget */}
@@ -455,8 +510,12 @@ export default function Dashboard({ type, degenPercent, regenPercent, onLogout }
                     </div>
                     <ChevronRight className="w-5 h-5 text-[var(--text-primary)]/40" />
                   </div>
-                  <div className="text-2xl text-[var(--text-primary)] font-bold mb-1">Active</div>
-                  <div className="text-sm text-green-500">$1,247 Saved</div>
+                  <div className="text-2xl text-[var(--text-primary)] font-bold mb-1">
+                    {mevStats?.activeProtections ? 'Active' : 'Inactive'}
+                  </div>
+                  <div className="text-sm text-green-500">
+                    ${mevStats?.mevSaved?.toLocaleString(undefined, { maximumFractionDigits: 0 }) || '0'} Saved
+                  </div>
                 </motion.div>
 
                 {/* Whale Tracker Widget */}
@@ -487,8 +546,12 @@ export default function Dashboard({ type, degenPercent, regenPercent, onLogout }
                     </div>
                     <ChevronRight className="w-5 h-5 text-[var(--text-primary)]/40" />
                   </div>
-                  <div className="text-2xl text-[var(--text-primary)] font-bold mb-1">8 Active</div>
-                  <div className="text-sm text-yellow-500">🐋 Following 3 whales</div>
+                  <div className="text-2xl text-[var(--text-primary)] font-bold mb-1">
+                    {activeWhales} Active
+                  </div>
+                  <div className="text-sm text-yellow-500">
+                    🐋 Following {followingCount} whale{followingCount !== 1 ? 's' : ''}
+                  </div>
                 </motion.div>
 
                 {/* Airdrop Hunter Widget */}
@@ -519,8 +582,12 @@ export default function Dashboard({ type, degenPercent, regenPercent, onLogout }
                     </div>
                     <ChevronRight className="w-5 h-5 text-[var(--text-primary)]/40" />
                   </div>
-                  <div className="text-2xl text-[var(--text-primary)] font-bold mb-1">5 Eligible</div>
-                  <div className="text-sm text-green-500">💰 $2,450 potential</div>
+                  <div className="text-2xl text-[var(--text-primary)] font-bold mb-1">
+                    {airdropStats.eligible} Eligible
+                  </div>
+                  <div className="text-sm text-green-500">
+                    💰 ${airdropStats.potential.toLocaleString(undefined, { maximumFractionDigits: 0 })} potential
+                  </div>
                 </motion.div>
               </div>
             ) : (
@@ -621,7 +688,9 @@ export default function Dashboard({ type, degenPercent, regenPercent, onLogout }
                     <ChevronRight className="w-5 h-5 text-[var(--text-primary)]/40" />
                   </div>
                   <div className="text-2xl text-[var(--text-primary)] font-bold mb-1">Active</div>
-                  <div className="text-sm text-green-500">$847 Protected</div>
+                  <div className="text-sm text-green-500">
+                    ${mevStats?.valueProtected?.toLocaleString(undefined, { maximumFractionDigits: 0 }) || '0'} Protected
+                  </div>
                 </motion.div>
               </div>
             )}

@@ -5,7 +5,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 // @ts-ignore - Vite env types
-const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:3001';
+import { API_URL } from '../config/api';
+
+// Use centralized API configuration
+const API_BASE = API_URL;
 
 export interface TokenPrice {
     symbol: string;

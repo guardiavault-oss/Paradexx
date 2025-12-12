@@ -9,12 +9,12 @@
   /* ─────────────────────────────────────────────────────────────────────────
      TYPOGRAPHY SYSTEM
      ───────────────────────────────────────────────────────────────────────── */
-  
+
   /* Font Families */
   --font-sans: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
   --font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
   --font-display: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
-  
+
   /* Font Weights */
   --font-weight-thin: 100;
   --font-weight-extralight: 200;
@@ -25,10 +25,10 @@
   --font-weight-bold: 700;
   --font-weight-extrabold: 800;
   --font-weight-black: 900;
-  
+
   /* Base Font Size (for rem calculations) */
   --font-size: 16px;
-  
+
   /* Type Scale — Fluid Typography */
   --text-2xs: clamp(0.625rem, 0.6rem + 0.125vw, 0.6875rem);
   --text-xs: clamp(0.6875rem, 0.65rem + 0.1875vw, 0.75rem);
@@ -44,7 +44,7 @@
   --text-7xl: clamp(4rem, 3.3rem + 3.5vw, 4.5rem);
   --text-8xl: clamp(5rem, 4rem + 5vw, 6rem);
   --text-9xl: clamp(6.5rem, 5rem + 7.5vw, 8rem);
-  
+
   /* Letter Spacing — Negative for headings (Apple style) */
   --tracking-tightest: -0.05em;
   --tracking-tighter: -0.03em;
@@ -53,7 +53,7 @@
   --tracking-wide: 0.02em;
   --tracking-wider: 0.04em;
   --tracking-widest: 0.08em;
-  
+
   /* Line Heights */
   --leading-none: 1;
   --leading-tight: 1.15;
@@ -61,7 +61,7 @@
   --leading-normal: 1.5;
   --leading-relaxed: 1.625;
   --leading-loose: 2;
-  
+
   /* ─────────────────────────────────────────────────────────────────────────
      SPACING SYSTEM — 4px Base Grid
      ───────────────────────────────────────────────────────────────────────── */
@@ -101,7 +101,7 @@
   --space-72: 18rem;      /* 288px */
   --space-80: 20rem;      /* 320px */
   --space-96: 24rem;      /* 384px */
-  
+
   /* ─────────────────────────────────────────────────────────────────────────
      BORDER RADIUS SYSTEM
      ───────────────────────────────────────────────────────────────────────── */
@@ -115,7 +115,7 @@
   --radius-3xl: 1.5rem;    /* 24px */
   --radius-4xl: 2rem;      /* 32px */
   --radius-full: 9999px;
-  
+
   /* ─────────────────────────────────────────────────────────────────────────
      CORE COLORS — Light Mode Defaults
      ───────────────────────────────────────────────────────────────────────── */
@@ -140,14 +140,14 @@
   --input-background: #f3f3f5;
   --switch-background: #cbced4;
   --ring: oklch(0.708 0 0);
-  
+
   /* Chart Colors */
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  
+
   /* Sidebar */
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -161,7 +161,7 @@
   /* ─────────────────────────────────────────────────────────────────────────
      PARADOX WALLET — THEME COLORS
      ───────────────────────────────────────────────────────────────────────── */
-  
+
   /* Degen Theme (Fire) — HSL for flexibility */
   --degen-primary: #DC143C;
   --degen-primary-hsl: 348 91% 47%;
@@ -213,17 +213,17 @@
   --success-bright: #34D399;
   --success-muted: rgba(16, 185, 129, 0.2);
   --success-surface: rgba(16, 185, 129, 0.1);
-  
+
   --error: #EF4444;
   --error-bright: #F87171;
   --error-muted: rgba(239, 68, 68, 0.2);
   --error-surface: rgba(239, 68, 68, 0.1);
-  
+
   --warning: #F59E0B;
   --warning-bright: #FBBF24;
   --warning-muted: rgba(245, 158, 11, 0.2);
   --warning-surface: rgba(245, 158, 11, 0.1);
-  
+
   --info: #3B82F6;
   --info-bright: #60A5FA;
   --info-muted: rgba(59, 130, 246, 0.2);
@@ -254,90 +254,90 @@
      ELEVATION SHADOW SYSTEM
      Apple-style layered shadows with theme variants
      ───────────────────────────────────────────────────────────────────────── */
-  
+
   /* Neutral Shadows — Subtle, layered for depth */
-  --shadow-xs: 
+  --shadow-xs:
     0 1px 2px rgba(0, 0, 0, 0.05);
-  
-  --shadow-sm: 
+
+  --shadow-sm:
     0 1px 2px rgba(0, 0, 0, 0.06),
     0 1px 3px rgba(0, 0, 0, 0.1);
-  
-  --shadow-md: 
+
+  --shadow-md:
     0 2px 4px rgba(0, 0, 0, 0.06),
     0 4px 6px rgba(0, 0, 0, 0.1);
-  
-  --shadow-lg: 
+
+  --shadow-lg:
     0 4px 6px rgba(0, 0, 0, 0.05),
     0 10px 15px rgba(0, 0, 0, 0.1),
     0 20px 25px rgba(0, 0, 0, 0.1);
-  
-  --shadow-xl: 
+
+  --shadow-xl:
     0 10px 10px rgba(0, 0, 0, 0.04),
     0 20px 25px rgba(0, 0, 0, 0.1),
     0 40px 50px rgba(0, 0, 0, 0.1);
-  
-  --shadow-2xl: 
+
+  --shadow-2xl:
     0 15px 20px rgba(0, 0, 0, 0.05),
     0 30px 40px rgba(0, 0, 0, 0.1),
     0 50px 80px rgba(0, 0, 0, 0.15);
-  
+
   /* Inner Shadow */
   --shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.1);
   --shadow-inner-lg: inset 0 4px 8px rgba(0, 0, 0, 0.15);
-  
+
   /* Degen (Fire) Glow Shadows */
-  --shadow-degen-sm: 
+  --shadow-degen-sm:
     0 0 10px rgba(220, 20, 60, 0.15),
     0 0 20px rgba(220, 20, 60, 0.1);
-  
-  --shadow-degen-md: 
+
+  --shadow-degen-md:
     0 0 15px rgba(220, 20, 60, 0.2),
     0 0 30px rgba(220, 20, 60, 0.15),
     0 0 45px rgba(220, 20, 60, 0.1);
-  
-  --shadow-degen-lg: 
+
+  --shadow-degen-lg:
     0 0 20px rgba(220, 20, 60, 0.25),
     0 0 40px rgba(220, 20, 60, 0.2),
     0 0 60px rgba(220, 20, 60, 0.15),
     0 0 80px rgba(220, 20, 60, 0.1);
-  
-  --shadow-degen-xl: 
+
+  --shadow-degen-xl:
     0 0 30px rgba(220, 20, 60, 0.3),
     0 0 60px rgba(220, 20, 60, 0.25),
     0 0 90px rgba(220, 20, 60, 0.2),
     0 0 120px rgba(220, 20, 60, 0.1);
-  
+
   /* Regen (Ice) Glow Shadows */
-  --shadow-regen-sm: 
+  --shadow-regen-sm:
     0 0 10px rgba(0, 128, 255, 0.15),
     0 0 20px rgba(0, 128, 255, 0.1);
-  
-  --shadow-regen-md: 
+
+  --shadow-regen-md:
     0 0 15px rgba(0, 128, 255, 0.2),
     0 0 30px rgba(0, 128, 255, 0.15),
     0 0 45px rgba(0, 128, 255, 0.1);
-  
-  --shadow-regen-lg: 
+
+  --shadow-regen-lg:
     0 0 20px rgba(0, 128, 255, 0.25),
     0 0 40px rgba(0, 128, 255, 0.2),
     0 0 60px rgba(0, 128, 255, 0.15),
     0 0 80px rgba(0, 128, 255, 0.1);
-  
-  --shadow-regen-xl: 
+
+  --shadow-regen-xl:
     0 0 30px rgba(0, 128, 255, 0.3),
     0 0 60px rgba(0, 128, 255, 0.25),
     0 0 90px rgba(0, 128, 255, 0.2),
     0 0 120px rgba(0, 128, 255, 0.1);
-  
+
   /* Accent Glow Shadow */
   --shadow-accent-sm: 0 0 10px rgba(139, 92, 246, 0.2);
   --shadow-accent-md: 0 0 20px rgba(139, 92, 246, 0.25), 0 0 40px rgba(139, 92, 246, 0.15);
   --shadow-accent-lg: 0 0 30px rgba(139, 92, 246, 0.3), 0 0 60px rgba(139, 92, 246, 0.2);
-  
+
   /* Success Glow */
   --shadow-success: 0 0 20px rgba(16, 185, 129, 0.3), 0 0 40px rgba(16, 185, 129, 0.15);
-  
+
   /* Error Glow */
   --shadow-error: 0 0 20px rgba(239, 68, 68, 0.3), 0 0 40px rgba(239, 68, 68, 0.15);
 
@@ -345,7 +345,7 @@
      GLASSMORPHISM SYSTEM
      Premium frosted glass effects
      ───────────────────────────────────────────────────────────────────────── */
-  
+
   /* Backdrop Blur Levels */
   --blur-none: 0;
   --blur-xs: 4px;
@@ -355,7 +355,7 @@
   --blur-xl: 24px;
   --blur-2xl: 40px;
   --blur-3xl: 64px;
-  
+
   /* Glass Surfaces */
   --glass-clear: rgba(255, 255, 255, 0.01);
   --glass-subtle: rgba(255, 255, 255, 0.03);
@@ -363,31 +363,31 @@
   --glass-medium: rgba(255, 255, 255, 0.08);
   --glass-strong: rgba(255, 255, 255, 0.12);
   --glass-heavy: rgba(255, 255, 255, 0.18);
-  
+
   /* Dark Glass (for light backgrounds) */
   --glass-dark-subtle: rgba(0, 0, 0, 0.03);
   --glass-dark-light: rgba(0, 0, 0, 0.05);
   --glass-dark-medium: rgba(0, 0, 0, 0.08);
   --glass-dark-strong: rgba(0, 0, 0, 0.12);
-  
+
   /* Themed Glass — Degen */
   --glass-degen-subtle: rgba(220, 20, 60, 0.03);
   --glass-degen-light: rgba(220, 20, 60, 0.06);
   --glass-degen-medium: rgba(220, 20, 60, 0.1);
   --glass-degen-strong: rgba(220, 20, 60, 0.15);
-  
+
   /* Themed Glass — Regen */
   --glass-regen-subtle: rgba(0, 128, 255, 0.03);
   --glass-regen-light: rgba(0, 128, 255, 0.06);
   --glass-regen-medium: rgba(0, 128, 255, 0.1);
   --glass-regen-strong: rgba(0, 128, 255, 0.15);
-  
+
   /* Glass Border Colors */
   --glass-border: rgba(255, 255, 255, 0.1);
   --glass-border-strong: rgba(255, 255, 255, 0.2);
   --glass-border-degen: rgba(220, 20, 60, 0.2);
   --glass-border-regen: rgba(0, 128, 255, 0.2);
-  
+
   /* Noise Texture Opacity */
   --noise-opacity: 0.03;
   --noise-opacity-strong: 0.06;
@@ -396,7 +396,7 @@
      TRANSITION & ANIMATION SYSTEM
      Apple-style easing curves and timing
      ───────────────────────────────────────────────────────────────────────── */
-  
+
   /* Duration Tokens */
   --duration-instant: 0ms;
   --duration-fastest: 50ms;
@@ -407,13 +407,13 @@
   --duration-slower: 500ms;
   --duration-slowest: 700ms;
   --duration-glacial: 1000ms;
-  
+
   /* Easing Curves — Apple-inspired */
   --ease-linear: linear;
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-  
+
   /* Premium Easings */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
@@ -424,26 +424,26 @@
   --ease-in-out-expo: cubic-bezier(0.87, 0, 0.13, 1);
   --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
   --ease-in-out-back: cubic-bezier(0.68, -0.6, 0.32, 1.6);
-  
+
   /* Spring-like Easings */
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
   --ease-spring-snappy: cubic-bezier(0.68, -0.55, 0.265, 1.55);
   --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
-  
+
   /* Apple-specific curves */
   --ease-apple: cubic-bezier(0.25, 0.1, 0.25, 1);
   --ease-apple-bounce: cubic-bezier(0.28, 0.84, 0.42, 1);
-  
+
   /* Composite Transitions */
   --transition-fast: var(--duration-fast) var(--ease-out);
   --transition-normal: var(--duration-normal) var(--ease-out);
   --transition-slow: var(--duration-slow) var(--ease-out-expo);
   --transition-spring: var(--duration-moderate) var(--ease-spring);
   --transition-bounce: var(--duration-slow) var(--ease-bounce);
-  
+
   /* Property-specific Transitions */
-  --transition-colors: color var(--duration-normal) var(--ease-out), 
-                       background-color var(--duration-normal) var(--ease-out), 
+  --transition-colors: color var(--duration-normal) var(--ease-out),
+                       background-color var(--duration-normal) var(--ease-out),
                        border-color var(--duration-normal) var(--ease-out);
   --transition-opacity: opacity var(--duration-normal) var(--ease-out);
   --transition-transform: transform var(--duration-normal) var(--ease-out-expo);
@@ -477,15 +477,15 @@
   --focus-ring-color: var(--accent-primary);
   --focus-ring-color-degen: var(--degen-primary);
   --focus-ring-color-regen: var(--regen-primary);
-  
+
   /* Focus Ring Styles */
-  --focus-ring: 0 0 0 var(--focus-ring-offset) var(--bg-surface), 
+  --focus-ring: 0 0 0 var(--focus-ring-offset) var(--bg-surface),
                 0 0 0 calc(var(--focus-ring-offset) + var(--focus-ring-width)) var(--focus-ring-color);
-  --focus-ring-degen: 0 0 0 var(--focus-ring-offset) var(--bg-surface), 
+  --focus-ring-degen: 0 0 0 var(--focus-ring-offset) var(--bg-surface),
                       0 0 0 calc(var(--focus-ring-offset) + var(--focus-ring-width)) var(--focus-ring-color-degen);
-  --focus-ring-regen: 0 0 0 var(--focus-ring-offset) var(--bg-surface), 
+  --focus-ring-regen: 0 0 0 var(--focus-ring-offset) var(--bg-surface),
                       0 0 0 calc(var(--focus-ring-offset) + var(--focus-ring-width)) var(--focus-ring-color-regen);
-  
+
   /* Focus Glow (for dark UIs) */
   --focus-glow: 0 0 0 var(--focus-ring-offset) var(--bg-surface),
                 0 0 0 calc(var(--focus-ring-offset) + var(--focus-ring-width)) var(--focus-ring-color),
@@ -506,7 +506,7 @@
   --container-6xl: 72rem;   /* 1152px */
   --container-7xl: 80rem;   /* 1280px */
   --container-full: 100%;
-  
+
   /* Aspect Ratios */
   --aspect-square: 1 / 1;
   --aspect-video: 16 / 9;
@@ -540,13 +540,13 @@
   --border: oklch(0.269 0 0);
   --input: oklch(0.269 0 0);
   --ring: oklch(0.439 0 0);
-  
+
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  
+
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -619,19 +619,19 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
-  
+
   /* Selection Color */
   ::selection {
     background: rgba(139, 92, 246, 0.3);
     color: var(--text-primary);
   }
-  
+
   /* Focus Visible Reset */
   :focus-visible {
     outline: none;
     box-shadow: var(--focus-ring);
   }
-  
+
   /* Remove default focus for mouse users */
   :focus:not(:focus-visible) {
     outline: none;
@@ -709,13 +709,13 @@
       font-weight: var(--font-weight-normal);
       line-height: var(--leading-normal);
     }
-    
+
     small {
       font-size: var(--text-sm);
       font-weight: var(--font-weight-normal);
       line-height: var(--leading-normal);
     }
-    
+
     code {
       font-family: var(--font-mono);
       font-size: 0.9em;
@@ -1377,7 +1377,7 @@ html {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .interactive {
-  transition: 
+  transition:
     transform var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-normal) var(--ease-out),
     background-color var(--duration-normal) var(--ease-out);

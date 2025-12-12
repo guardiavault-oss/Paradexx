@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
   ArrowLeft,
@@ -13,7 +13,10 @@ import {
   AlertCircle,
   Clock,
   DollarSign,
+  Loader2,
 } from 'lucide-react';
+import { useSniperBot } from '../../hooks/useSniperBot';
+import { API_URL } from '../../config/api';
 
 interface SniperBotProps {
   type: 'degen' | 'regen';
@@ -27,38 +30,92 @@ export function SniperBot({ type, onClose }: SniperBotProps) {
   const accentColor = isDegen ? '#DC143C' : '#0080FF';
   const accentSecondary = isDegen ? '#8B0000' : '#000080';
 
-  const targets = [
-    {
-      address: '0x1234...5678',
-      tokenName: 'PEPE 2.0',
-      liquidity: '$125K',
-      gasPrice: '45 gwei',
-      status: 'monitoring',
-      triggerPrice: '$0.00001',
-    },
-    {
-      address: '0xabcd...ef01',
-      tokenName: 'SHIB KILLER',
-      liquidity: '$85K',
-      gasPrice: '52 gwei',
-      status: 'ready',
-      triggerPrice: '$0.000005',
-    },
-    {
-      address: '0x9876...5432',
-      tokenName: 'MOON TOKEN',
-      liquidity: '$200K',
-      gasPrice: '38 gwei',
-      status: 'executed',
-      triggerPrice: '$0.00002',
-    },
-  ];
+  // Use real API data from hook
+  const {
+    memeTokens,
+    positions,
+    stats,
+    loading,
+    error,
+    refresh,
+  } = useSniperBot();
 
-  const stats = [
-    { label: 'Active Targets', value: '24', icon: Target },
-    { label: 'Success Rate', value: '87%', icon: TrendingUp },
-    { label: 'Avg Response', value: '0.3s', icon: Clock },
-    { label: 'Total Profit', value: '$12.5K', icon: DollarSign },
+  // Fetch bot status from backend
+  useEffect(() => {
+    const fetchBotStatus = async () => {
+      try {
+        const token = localStorage.getItem('accessToken');
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+
+        const response = await fetch(`${API_URL}/api/sniper-bot/status`, { headers });
+        if (response.ok) {
+          const data = await response.json();
+          setIsActive(data.active || data.isActive || false);
+        }
+      } catch (err) {
+        console.error('Error fetching bot status:', err);
+      }
+    };
+
+    fetchBotStatus();
+    const interval = setInterval(fetchBotStatus, 10000); // Check every 10 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  // Toggle bot active status
+  const handleToggleActive = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const endpoint = isActive ? `${API_URL}/api/sniper-bot/stop` : `${API_URL}/api/sniper-bot/start`;
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+      });
+
+      if (response.ok) {
+        setIsActive(!isActive);
+        refresh(); // Refresh data
+      }
+    } catch (err) {
+      console.error('Error toggling bot:', err);
+    }
+  };
+
+  // Transform positions/tokens to targets format
+  const targets = positions.map((pos) => ({
+    address: pos.tokenAddress || pos.address || '0x0000...0000',
+    tokenName: pos.tokenName || pos.symbol || 'Unknown',
+    liquidity: pos.liquidity || '$0',
+    gasPrice: pos.gasPrice || '0 gwei',
+    status: pos.status || 'monitoring',
+    triggerPrice: pos.triggerPrice || pos.targetPrice || '$0',
+  }));
+
+  const statsDisplay = [
+    { 
+      label: 'Active Targets', 
+      value: positions.length.toString(), 
+      icon: Target 
+    },
+    { 
+      label: 'Success Rate', 
+      value: `${stats.winRate.toFixed(0)}%`, 
+      icon: TrendingUp 
+    },
+    { 
+      label: 'Avg Response', 
+      value: '0.3s', // TODO: Get from API
+      icon: Clock 
+    },
+    { 
+      label: 'Total Profit', 
+      value: `$${stats.totalPnL.toFixed(1)}K`, 
+      icon: DollarSign 
+    },
   ];
 
   return (
@@ -109,7 +166,7 @@ export function SniperBot({ type, onClose }: SniperBotProps) {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => setIsActive(!isActive)}
+            onClick={handleToggleActive}
             className="px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2"
             style={{
               background: isActive ? accentColor : 'rgba(255, 255, 255, 0.05)',
@@ -148,7 +205,7 @@ export function SniperBot({ type, onClose }: SniperBotProps) {
               <Zap className="w-5 h-5" style={{ color: accentColor }} />
               <div>
                 <div className="text-sm font-bold" style={{ color: accentColor }}>
-                  Bot Active - Monitoring 24 Targets
+                  Bot Active - Monitoring {positions.length} Target{positions.length !== 1 ? 's' : ''}
                 </div>
                 <p className="text-xs text-white/60">
                   Will auto-execute when conditions are met
@@ -159,8 +216,13 @@ export function SniperBot({ type, onClose }: SniperBotProps) {
         )}
 
         {/* Stats Grid */}
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-white/40" />
+          </div>
+        ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          {stats.map((stat, index) => (
+          {statsDisplay.map((stat, index) => (
             <motion.div
               key={stat.label}
               initial={{ opacity: 0, scale: 0.95 }}
@@ -180,6 +242,7 @@ export function SniperBot({ type, onClose }: SniperBotProps) {
             </motion.div>
           ))}
         </div>
+        )}
 
         {/* Add Target Button */}
         <motion.button

@@ -516,13 +516,21 @@ export default function DashboardNew({
               </p>
               <div className="flex items-baseline gap-2">
                 <span className="text-4xl text-[var(--text-primary)] md:text-5xl">
-                  $<NumberTicker value={42750} />
+                  $<NumberTicker value={Math.floor(totalValue)} />
                 </span>
-                <span className="text-xl text-[var(--text-primary)]/40">.25</span>
+                <span className="text-xl text-[var(--text-primary)]/40">
+                  .{Math.floor((totalValue % 1) * 100).toString().padStart(2, '0')}
+                </span>
               </div>
-              <div className="flex items-center gap-1 text-green-400">
-                <ArrowUpRight className="h-4 w-4" />
-                <span className="text-sm">+3.2% (24h)</span>
+              <div className={`flex items-center gap-1 ${totalChange24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {totalChange24h >= 0 ? (
+                  <ArrowUpRight className="h-4 w-4" />
+                ) : (
+                  <ArrowDownRight className="h-4 w-4" />
+                )}
+                <span className="text-sm">
+                  {totalChange24h >= 0 ? '+' : ''}{totalChange24h.toFixed(2)}% (24h)
+                </span>
               </div>
             </VStack>
           </VStack>

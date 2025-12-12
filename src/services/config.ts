@@ -6,12 +6,36 @@
 // SERVICE ENDPOINTS
 // ============================================================
 
+// Get API URL from environment or use production default
+// CRITICAL: Set VITE_API_URL in production environment variables
+const getApiUrl = () => {
+    const envUrl = import.meta.env.VITE_API_URL;
+    if (envUrl) return envUrl;
+    
+    // Production default - should be overridden by environment variable
+    // UPDATE THIS with your Railway URL after deploying backend!
+    if (import.meta.env.PROD) {
+        return import.meta.env.VITE_API_URL || 'https://your-app-name.up.railway.app';
+    }
+    
+    // Development default
+    return 'http://localhost:3001';
+};
+
+const getWsUrl = () => {
+    const envUrl = import.meta.env.VITE_WS_URL;
+    if (envUrl) return envUrl;
+    
+    const apiUrl = getApiUrl();
+    return apiUrl.replace('https:', 'wss:').replace('http:', 'ws:');
+};
+
 export const SERVICE_ENDPOINTS = {
     // Main Backend API (Express/TypeScript)
-    BACKEND_API: import.meta.env.VITE_API_URL || 'http://localhost:3001',
+    BACKEND_API: getApiUrl(),
 
     // WebSocket connection
-    WS_URL: import.meta.env.VITE_WS_URL || 'ws://localhost:3001',
+    WS_URL: getWsUrl(),
 
     // MEV Guard Service (Python/FastAPI)
     MEVGUARD_API: import.meta.env.VITE_MEVGUARD_URL || 'http://localhost:8000',

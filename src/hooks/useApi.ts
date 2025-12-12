@@ -1,6 +1,6 @@
 /**
  * useApi - Centralized API hook with caching, retry, and error handling
- * 
+ *
  * Features:
  * - Automatic token management
  * - Request caching
@@ -210,24 +210,24 @@ async function apiRequest<T>(
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           lastError = errorData.message || errorData.error || `HTTP ${response.status}`;
-          
+
           // Don't retry on client errors (4xx) except 401
           if (response.status >= 400 && response.status < 500 && response.status !== 401) {
             return { data: null, error: lastError, status: lastStatus, headers: lastHeaders };
           }
-          
+
           if (attempt < retries) {
             await sleep(retryDelay * Math.pow(2, attempt));
             continue;
           }
-          
+
           return { data: null, error: lastError, status: lastStatus, headers: lastHeaders };
         }
 
         // Parse response
         const contentType = response.headers.get('Content-Type');
         let data: T;
-        
+
         if (contentType?.includes('application/json')) {
           data = await response.json();
         } else {
@@ -246,7 +246,7 @@ async function apiRequest<T>(
         return { data, error: null, status: lastStatus, headers: lastHeaders };
       } catch (error) {
         lastError = (error as Error).message || 'Network error';
-        
+
         if (attempt < retries) {
           await sleep(retryDelay * Math.pow(2, attempt));
           continue;
@@ -259,7 +259,7 @@ async function apiRequest<T>(
 
   // Track pending request for deduplication
   pendingRequests.set(cacheKey, requestPromise.then(r => r.data));
-  
+
   try {
     const result = await requestPromise;
     return result;

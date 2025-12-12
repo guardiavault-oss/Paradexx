@@ -69,6 +69,14 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
+    "@capacitor/android": "^7.4.4",
+    "@capacitor/app": "^7.1.1",
+    "@capacitor/cli": "^7.4.4",
+    "@capacitor/core": "^7.4.4",
+    "@capacitor/ios": "^7.4.4",
+    "@capacitor/keyboard": "^7.0.4",
+    "@capacitor/splash-screen": "^7.0.4",
+    "@capacitor/status-bar": "^7.0.4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@types/d3-array": "^3.2.2",

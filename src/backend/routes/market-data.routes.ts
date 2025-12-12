@@ -3,6 +3,7 @@
  */
 
 import { Router, Request, Response } from 'express';
+import { logger } from '../services/logger.service';
 import {
     coinGeckoService,
     defiLlamaService,
@@ -17,9 +18,18 @@ const router = Router();
 router.get('/overview', async (_req: Request, res: Response) => {
     try {
         const overview = await getMarketOverview();
-        res.json(overview);
+        // Use JSON.stringify/parse to remove any circular references
+        const cleanOverview = JSON.parse(JSON.stringify(overview, (key, value) => {
+            // Remove any circular references or non-serializable values
+            if (key === 'socket' || key === 'parser' || key === '_events' || key === '_eventsCount') {
+                return undefined;
+            }
+            return value;
+        }));
+        res.json(cleanOverview);
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        logger.error('Market overview error:', error);
+        res.status(500).json({ error: error.message || 'Failed to fetch market overview' });
     }
 });
 

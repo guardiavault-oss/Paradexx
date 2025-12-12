@@ -5,8 +5,10 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-// @ts-ignore - Vite env types
-const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:3001';
+import { API_URL } from '../config/api';
+
+// Use centralized API configuration
+const API_BASE = API_URL;
 
 // Types
 export interface Token {
@@ -224,11 +226,35 @@ export function useDashboardData(walletAddress: string | undefined, mode: 'degen
     const [network, setNetwork] = useState<Network>(NETWORKS[0]);
     const queryClient = useQueryClient();
 
-    // Generate user data based on mode and address
+    // Fetch user data from API (or use defaults)
+    const userDataQuery = useQuery({
+        queryKey: ['user', 'profile', walletAddress],
+        queryFn: async () => {
+            if (!walletAddress) return null;
+            try {
+                const token = localStorage.getItem('accessToken');
+                const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                if (token) headers.Authorization = `Bearer ${token}`;
+                
+                const response = await fetch(`${API_BASE}/api/user/profile`, { headers });
+                if (response.ok) {
+                    const data = await response.json();
+                    return data;
+                }
+            } catch (error) {
+                console.error('Failed to fetch user profile:', error);
+            }
+            return null;
+        },
+        enabled: !!walletAddress,
+        staleTime: 300000, // 5 minutes
+    });
+
+    // Generate user data with API data or defaults
     const userData: UserData = {
         avatar: mode === 'degen' ? '😈' : '🧙',
-        username: mode === 'degen' ? 'DegenKing' : 'RegenMaster',
-        score: 12450,
+        username: userDataQuery.data?.username || userDataQuery.data?.displayName || (mode === 'degen' ? 'Degen' : 'Regen'),
+        score: userDataQuery.data?.score || userDataQuery.data?.degenScore || 0,
         walletAddress: walletAddress || '0x0000...0000',
     };
 

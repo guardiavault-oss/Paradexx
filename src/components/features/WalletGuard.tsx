@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Shield, CheckCircle, AlertTriangle, Lock, Eye, Target } from 'lucide-react';
+import { ArrowLeft, Shield, CheckCircle, AlertTriangle, Lock, Eye, Target, Loader2 } from 'lucide-react';
 import { TransactionSimulator } from '../transaction/TransactionSimulator';
+import { useWalletGuard } from '../../hooks/useWalletGuard';
+import { useWalletData } from '../../contexts/WalletDataContext';
+import { useTokenPrices } from '../../hooks/useMarketData';
 
 interface WalletGuardProps {
   type: 'degen' | 'regen';
@@ -13,12 +16,70 @@ export function WalletGuard({ type, onClose }: WalletGuardProps) {
   const accentColor = isDegen ? '#DC143C' : '#0080FF';
   const [activeTab, setActiveTab] = useState<'overview' | 'simulator'>('overview');
 
+  // Use real API data from hook
+  const {
+    walletStatus,
+    analytics,
+    threats,
+    loading,
+    refreshing,
+  } = useWalletGuard();
+
+  const { walletData } = useWalletData();
+  const walletAddress = walletData?.address || localStorage.getItem('walletAddress') || '';
+  
+  // Get ETH price for simulator
+  const { prices } = useTokenPrices(['ETH']);
+  const ethPrice = prices.ETH?.price || 2000;
+
+  // Calculate security score from analytics
+  const securityScore = walletStatus ? calculateSecurityScore(walletStatus, threats.length) : 0;
+  
+  // Calculate stats from analytics
+  const threatsBlocked = analytics?.threats_detected_24h || 0;
+  const safeDays = calculateSafeDays(walletStatus?.last_scan);
+  const scans = analytics?.scan_count || 0;
+
+  // Security checks from wallet status
   const securityChecks = [
-    { name: 'Phishing Protection', status: 'active', desc: 'Blocks malicious sites' },
-    { name: 'Token Approval Monitor', status: 'active', desc: '12 approvals tracked' },
-    { name: 'Transaction Simulation', status: 'active', desc: 'Pre-flight checks enabled' },
-    { name: 'Address Whitelist', status: 'warning', desc: '2 addresses pending review' },
+    { 
+      name: 'Phishing Protection', 
+      status: walletStatus?.protection_enabled ? 'active' : 'warning', 
+      desc: 'Blocks malicious sites' 
+    },
+    { 
+      name: 'Token Approval Monitor', 
+      status: 'active', 
+      desc: `${analytics?.total_monitored || 0} wallets monitored` 
+    },
+    { 
+      name: 'Transaction Simulation', 
+      status: 'active', 
+      desc: 'Pre-flight checks enabled' 
+    },
+    { 
+      name: 'Threat Detection', 
+      status: threats.length > 0 ? 'warning' : 'active', 
+      desc: `${threats.length} recent threats detected` 
+    },
   ];
+
+  function calculateSecurityScore(status: any, threatCount: number): number {
+    if (!status) return 0;
+    let score = 100;
+    if (!status.protection_enabled) score -= 20;
+    if (status.threat_level === 'high') score -= 30;
+    if (status.threat_level === 'critical') score -= 50;
+    if (threatCount > 10) score -= 10;
+    return Math.max(0, Math.min(100, score));
+  }
+
+  function calculateSafeDays(lastScan?: string): number {
+    if (!lastScan) return 0;
+    const scanDate = new Date(lastScan);
+    const daysDiff = Math.floor((Date.now() - scanDate.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(0, daysDiff);
+  }
 
   return (
     <motion.div
@@ -72,30 +133,42 @@ export function WalletGuard({ type, onClose }: WalletGuardProps) {
 
       {activeTab === 'overview' && (
         <div className="p-4 space-y-6">
-          {/* Security Score */}
-          <div className="p-6 rounded-xl" style={{ background: `${accentColor}10`, border: `1px solid ${accentColor}30` }}>
-            <div className="text-center mb-4">
-              <div className="text-5xl font-black mb-2" style={{ color: accentColor }}>94%</div>
-              <div className="text-sm text-white/60 uppercase tracking-wider">Security Score</div>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-white/40" />
             </div>
-            <div className="text-xs text-center text-white/50">
-              Your wallet is well protected
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { label: 'Threats Blocked', value: '247' },
-              { label: 'Safe Days', value: '89' },
-              { label: 'Scans', value: '1.2K' },
-            ].map((stat, i) => (
-              <div key={i} className="p-3 rounded-xl bg-white/5 text-center border border-white/10">
-                <div className="text-xl font-black">{stat.value}</div>
-                <div className="text-xs text-white/60 uppercase tracking-wider">{stat.label}</div>
+          ) : (
+            <>
+              {/* Security Score */}
+              <div className="p-6 rounded-xl" style={{ background: `${accentColor}10`, border: `1px solid ${accentColor}30` }}>
+                <div className="text-center mb-4">
+                  <div className="text-5xl font-black mb-2" style={{ color: accentColor }}>
+                    {securityScore}%
+                  </div>
+                  <div className="text-sm text-white/60 uppercase tracking-wider">Security Score</div>
+                </div>
+                <div className="text-xs text-center text-white/50">
+                  {securityScore >= 80 ? 'Your wallet is well protected' : 
+                   securityScore >= 60 ? 'Your wallet needs attention' : 
+                   'Your wallet is at risk'}
+                </div>
               </div>
-            ))}
-          </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: 'Threats Blocked', value: threatsBlocked.toLocaleString() },
+                  { label: 'Safe Days', value: safeDays.toString() },
+                  { label: 'Scans', value: scans > 1000 ? `${(scans / 1000).toFixed(1)}K` : scans.toString() },
+                ].map((stat, i) => (
+                  <div key={i} className="p-3 rounded-xl bg-white/5 text-center border border-white/10">
+                    <div className="text-xl font-black">{stat.value}</div>
+                    <div className="text-xs text-white/60 uppercase tracking-wider">{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
 
           {/* Security Checks */}
           <div>
@@ -123,16 +196,22 @@ export function WalletGuard({ type, onClose }: WalletGuardProps) {
 
       {activeTab === 'simulator' && (
         <div className="p-4">
-          <TransactionSimulator
-            type={type}
-            walletAddress="0x742d35Cc6634C0532925a3b844Bc9e7595f0b4c9"
-            ethBalance="2.5"
-            ethPrice={2000}
-            onExecute={(txHash) => {
-              console.log('Executing transaction:', txHash);
-              // Handle transaction execution
-            }}
-          />
+          {walletAddress ? (
+            <TransactionSimulator
+              type={type}
+              walletAddress={walletAddress}
+              ethBalance={walletData?.balance?.ETH || "0"}
+              ethPrice={ethPrice}
+              onExecute={(txHash) => {
+                console.log('Executing transaction:', txHash);
+                // Handle transaction execution
+              }}
+            />
+          ) : (
+            <div className="text-center py-12 text-white/60">
+              <p>Please connect your wallet to use the simulator</p>
+            </div>
+          )}
         </div>
       )}
     </motion.div>

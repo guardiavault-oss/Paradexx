@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Key, Users, ArrowRight, ArrowLeft, Copy, Check, X, Shield, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { copyToClipboard } from '../utils/clipboard';
+import { API_URL } from '../config/api';
 
 interface Guardian {
   name: string;
@@ -170,7 +171,7 @@ export default function GlassOnboarding({ onComplete, type, onBack }: GlassOnboa
 
       // Send guardian invitation email via backend (Resend)
       try {
-        await fetch('http://localhost:3001/api/guardians/invite', {
+        await fetch(`${API_URL}/api/guardians/invite`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -491,7 +492,7 @@ export default function GlassOnboarding({ onComplete, type, onBack }: GlassOnboa
                   // Mark that user chose Google Auth
                   setUsedGoogleAuth(true);
                   // Redirect to Google OAuth
-                  window.location.href = 'http://localhost:3001/api/auth/oauth/google?mode=signup';
+                  window.location.href = `${API_URL}/api/auth/oauth/google?mode=signup`;
                 }}
                 className="w-full py-4 px-6 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center gap-3"
                 style={{

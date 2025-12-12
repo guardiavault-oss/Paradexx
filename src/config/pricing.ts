@@ -1,9 +1,9 @@
 /**
  * Centralized Pricing Configuration
- * 
+ *
  * All subscription tiers, fees, and pricing information.
  * Keep in sync with backend: src/backend/routes/auth.routes.ts
- * 
+ *
  * Last Updated: December 2025
  */
 

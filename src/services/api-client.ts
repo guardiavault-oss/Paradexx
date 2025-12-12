@@ -6,7 +6,21 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
 // API base configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// CRITICAL: Set VITE_API_URL in production environment variables
+const getApiBaseUrl = () => {
+    const envUrl = import.meta.env.VITE_API_URL;
+    if (envUrl) return envUrl;
+    
+    // Production default - should be overridden by environment variable
+    if (import.meta.env.PROD) {
+        return 'https://paradexx-production.up.railway.app';
+    }
+    
+    // Development default
+    return 'http://localhost:3001';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Re-export enhanced client for easy migration
 export { api as enhancedApi, enhancedApiClient } from './enhanced-api-client';

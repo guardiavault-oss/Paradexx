@@ -51,6 +51,7 @@ import { MoreMenu } from "./MoreMenu";
 
 // Import hooks
 import { useDashboard } from "../hooks/useDashboard";
+import { useDashboardStats } from "../hooks/useDashboardStats";
 import { SwapPageEnhanced } from "./SwapPageEnhanced";
 import { TradingPageEnhanced } from "./TradingPageEnhanced";
 import { BuyPage } from "./BuyPage";
@@ -138,25 +139,9 @@ export default function DashboardNew({
     useState(false);
   const isDegen = type === "degen";
 
-  // User data (mock - would come from context/API in production)
-  const [user] = useState({
-    avatar: isDegen ? "😈" : "🧙",
-    username: isDegen ? "DegenKing" : "RegenMaster",
-    score: 12450,
-    walletAddress: "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
-  });
-
-  // Network (mock - would come from context/wallet in production)
-  const [network, setNetwork] = useState({
-    id: 1,
-    name: "Ethereum",
-    logo: "⟠",
-    color: "#627EEA",
-  });
-
-  // Notifications count (mock)
-  const [unreadNotifications] = useState(3);
-
+  // Get wallet address from props or localStorage
+  const walletAddress = localStorage.getItem('walletAddress') || undefined;
+  
   // Fetch real dashboard data from hook
   const {
     tokens: myTokens,
@@ -165,9 +150,30 @@ export default function DashboardNew({
     positions: activePositions,
     gasPrice,
     priceAlerts,
+    totalBalance,
+    totalChange24h,
     loading: dashboardLoading,
     refresh: refreshDashboard,
-  } = useDashboard(user.walletAddress);
+  } = useDashboard(walletAddress);
+
+  // User data - fetch from API
+  const user = {
+    avatar: isDegen ? "😈" : "🧙",
+    username: dashboardStats?.degenScore ? (isDegen ? "Degen" : "Regen") : (isDegen ? "Degen" : "Regen"), // Would come from /api/user/profile
+    score: degenScore, // From API via useDashboardStats
+    walletAddress: walletAddress || "0x0000...0000",
+  };
+
+  // Network state
+  const [network, setNetwork] = useState({
+    id: 1,
+    name: "Ethereum",
+    logo: "⟠",
+    color: "#627EEA",
+  });
+
+  // Notifications count - TODO: Get from API
+  const unreadNotifications = 0;
 
   const handleNavigate = (path: string) => {
     if (path === "/settings") {
@@ -382,36 +388,56 @@ export default function DashboardNew({
     }
   };
 
-  // Home tab - existing dashboard code
-  const degenScore = isDegen ? 847 : 342;
-  const securityScore = 94;
+  // Fetch real scores from API
+  const walletAddressForStats = walletAddress || localStorage.getItem('walletAddress') || undefined;
+  const { stats: dashboardStats, loading: statsLoading } = useDashboardStats(walletAddressForStats);
+  
+  // Use real scores or defaults
+  const degenScore = dashboardStats?.degenScore || 0;
+  const securityScore = dashboardStats?.securityScore || 0;
+  const dailyPnL = dashboardStats?.dailyPnL || 0;
+  const dailyPnLPercent = dashboardStats?.dailyPnLPercent || 0;
 
   // Quick stats
+  // Calculate stats from real data
+  const totalBalance = myTokens.reduce((sum, t) => sum + (t.value || 0), 0);
+  const totalChange = myTokens.length > 0
+    ? myTokens.reduce((sum, t) => sum + ((t.value || 0) * (t.change24h || 0) / 100), 0) / totalBalance * 100
+    : 0;
+
+  // Calculate P&L from tokens (fallback if dashboardStats not available)
+  const calculatedDailyPnL = myTokens.reduce((sum, t) => {
+    const tokenValue = t.value || 0;
+    const tokenChange = t.change24h || 0;
+    return sum + (tokenValue * tokenChange / 100);
+  }, 0);
+  const calculatedDailyPnLPercent = totalBalance > 0 ? (calculatedDailyPnL / totalBalance) * 100 : 0;
+
   const stats = [
     {
       label: "Total Balance",
-      value: 42750.25,
-      change: 3.2,
+      value: totalBalance,
+      change: totalChange,
       icon: Wallet,
       prefix: "$",
     },
     {
       label: isDegen ? "Degen Score" : "Regen Score",
       value: degenScore,
-      change: 12,
+      change: 0, // Score change would need historical tracking
       icon: isDegen ? Flame : Radar,
     },
     {
       label: "24h P&L",
-      value: 1247.89,
-      change: 3.2,
+      value: dailyPnL || calculatedDailyPnL,
+      change: dailyPnLPercent || calculatedDailyPnLPercent,
       icon: TrendingUp,
       prefix: "$",
     },
     {
       label: "Security Score",
       value: securityScore,
-      change: 5,
+      change: 0, // Security score change would need historical tracking
       icon: Shield,
       suffix: "%",
     },
@@ -615,15 +641,21 @@ export default function DashboardNew({
               </p>
               <div className="flex items-baseline gap-2">
                 <span className="text-4xl md:text-5xl text-white font-[Bebas_Neue]">
-                  $<NumberTicker value={42750} />
+                  $<NumberTicker value={Math.floor(totalBalance)} />
                 </span>
                 <span className="text-xl text-white/40">
-                  .25
+                  .{Math.floor((totalBalance % 1) * 100).toString().padStart(2, '0')}
                 </span>
               </div>
-              <div className="flex items-center gap-1 text-green-400">
-                <ArrowUpRight className="w-4 h-4" />
-                <span className="text-sm">+3.2% (24h)</span>
+              <div className={`flex items-center gap-1 ${totalChange24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {totalChange24h >= 0 ? (
+                  <ArrowUpRight className="w-4 h-4" />
+                ) : (
+                  <ArrowDownRight className="w-4 h-4" />
+                )}
+                <span className="text-sm">
+                  {totalChange24h >= 0 ? '+' : ''}{totalChange24h.toFixed(2)}% (24h)
+                </span>
               </div>
             </VStack>
           </VStack>
