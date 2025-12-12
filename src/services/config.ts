@@ -12,10 +12,9 @@ const getApiUrl = () => {
     const envUrl = import.meta.env.VITE_API_URL;
     if (envUrl) return envUrl;
     
-    // Production default - should be overridden by environment variable
-    // UPDATE THIS with your Railway URL after deploying backend!
+    // Production default - matches actual Railway deployment
     if (import.meta.env.PROD) {
-        return import.meta.env.VITE_API_URL || 'https://your-app-name.up.railway.app';
+        return 'https://paradexx-production.up.railway.app';
     }
     
     // Development default

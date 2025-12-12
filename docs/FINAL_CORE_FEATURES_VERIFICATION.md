@@ -207,3 +207,4 @@ The application is ready for users to:
 - See trending coins
 - Get accurate swap quotes
 - Perform swaps (with authentication)
+

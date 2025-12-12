@@ -485,3 +485,4 @@ tester.runTests()
         console.error('Fatal error:', err);
         process.exit(1);
     });
+

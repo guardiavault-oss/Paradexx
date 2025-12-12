@@ -305,3 +305,4 @@ Bug Fixes:
 
 Thank you for using Paradox Wallet!
 ```
+

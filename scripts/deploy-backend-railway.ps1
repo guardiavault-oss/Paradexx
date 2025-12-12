@@ -66,3 +66,4 @@ Write-Host "   Port: 3001" -ForegroundColor White
 
 Write-Host "`nFor detailed instructions, see:" -ForegroundColor Yellow
 Write-Host "   docs/DEPLOY_BACKEND_FIRST.md" -ForegroundColor Cyan
+

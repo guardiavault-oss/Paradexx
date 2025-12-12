@@ -222,3 +222,4 @@ If you encounter issues:
 3. Verify environment configuration
 4. Check database connectivity
 5. Review API route registration in `src/backend/server.ts`
+

@@ -200,3 +200,4 @@ keytool -genkey -v -keystore release-keystore.jks -alias paradox -keyalg RSA -ke
 ```
 
 **Your AAB will be at**: `android/app/build/outputs/bundle/release/app-release.aab`
+

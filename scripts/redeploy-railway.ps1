@@ -63,3 +63,4 @@ Write-Host "   1. Wait for deployment to complete" -ForegroundColor White
 Write-Host "   2. Test health endpoint: curl $domain/health" -ForegroundColor White
 Write-Host "   3. Update mobile app config with Railway URL" -ForegroundColor White
 Write-Host "   4. Rebuild mobile app: npm run build" -ForegroundColor White
+

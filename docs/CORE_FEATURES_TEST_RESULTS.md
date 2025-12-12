@@ -166,3 +166,4 @@ Aggregator: ParaSwap
 - ⚠️ Market overview needs minor fix (workaround available)
 
 **Overall Assessment**: The application is ready for users to perform swaps, view accurate prices, and see trending coins. The only minor issue is the market overview endpoint, but individual endpoints work perfectly as a workaround.
+

@@ -77,3 +77,4 @@ getTestToken().then(token => {
         process.exit(1);
     }
 });
+

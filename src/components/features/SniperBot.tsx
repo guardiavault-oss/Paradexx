@@ -113,7 +113,7 @@ export function SniperBot({ type, onClose }: SniperBotProps) {
     },
     { 
       label: 'Total Profit', 
-      value: `$${stats.totalPnL.toFixed(1)}K`, 
+      value: `$${(stats.totalPnL / 1000).toFixed(1)}K`, 
       icon: DollarSign 
     },
   ];

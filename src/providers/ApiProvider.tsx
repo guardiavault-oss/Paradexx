@@ -51,3 +51,4 @@ export function ApiProvider({ children }: ApiProviderProps) {
 // Export query client for direct access if needed
 export { queryClient };
 
+
